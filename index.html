@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>football-ground-attack-lab</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #111; color: #eee;
+      font-family: system-ui, -apple-system, sans-serif;
+      display: flex; flex-direction: column; align-items: center;
+      min-height: 100vh; padding: 8px;
+    }
+    h1 { font-size: 1.1rem; margin-bottom: 4px; font-weight: 600; }
+    #hud {
+      display: flex; gap: 10px; margin-bottom: 4px; font-size: 0.8rem;
+      background: #222; padding: 5px 10px; border-radius: 8px;
+      flex-wrap: wrap; justify-content: center; align-items: center;
+    }
+    #hud span { font-variant-numeric: tabular-nums; }
+    button, .ctrl-btn {
+      background: #333; color: #eee; border: 1px solid #555;
+      border-radius: 5px; padding: 3px 8px; cursor: pointer; font-size: 0.78rem;
+    }
+    button:hover, .ctrl-btn:hover { background: #444; }
+    #settings, #startSettings, #advRow {
+      display: flex; gap: 10px; margin-bottom: 5px; font-size: 0.75rem;
+      background: #1a1a1a; padding: 5px 10px; border-radius: 8px;
+      flex-wrap: wrap; justify-content: center; align-items: center;
+    }
+    .setting { display: flex; align-items: center; gap: 4px; }
+    .setting button { width: 22px; padding: 1px 0; }
+    input[type="number"] {
+      width: 48px; background: #111; color: #eee; border: 1px solid #555;
+      border-radius: 4px; padding: 2px 4px; text-align: center;
+    }
+    #advSlider { width: 120px; }
+    canvas {
+      background: #1a3a1a; border: 3px solid #444; border-radius: 4px;
+      display: block; max-width: 100%; box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+    }
+    #side {
+      display: flex; gap: 16px; margin-top: 8px; flex-wrap: wrap;
+      justify-content: center; max-width: 760px;
+    }
+    #help, #scores { font-size: 0.75rem; color: #aaa; line-height: 1.4; }
+    #scores {
+      background: #1a1a1a; border: 1px solid #333; border-radius: 8px;
+      padding: 6px 10px; min-width: 130px;
+    }
+    #scores h3 { color: #ccc; font-size: 0.8rem; margin-bottom: 3px; }
+    #scores ol { padding-left: 14px; margin: 0; }
+    #nameModal {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75);
+      align-items: center; justify-content: center; z-index: 100;
+    }
+    #nameModal.show { display: flex; }
+    #nameBox {
+      background: #222; padding: 18px 22px; border-radius: 12px;
+      text-align: center; border: 1px solid #444;
+    }
+    #nameBox input {
+      font-size: 1.2rem; width: 78px; text-align: center; text-transform: uppercase;
+      letter-spacing: 3px; padding: 4px; margin: 8px 0;
+      background: #111; color: #fff; border: 1px solid #555; border-radius: 6px;
+    }
+    label { cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h1>football-ground-attack-lab</h1>
+
+  <div id="hud">
+    <div>Clock: <span id="clock">60.0</span>s</div>
+    <div>Score: <span id="score">0</span></div>
+    <div>Yards: <span id="totalYards">0</span></div>
+    <div>TDs: <span id="tdCount">0</span></div>
+    <div>Ball on: <span id="ballOn">OPP 20</span></div>
+    <div>Status: <span id="status">Ready</span></div>
+    <button id="pauseBtn">Pause</button>
+    <button id="restartBtn">Restart</button>
+  </div>
+
+  <div id="settings">
+    <div class="setting">
+      Blockers: <button class="ctrl-btn" id="blkMinus">−</button>
+      <span id="blkVal">1</span>
+      <button class="ctrl-btn" id="blkPlus">+</button>
+    </div>
+    <div class="setting">
+      LBs: <button class="ctrl-btn" id="lbMinus">−</button>
+      <span id="lbVal">2</span>
+      <button class="ctrl-btn" id="lbPlus">+</button>
+    </div>
+    <div class="setting">
+      Safeties: <button class="ctrl-btn" id="sMinus">−</button>
+      <span id="sVal">1</span>
+      <button class="ctrl-btn" id="sPlus">+</button>
+    </div>
+  </div>
+
+  <div id="startSettings">
+    <div class="setting">
+      Start yard: <input type="number" id="startYardInput" value="20" min="1" max="99" />
+    </div>
+    <div class="setting">
+      <label><input type="radio" name="postTdMode" value="increment" checked /> Increment</label>
+      <input type="number" id="incrementInput" value="-5" style="width:42px" />
+    </div>
+    <div class="setting">
+      <label><input type="radio" name="postTdMode" value="random" /> Random</label>
+      <input type="number" id="randMin" value="20" min="1" max="99" style="width:40px" />–
+      <input type="number" id="randMax" value="80" min="1" max="99" style="width:40px" />
+    </div>
+  </div>
+
+  <div id="advRow">
+    <span>Defense</span>
+    <input type="range" id="advSlider" min="-5" max="5" value="0" step="1" />
+    <span>Offense</span>
+    <span id="advLabel">0</span>
+    <label style="margin-left:8px"><input type="checkbox" id="liveAdv" /> Live</label>
+  </div>
+
+  <canvas id="game" width="480" height="780"></canvas>
+
+  <div id="side">
+    <div id="help">
+      <strong>Keyboard:</strong> WASD / Arrows = Move · Space = Sprint<br>
+      <strong>Controller:</strong> Left stick = Move · A/X or RT = Sprint<br>
+      Blue ring = ball carrier · Advantage applies to next play (or live if checked)
+    </div>
+    <div id="scores">
+      <h3>Top 3 Scores</h3>
+      <ol id="scoreList"></ol>
+    </div>
+  </div>
+
+  <div id="nameModal">
+    <div id="nameBox">
+      <div>Time expired! Final score: <span id="finalScore">0</span></div>
+      <div>Enter 3-letter name:</div>
+      <input id="nameInput" maxlength="3" placeholder="AAA" />
+      <br>
+      <button id="saveScoreBtn">Save</button>
+    </div>
+  </div>
+
+  <script>
+    // =====================================================
+    // football-ground-attack-lab  v0.8
+    // =====================================================
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+
+    const FIELD_WIDTH = 53.3;
+    const VISIBLE_YARDS = 48;
+    const SCALE_X = canvas.width / FIELD_WIDTH;
+    const SCALE_Y = canvas.height / VISIBLE_YARDS;
+
+    let cameraY = 55;
+    let clock = 60.0;
+    let score = 0;
+    let totalYards = 0;
+    let tdCount = 0;
+    let playActive = true;
+    let paused = false;
+    let pauseTimer = 0;
+    let lastTime = performance.now();
+    let gamepadIndex = null;
+    let sessionOver = false;
+
+    let numBlockers = 1;
+    let numLBs = 2;
+    let numSafeties = 1;
+
+    // Advantage: pending value (for next play) and active value (current play)
+    let pendingAdvantage = 0;
+    let activeAdvantage = 0;
+    let liveAdvantage = false;
+
+    // Starting position settings
+    let userStartYard = 20;          // displayed as OPP 20 → ballYard = 80
+    let postTdMode = 'increment';    // 'increment' | 'random'
+    let tdIncrement = -5;            // applied to the "yards from opp goal" number
+    let randMin = 20;
+    let randMax = 80;
+
+    // Absolute: 0 = own G, 100 = opp G.  OPP 20 → 80
+    let ballYard = 80;
+    let playStartYard = 80;
+
+    let rb = null;
+    let blockers = [];
+    let defenders = [];
+
+    const OFF_COLOR = '#e87722';
+    const OFF_HELMET = '#002244';
+
+    function createRB() {
+      return {
+        x: FIELD_WIDTH / 2, y: ballYard,
+        radius: 0.85, speed: 9.0, sprintMultiplier: 1.35,
+        color: OFF_COLOR, helmet: OFF_HELMET
+      };
+    }
+
+    function createBlocker(x, y) {
+      return {
+        x, y, radius: 0.88, speed: 7.6,
+        color: OFF_COLOR, helmet: OFF_HELMET, active: true
+      };
+    }
+
+    function createDefender(x, y, type) {
+      return {
+        x, y, radius: 0.88,
+        baseSpeed: type === 'S' ? 8.7 : 8.2,
+        speed: type === 'S' ? 8.7 : 8.2,
+        color: '#c8102e', slowed: 0, type
+      };
+    }
+
+    // Convert "yards from opponent goal" (user-facing) → absolute ballYard
+    // user 20 → OPP 20 → absolute 80
+    function userToAbsolute(userYd) {
+      return 100 - clamp(userYd, 1, 99);
+    }
+    function absoluteToUser(abs) {
+      return clamp(Math.round(100 - abs), 1, 99);
+    }
+
+    const keys = {};
+    window.addEventListener('keydown', e => {
+      keys[e.key.toLowerCase()] = true;
+      if (['arrowup','arrowdown','arrowleft','arrowright',' '].includes(e.key.toLowerCase())) e.preventDefault();
+    });
+    window.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
+    function isDown(k) { return !!keys[k]; }
+
+    window.addEventListener('gamepadconnected', e => {
+      gamepadIndex = e.gamepad.index;
+      setStatus('Controller connected');
+    });
+    window.addEventListener('gamepaddisconnected', () => { gamepadIndex = null; });
+
+    function getInput() {
+      let dx = 0, dy = 0, sprint = false;
+      if (isDown('arrowleft')  || isDown('a')) dx -= 1;
+      if (isDown('arrowright') || isDown('d')) dx += 1;
+      if (isDown('arrowup')    || isDown('w')) dy += 1;
+      if (isDown('arrowdown')  || isDown('s')) dy -= 1;
+      if (isDown(' ')) sprint = true;
+
+      if (gamepadIndex !== null) {
+        const gp = navigator.getGamepads()[gamepadIndex];
+        if (gp) {
+          const dead = 0.15;
+          if (Math.abs(gp.axes[0]) > dead) dx = gp.axes[0];
+          if (Math.abs(gp.axes[1]) > dead) dy = -gp.axes[1];
+          if ((gp.buttons[0] && gp.buttons[0].pressed) ||
+              (gp.buttons[7] && gp.buttons[7].pressed)) sprint = true;
+        }
+      }
+      const mag = Math.hypot(dx, dy);
+      if (mag > 1) { dx /= mag; dy /= mag; }
+      return { dx, dy, sprint };
+    }
+
+    function dist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
+    function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+    function yardLabel(y) {
+      if (y <= 0) return 'OWN G';
+      if (y >= 100) return 'OPP G';
+      if (y > 50) return 'OPP ' + Math.round(100 - y);
+      if (Math.abs(y - 50) < 0.5) return '50';
+      return 'OWN ' + Math.round(y);
+    }
+
+    function setStatus(t) { document.getElementById('status').textContent = t; }
+    function updateBallOn() { document.getElementById('ballOn').textContent = yardLabel(ballYard); }
+
+    function toScreenY(absY) {
+      return canvas.height - ((absY - cameraY) * SCALE_Y);
+    }
+
+    function updateCamera() {
+      cameraY = rb.y - 9;
+      cameraY = Math.max(-12, Math.min(110 - VISIBLE_YARDS, cameraY));
+    }
+
+    function separate(group, minDist) {
+      for (let i = 0; i < group.length; i++) {
+        for (let j = i + 1; j < group.length; j++) {
+          const a = group[i], b = group[j];
+          const d = dist(a, b);
+          if (d < minDist && d > 0.01) {
+            const overlap = (minDist - d) * 0.55;
+            const ang = Math.atan2(b.y - a.y, b.x - a.x);
+            a.x -= Math.cos(ang) * overlap;
+            a.y -= Math.sin(ang) * overlap;
+            b.x += Math.cos(ang) * overlap;
+            b.y += Math.sin(ang) * overlap;
+          }
+        }
+      }
+    }
+
+    function placeEntitiesForNewPlay() {
+      // Apply pending advantage at the start of each new play
+      if (!liveAdvantage) activeAdvantage = pendingAdvantage;
+
+      rb = createRB();
+      rb.x = FIELD_WIDTH / 2;
+      rb.y = ballYard;
+
+      blockers = [];
+      for (let i = 0; i < numBlockers; i++) {
+        const offset = (i - (numBlockers - 1) / 2) * 3.4;
+        blockers.push(createBlocker(FIELD_WIDTH / 2 + offset, ballYard + 2.1));
+      }
+
+      defenders = [];
+      for (let i = 0; i < numLBs; i++) {
+        const offset = (i - (numLBs - 1) / 2) * 5.8;
+        defenders.push(createDefender(FIELD_WIDTH / 2 + offset, ballYard + 5.0, 'LB'));
+      }
+      for (let i = 0; i < numSafeties; i++) {
+        const offset = (i - (numSafeties - 1) / 2) * 6.8;
+        defenders.push(createDefender(FIELD_WIDTH / 2 + offset, ballYard + 8.8, 'S'));
+      }
+
+      updateCamera();
+    }
+
+    function chooseNextStartAfterTD() {
+      if (postTdMode === 'random') {
+        const lo = Math.min(randMin, randMax);
+        const hi = Math.max(randMin, randMax);
+        const userYd = lo + Math.random() * (hi - lo);
+        return userToAbsolute(userYd);
+      } else {
+        // Increment mode: change the "yards from opp goal" by tdIncrement
+        const currentUser = absoluteToUser(ballYard);
+        const nextUser = clamp(currentUser - tdIncrement, 1, 99); // -(-5) = +5 → further from goal
+        // Wait: user said default increment -5, and after TD move from 20 → 25.
+        // So if increment is -5, we want the displayed number to increase by 5.
+        // displayed = yards from opp goal. Moving "back" increases that number.
+        // So nextUser = currentUser - tdIncrement  (if tdIncrement = -5 → current - (-5) = current+5)
+        return userToAbsolute(nextUser);
+      }
+    }
+
+    function endPlay(reason, yardsGained, forcedBallYard = null) {
+      playActive = false;
+      pauseTimer = 0.6;
+      const yg = Math.min(40, yardsGained);
+      if (forcedBallYard !== null) ballYard = forcedBallYard;
+      else ballYard = Math.max(0, Math.min(100, playStartYard + yg));
+      totalYards += Math.max(0, yg);
+      updateBallOn();
+      setStatus(reason);
+    }
+
+    function fullRestart() {
+      // Read current UI values
+      userStartYard = clamp(parseInt(document.getElementById('startYardInput').value, 10) || 20, 1, 99);
+      tdIncrement = parseInt(document.getElementById('incrementInput').value, 10) || -5;
+      randMin = clamp(parseInt(document.getElementById('randMin').value, 10) || 20, 1, 99);
+      randMax = clamp(parseInt(document.getElementById('randMax').value, 10) || 80, 1, 99);
+      postTdMode = document.querySelector('input[name="postTdMode"]:checked').value;
+
+      clock = 60.0; score = 0; totalYards = 0; tdCount = 0;
+      ballYard = userToAbsolute(userStartYard);
+      playStartYard = ballYard;
+      sessionOver = false; playActive = true; paused = false; pauseTimer = 0;
+      document.getElementById('pauseBtn').textContent = 'Pause';
+      placeEntitiesForNewPlay();
+      updateBallOn();
+      setStatus('Ready');
+      document.getElementById('nameModal').classList.remove('show');
+      updateHUD();
+    }
+
+    function updateHUD() {
+      document.getElementById('score').textContent = score;
+      document.getElementById('totalYards').textContent = totalYards;
+      document.getElementById('tdCount').textContent = tdCount;
+      document.getElementById('clock').textContent = clock.toFixed(1);
+    }
+
+    function refreshSettingsUI() {
+      document.getElementById('blkVal').textContent = numBlockers;
+      document.getElementById('lbVal').textContent = numLBs;
+      document.getElementById('sVal').textContent = numSafeties;
+    }
+
+    document.getElementById('blkMinus').onclick = () => { numBlockers = clamp(numBlockers - 1, 0, 3); refreshSettingsUI(); };
+    document.getElementById('blkPlus').onclick  = () => { numBlockers = clamp(numBlockers + 1, 0, 3); refreshSettingsUI(); };
+    document.getElementById('lbMinus').onclick  = () => { numLBs = clamp(numLBs - 1, 0, 4); refreshSettingsUI(); };
+    document.getElementById('lbPlus').onclick   = () => { numLBs = clamp(numLBs + 1, 0, 4); refreshSettingsUI(); };
+    document.getElementById('sMinus').onclick   = () => { numSafeties = clamp(numSafeties - 1, 0, 4); refreshSettingsUI(); };
+    document.getElementById('sPlus').onclick    = () => { numSafeties = clamp(numSafeties + 1, 0, 4); refreshSettingsUI(); };
+
+    // Advantage
+    const advSlider = document.getElementById('advSlider');
+    const advLabel = document.getElementById('advLabel');
+    const liveAdvCheck = document.getElementById('liveAdv');
+
+    advSlider.oninput = () => {
+      pendingAdvantage = parseInt(advSlider.value, 10);
+      advLabel.textContent = (pendingAdvantage > 0 ? '+' : '') + pendingAdvantage;
+      if (liveAdvantage) activeAdvantage = pendingAdvantage;
+    };
+    liveAdvCheck.onchange = () => {
+      liveAdvantage = liveAdvCheck.checked;
+      if (liveAdvantage) activeAdvantage = pendingAdvantage;
+    };
+
+    document.getElementById('pauseBtn').onclick = () => {
+      if (sessionOver) return;
+      paused = !paused;
+      document.getElementById('pauseBtn').textContent = paused ? 'Resume' : 'Pause';
+      setStatus(paused ? 'Paused' : 'Play');
+    };
+    document.getElementById('restartBtn').onclick = fullRestart;
+
+    const STORAGE_KEY = 'fga_lab_top3';
+    function loadScores() {
+      try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; } catch { return []; }
+    }
+    function saveScores(list) { localStorage.setItem(STORAGE_KEY, JSON.stringify(list)); }
+    function renderScores() {
+      const list = loadScores();
+      const ol = document.getElementById('scoreList');
+      ol.innerHTML = '';
+      if (list.length === 0) { ol.innerHTML = '<li style="color:#666">No scores yet</li>'; return; }
+      list.forEach(s => {
+        const li = document.createElement('li');
+        li.textContent = s.name + ' — ' + s.score;
+        ol.appendChild(li);
+      });
+    }
+    function tryAddScore(name, finalScore) {
+      let list = loadScores();
+      list.push({ name: name.toUpperCase().slice(0,3), score: finalScore });
+      list.sort((a,b) => b.score - a.score);
+      list = list.slice(0, 3);
+      saveScores(list);
+      renderScores();
+    }
+    document.getElementById('saveScoreBtn').onclick = () => {
+      const name = document.getElementById('nameInput').value.trim() || 'AAA';
+      tryAddScore(name, score);
+      document.getElementById('nameModal').classList.remove('show');
+      fullRestart();
+    };
+
+    function offMult() { return 1 + activeAdvantage * 0.06; }
+    function defMult() { return 1 - activeAdvantage * 0.06; }
+
+    function update(dt) {
+      if (sessionOver || paused) return;
+
+      if (!playActive) {
+        pauseTimer -= dt;
+        if (pauseTimer <= 0) {
+          playActive = true;
+          playStartYard = ballYard;
+          placeEntitiesForNewPlay();
+          setStatus('Play');
+        }
+        return;
+      }
+
+      clock -= dt;
+      if (clock <= 0) {
+        clock = 0; sessionOver = true; playActive = false;
+        setStatus('Time expired');
+        document.getElementById('finalScore').textContent = score;
+        document.getElementById('nameInput').value = '';
+        document.getElementById('nameModal').classList.add('show');
+        document.getElementById('nameInput').focus();
+        return;
+      }
+
+      const input = getInput();
+      const spd = rb.speed * offMult() * (input.sprint ? rb.sprintMultiplier : 1);
+      rb.x += input.dx * spd * dt;
+      rb.y += input.dy * spd * dt;
+
+      const m = rb.radius + 0.12;
+      if (rb.x < m || rb.x > FIELD_WIDTH - m) {
+        endPlay('Out of bounds', 0);
+        return;
+      }
+      rb.y = Math.max(-8, Math.min(108, rb.y));
+      updateCamera();
+
+      // Blockers
+      blockers.forEach(b => {
+        if (!b.active) return;
+        let nearest = null, best = 999;
+        defenders.forEach(d => {
+          const dd = dist(b, d);
+          if (dd < best) { best = dd; nearest = d; }
+        });
+        if (!nearest) return;
+
+        const ang = Math.atan2(nearest.y - b.y, nearest.x - b.x);
+        const d = dist(b, nearest);
+        const minSep = b.radius + nearest.radius + 0.04;
+
+        if (d > minSep + 0.15) {
+          b.x += Math.cos(ang) * b.speed * offMult() * dt;
+          b.y += Math.sin(ang) * b.speed * offMult() * dt;
+        } else {
+          nearest.slowed = 0.28;
+          const pushAng = Math.atan2(nearest.y - rb.y, nearest.x - rb.x);
+          nearest.x += Math.cos(pushAng) * 2.8 * offMult() * dt;
+          nearest.y += Math.sin(pushAng) * 2.8 * offMult() * dt;
+          const overlap = minSep - dist(b, nearest);
+          if (overlap > 0) {
+            const sep = Math.atan2(nearest.y - b.y, nearest.x - b.x);
+            nearest.x += Math.cos(sep) * overlap;
+            nearest.y += Math.sin(sep) * overlap;
+          }
+        }
+        if (b.y < rb.y + 0.7) b.y = rb.y + 0.7;
+      });
+
+      separate(blockers, 1.85);
+      separate(defenders, 1.85);
+      blockers.forEach(b => {
+        const d = dist(b, rb);
+        if (d < 1.7) {
+          const ang = Math.atan2(b.y - rb.y, b.x - rb.x);
+          b.x += Math.cos(ang) * (1.7 - d) * 0.6;
+          b.y += Math.sin(ang) * (1.7 - d) * 0.6;
+        }
+      });
+
+      defenders.forEach(d => {
+        if (d.slowed > 0) {
+          d.speed = d.baseSpeed * 0.38 * defMult();
+          d.slowed -= dt;
+        } else d.speed = d.baseSpeed * defMult();
+        const ang = Math.atan2(rb.y - d.y, rb.x - d.x);
+        d.x += Math.cos(ang) * d.speed * dt;
+        d.y += Math.sin(ang) * d.speed * dt;
+      });
+
+      // Tackle – near-zero gap
+      for (const d of defenders) {
+        if (dist(rb, d) < rb.radius + d.radius - 0.02) {
+          const yg = Math.round(rb.y - playStartYard);
+          endPlay('Tackled', yg);
+          if (yg > 0) score += yg;
+          if (yg >= 10) score += 10;
+          if (yg < 0) score = Math.max(0, score - 5);
+          return;
+        }
+      }
+
+      // Touchdown
+      if (rb.y >= 100) {
+        tdCount += 1;
+        score += 100;
+        // Read latest UI values for mode
+        postTdMode = document.querySelector('input[name="postTdMode"]:checked').value;
+        tdIncrement = parseInt(document.getElementById('incrementInput').value, 10) || -5;
+        randMin = clamp(parseInt(document.getElementById('randMin').value, 10) || 20, 1, 99);
+        randMax = clamp(parseInt(document.getElementById('randMax').value, 10) || 80, 1, 99);
+
+        const nextStart = chooseNextStartAfterTD();
+        endPlay('Touchdown! +100', 0, nextStart);
+        return;
+      }
+    }
+
+    function draw() {
+      ctx.fillStyle = '#1a3a1a';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Endzones
+      const ownTop = toScreenY(0), ownBot = toScreenY(-10);
+      if (ownBot > 0 && ownTop < canvas.height) {
+        ctx.fillStyle = '#e87722';
+        ctx.fillRect(0, Math.min(ownTop, ownBot), canvas.width, Math.abs(ownBot - ownTop));
+      }
+      const oppTop = toScreenY(110), oppBot = toScreenY(100);
+      if (oppBot > 0 && oppTop < canvas.height) {
+        ctx.fillStyle = '#e87722';
+        ctx.fillRect(0, Math.min(oppTop, oppBot), canvas.width, Math.abs(oppBot - oppTop));
+      }
+
+      // Yard lines
+      ctx.strokeStyle = 'rgba(255,255,255,0.28)';
+      ctx.lineWidth = 1.3;
+      ctx.font = 'bold 12px system-ui';
+      ctx.fillStyle = 'rgba(255,255,255,0.58)';
+
+      for (let yd = 0; yd <= 100; yd += 5) {
+        const py = toScreenY(yd);
+        if (py < -10 || py > canvas.height + 10) continue;
+        ctx.beginPath();
+        ctx.moveTo(0, py); ctx.lineTo(canvas.width, py); ctx.stroke();
+
+        if (yd % 10 === 0) {
+          let label = (yd === 0 || yd === 100) ? 'G' : String(yd > 50 ? 100 - yd : yd);
+          const gNudge = (yd === 0) ? 5 : (yd === 100 ? -5 : 0);
+          ctx.save(); ctx.translate(17, py); ctx.rotate(-Math.PI / 2);
+          ctx.textAlign = 'center'; ctx.fillText(label, gNudge, 0); ctx.restore();
+          ctx.save(); ctx.translate(canvas.width - 17, py); ctx.rotate(Math.PI / 2);
+          ctx.textAlign = 'center'; ctx.fillText(label, -gNudge, 0); ctx.restore();
+        }
+      }
+
+      // Blue LOS
+      const losY = toScreenY(playStartYard);
+      if (losY > 0 && losY < canvas.height) {
+        ctx.strokeStyle = '#3b82f6';
+        ctx.lineWidth = 2.8;
+        ctx.beginPath();
+        ctx.moveTo(0, losY); ctx.lineTo(canvas.width, losY); ctx.stroke();
+      }
+
+      // Hashes
+      ctx.strokeStyle = 'rgba(255,255,255,0.09)';
+      ctx.beginPath();
+      ctx.moveTo(canvas.width * 0.22, 0); ctx.lineTo(canvas.width * 0.22, canvas.height);
+      ctx.moveTo(canvas.width * 0.78, 0); ctx.lineTo(canvas.width * 0.78, canvas.height);
+      ctx.stroke();
+
+      function drawPlayer(p, isBallCarrier) {
+        const sx = p.x * SCALE_X;
+        const sy = toScreenY(p.y);
+        const r = p.radius * SCALE_X;
+
+        if (isBallCarrier) {
+          // Tight blue ring – almost no gap
+          ctx.beginPath();
+          ctx.arc(sx, sy, r + 1.5, 0, Math.PI * 2);
+          ctx.strokeStyle = '#3b82f6';
+          ctx.lineWidth = 2.5;
+          ctx.stroke();
+        }
+
+        ctx.beginPath();
+        ctx.arc(sx, sy, r, 0, Math.PI * 2);
+        ctx.fillStyle = p.color;
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(sx, sy - 2.2, r * 0.55, 0, Math.PI * 2);
+        ctx.fillStyle = p.helmet || '#1a1a1a';
+        ctx.fill();
+      }
+
+      blockers.forEach(b => { if (b.active) drawPlayer(b, false); });
+      defenders.forEach(d => drawPlayer(d, false));
+      if (rb) drawPlayer(rb, true);
+    }
+
+    function loop(now) {
+      const dt = Math.min((now - lastTime) / 1000, 0.05);
+      lastTime = now;
+      update(dt);
+      draw();
+      updateHUD();
+      requestAnimationFrame(loop);
+    }
+
+    refreshSettingsUI();
+    placeEntitiesForNewPlay();
+    updateBallOn();
+    renderScores();
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>
