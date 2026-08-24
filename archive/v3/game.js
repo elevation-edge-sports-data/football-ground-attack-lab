@@ -454,17 +454,17 @@ function startGame(canvas) {
 	let numLBs = 2;
 	let numDBs = 3;
 	let playSpeed = 1.25;
-	let offStrength = 0.90;
-	let defStrength = 1.15;
+	let pendingAdvantage = -1;
+	let activeAdvantage = -1;
 	let fumblesOn = true;
-	let userStartYard = 40;
+	let userStartYard = 20;
 	let postTdMode = "increment";
-	let tdIncrement = 5;
+	let tdIncrement = -5;
 	let randMin = 20;
 	let randMax = 80;
-	let ballYard = 40;
-	let playStartYard = 40;
-	let driveStartYard = 40;
+	let ballYard = 80;
+	let playStartYard = 80;
+	let driveStartYard = 80;
 	let ballX = 25;
 	let sprintCharge = 1;
 	let sprintHoldT = 0;
@@ -475,8 +475,7 @@ function startGame(canvas) {
 	let cameraMode = "high";
 	let camCorner = Math.random() < .5 ? "sw" : "nw";
 	let playArtMode = "on";
-	let padProfile = "v4";
-	let swapStickDpad = false;
+	let padProfile = "v3";
 	let replayMode = "pip";
 	let playAge = 0;
 	let idleCarrierT = 0;
@@ -499,7 +498,6 @@ function startGame(canvas) {
 		y: 80
 	};
 	let divePauseEdge = false;
-	let getUpT = 0;
 	let autoRun = false;
 	let rb = null;
 	let qb = null;
@@ -565,18 +563,16 @@ function startGame(canvas) {
 	let dpadPendingT = 0;
 	let dpadMove = null;
 	function userToAbsolute(userYd) {
-		// Start yd input = own yard line (own 25 → abs 25, 75 yards to score)
-		return clamp(userYd, 1, 99);
+		return 100 - clamp(userYd, 1, 99);
 	}
 	function absoluteToUser(abs) {
-		return clamp(Math.round(abs), 1, 99);
+		return clamp(Math.round(100 - abs), 1, 99);
 	}
 	function yardLabel(y) {
 		if (y >= 100) return "TD";
 		if (y <= 0) return "OWN G";
-		if (Math.abs(y - 50) < 0.5) return "50";
-		if (y > 50) return "OPP " + Math.round(100 - y);
-		return "OWN " + Math.round(y);
+		const u = absoluteToUser(y);
+		return (y >= 50 ? "OPP " : "OWN ") + u;
 	}
 	function formatClock(t) {
 		if (t <= 0) return "0:00";
@@ -649,32 +645,25 @@ function startGame(canvas) {
 	}
 	function updateCamera() {
 		let fy = rb ? rb.y : null;
-		let fx = rb ? rb.x : FIELD_WIDTH / 2;
+		rb ? rb.x : FIELD_WIDTH / 2;
 		if (fumbleSeq) {
 			fy = fumbleSeq.ballY;
-			fx = fumbleSeq.ballX;
+			fumbleSeq.ballX;
 		}
 		if (scoreSeq) {
 			fy = scoreSeq.player.y;
-			fx = scoreSeq.player.x;
+			scoreSeq.player.x;
 		}
 		if (ankleCam && ankleCam.t > 0 && ankleCam.runner && ankleCam.defender) {
-			fx = ankleCam.runner.x * .72 + ankleCam.defender.x * .28;
+			ankleCam.runner.x * .72 + ankleCam.defender.x * .28;
 			fy = ankleCam.runner.y * .72 + ankleCam.defender.y * .28;
 		}
 		if (fy == null) return;
 		const cam = camSpec();
 		const targetY = fy + (cam.follow || 6);
-		const snapCam = fumbleSeq && fumbleSeq.phase === "return" ? .72 : (scoreSeq ? .35 : .18);
-		// Allow camera into the endzone during celebrations / near goal line
-		const yMax = scoreSeq || (rb && rb.y > 92) ? 102 : 88;
-		cameraY += (clamp(targetY, 8, yMax) - cameraY) * snapCam;
-		// Milder TD zoom; almost none on overhead so zones stay readable
-		let zBoost = 1;
-		if (ankleCam && ankleCam.t > 0) zBoost = 1.32;
-		else if (breakaway) zBoost = 1.28;
-		else if (scoreSeq || tdZoom) zBoost = cameraMode === "top" ? 1.06 : 1.18;
-		const want = (cam.zoom || 1) * zBoost;
+		const snapCam = fumbleSeq && fumbleSeq.phase === "return" ? .72 : .18;
+		cameraY += (clamp(targetY, 8, 88) - cameraY) * snapCam;
+		const want = (cam.zoom || 1) * (breakaway || tdZoom || !!scoreSeq || ankleCam && ankleCam.t > 0 ? 1.32 : 1);
 		camZoom += (want - camZoom) * .1;
 		if (ankleCam) {
 			ankleCam.t -= 1 / 60;
@@ -682,10 +671,10 @@ function startGame(canvas) {
 		}
 	}
 	function offMult() {
-		return offStrength;
+		return 1 + activeAdvantage * .06;
 	}
 	function defMult() {
-		return defStrength;
+		return 1 - activeAdvantage * .05;
 	}
 	function getUni(side) {
 		const id = side === "off" ? offUni : defUni;
@@ -840,6 +829,7 @@ function startGame(canvas) {
 		}
 	}
 	function placeEntitiesForNewPlay() {
+		activeAdvantage = pendingAdvantage;
 		revealDefThisPlay = Math.random() < .5;
 		choosePlay();
 		chooseScheme();
@@ -854,7 +844,6 @@ function startGame(canvas) {
 		hurdleOk = false;
 		hurdleDidTrip = false;
 		dive = null;
-		getUpT = 0;
 		celebrateTimer = 0;
 		sprintCharge = 1;
 		sprintHoldT = 0;
@@ -913,7 +902,6 @@ function startGame(canvas) {
 			const d = createPlayer(x + (Math.random() - .5) * .5, playStartYard + 2.05 + (Math.random() - .5) * .35, "DT", i, "def");
 			d.baseSpeed = 7.7;
 			d.speed = d.baseSpeed;
-			d.dtLag = true;
 			defenders.push(d);
 		}
 		for (let i = 0; i < numLBs; i++) {
@@ -1100,7 +1088,7 @@ function startGame(canvas) {
 			}
 		}
 		defenders.filter((d) => d.group === "DT").forEach((d, i) => {
-			d.readT = .12 + Math.random() * .28;
+			d.readT = .08 + Math.random() * .12;
 			setBlitz(d, d.x + (i % 2 === 0 ? -.4 : .4), { curve: Math.random() < .3, stutter: false });
 		});
 		let corners = [];
@@ -1127,10 +1115,10 @@ function startGame(canvas) {
 		corners.forEach((d) => {
 			d.isCorner = true;
 			d.isSafety = false;
-			d.readT = .35 + Math.random() * .55;
+			d.readT = .42 + Math.random() * .38;
 			const side = d.x < mid ? -1 : 1;
 			const r = Math.random();
-			if (r < .22) d.job = "blitz";
+			if (r < .12) d.job = "blitz";
 			else if (r < .28) d.job = "man";
 			else if (r < .42) d.job = "deep";
 			else if (r < .62) d.job = "flat";
@@ -1157,7 +1145,7 @@ function startGame(canvas) {
 		safeties.forEach((d) => {
 			d.isSafety = true;
 			d.isCorner = false;
-			d.readT = .4 + Math.random() * .65;
+			d.readT = .48 + Math.random() * .4;
 		});
 		const shells = ["cover2", "cover3", "cover4", "tampa2", "cover6", "palms"];
 		const shell = shells[Math.floor(Math.random() * shells.length)];
@@ -1203,7 +1191,7 @@ function startGame(canvas) {
 			deepAt(d, mid + side * FIELD_WIDTH * .14, playStartYard + 13 + i * 3, 6.4, 5, "deep");
 		});
 		lbs.forEach((d, i) => {
-			d.readT = .3 + Math.random() * .5;
+			d.readT = .38 + Math.random() * .32;
 			if (shell === "tampa2" && i === Math.floor(lbs.length / 2)) {
 				zoneFor(d, "hook", mid, playStartYard + 11.2 + Math.random(), 3.5, 3.3);
 				return;
@@ -1237,48 +1225,6 @@ function startGame(canvas) {
 				zoneFor(d, "hook", mid + (i - (lbs.length - 1) / 2) * Math.max(4.6, FIELD_WIDTH * .1) + (Math.random() - .5) * 1.4, playStartYard + 8.2 + Math.random() * 2.4, 3.2, 3);
 			} else zoneFor(d, "flat", d.x < mid ? fl + FIELD_WIDTH * .2 : fr - FIELD_WIDTH * .2, playStartYard + 3.6, 5.2, 1.28);
 		});
-		// Deep coverage: either one deep-middle OR left+right deep DBs
-		{
-			const midX = (fieldLeft() + fieldRight()) / 2;
-			const fl = fieldLeft(), fr = fieldRight();
-			const deeps = defenders.filter((d) => d.job === "deep" || d.job === "robber");
-			const hasDeepMid = deeps.some((d) => Math.abs((d.jobX != null ? d.jobX : d.x) - midX) < FIELD_WIDTH * .22);
-			const hasLeftDeep = deeps.some((d) => (d.jobX != null ? d.jobX : d.x) < midX - FIELD_WIDTH * .1);
-			const hasRightDeep = deeps.some((d) => (d.jobX != null ? d.jobX : d.x) > midX + FIELD_WIDTH * .1);
-			const dualDeep = hasLeftDeep && hasRightDeep;
-			if (!hasDeepMid && !dualDeep && defenders.length) {
-				const dbs = defenders.filter((d) => d.group === "DB");
-				if (dbs.length >= 2 && Math.random() < 0.55) {
-					// Dual deep halves
-					const left = dbs.slice().sort((a, b) => a.x - b.x)[0];
-					const right = dbs.slice().sort((a, b) => b.x - a.x)[0];
-					[left, right].forEach((d, i) => {
-						const side = i === 0 ? -1 : 1;
-						d.job = "deep";
-						d.jobX = midX + side * FIELD_WIDTH * 0.18;
-						d.jobY = Math.min(99, playStartYard + 12 + Math.random() * 4);
-						d.zoneRx = 6.4;
-						d.zoneRy = 5.2;
-						d.isSafety = true;
-						d.artCurve = false;
-					});
-				} else {
-					const cands = defenders.filter((d) => d.job !== "blitz" || d.group === "DT").sort((a, b) => {
-						const da = Math.abs(a.x - midX) + (a.group === "DB" ? 0 : a.group === "LB" ? 1 : 2);
-						const db = Math.abs(b.x - midX) + (b.group === "DB" ? 0 : b.group === "LB" ? 1 : 2);
-						return da - db;
-					});
-					const pick = cands[0] || defenders[0];
-					pick.job = "deep";
-					pick.jobX = midX + (Math.random() - .5) * 2.2;
-					pick.jobY = Math.min(99, playStartYard + 11 + Math.random() * 3);
-					pick.zoneRx = 7.2;
-					pick.zoneRy = 5.5;
-					pick.isSafety = pick.group === "DB";
-					pick.artCurve = false;
-				}
-			}
-		}
 		const blitzCount = defenders.filter((d) => d.job === "blitz").length;
 		const need = Math.ceil(defenders.length * .3);
 		if (blitzCount < need) {
@@ -1375,17 +1321,6 @@ function startGame(canvas) {
 		if (n === 0 || n >= 3) return null;
 		if (b.u && b.d) return null;
 		if (b.l && b.r) return null;
-		if (padProfile === "v4") {
-			if (b.u && b.l) return inGoal() ? "hurdleL" : "stiffL";
-			if (b.u && b.r) return inGoal() ? "hurdleR" : "stiffR";
-			if (b.d && b.l) return "deadlegL";
-			if (b.d && b.r) return "deadlegR";
-			if (b.u) return "hurdle";
-			if (b.d) return "deadleg";
-			if (b.l) return "shakeL";
-			if (b.r) return "shakeR";
-			return null;
-		}
 		if (padProfile === "v3") {
 			if (b.u && b.l) return inGoal() ? "truckL" : "stiffL";
 			if (b.u && b.r) return inGoal() ? "truckR" : "stiffR";
@@ -1439,16 +1374,14 @@ function startGame(canvas) {
 			if (keys.has("Space")) sprint = true;
 			if (keys.has("KeyF")) spin = true;
 			if (keys.has("KeyC")) dive = true;
-			if (padProfile === "v4") {
-				if (keys.has("KeyV") || keys.has("KeyY")) truck = true;
-			} else if (padProfile === "v3") {
+			if (padProfile === "v3") {
 				if (keys.has("KeyV") || keys.has("KeyY")) hurdle = true;
 			} else if (keys.has("KeyV") || keys.has("KeyY")) truck = true;
 			if (keys.has("KeyQ")) jukeL = true;
 			if (keys.has("KeyE")) jukeR = true;
 			if (keys.has("KeyH")) peek = true;
 			if (keys.has("KeyR")) replayPress = true;
-			if (padProfile === "v3" || padProfile === "v4") {
+			if (padProfile === "v3") {
 				if (keys.has("KeyZ")) ctrlL = true;
 				if (keys.has("KeyX")) ctrlR = true;
 				if (keys.has("Comma") || keys.has("KeyN")) dpadMove = dpadMove || "shakeL";
@@ -1497,57 +1430,19 @@ function startGame(canvas) {
 			fallback.index;
 		}
 		if (!gp);
-
-		// --- T-3 / Terios (Vendor:1949 Product:0402) remapper ---
-		const isT3 = !!(gp && /1949.*0402|Vendor:\s*1949\s*Product:\s*0402/i.test(gp.id || ""));
-		const t3Map = [0, 1, 3, 4, 6, 7, 8, 9, 10, 11, 13, 14]; // standard → actual index
-		const btn = (i) => {
-			if (!gp) return false;
-			const idx = isT3 ? (t3Map[i] !== undefined ? t3Map[i] : -1) : i;
-			if (idx < 0 || !gp.buttons[idx]) return false;
-			const b = gp.buttons[idx];
-			return !!(b.pressed || b.value > .4);
-		};
-		// -------------------------------------------------------
+		const btn = (i) => !!(gp && gp.buttons[i] && (gp.buttons[i].pressed || gp.buttons[i].value > .4));
 		const kbDpad = {
 			u: !typing && keys.has("KeyI"),
 			d: !typing && keys.has("KeyK"),
 			l: !typing && keys.has("KeyJ"),
 			r: !typing && keys.has("KeyL")
 		};
-		let gpDpad = {
+		const gpDpad = {
 			u: btn(12),
 			d: btn(13),
 			l: btn(14),
 			r: btn(15)
 		};
-		if (isT3 && gp) {
-			// D-pad is a hat switch on axes[9] — full 8-way decoder
-			const hat = gp.axes[9] ?? 3.29;
-			const targets = [
-				{v: -1.00, u:1, d:0, l:0, r:0}, // Up
-				{v:  1.00, u:1, d:0, l:1, r:0}, // Up-Left
-				{v: -0.71, u:1, d:0, l:0, r:1}, // Up-Right
-				{v:  0.71, u:0, d:0, l:1, r:0}, // Left
-				{v:  0.43, u:0, d:1, l:1, r:0}, // Down-Left
-				{v:  0.14, u:0, d:1, l:0, r:0}, // Down
-				{v: -0.14, u:0, d:1, l:0, r:1}, // Down-Right
-				{v: -0.43, u:0, d:0, l:0, r:1}  // Right
-			];
-			let best = null, bestDist = 0.35; // max distance to accept
-			if (hat < 2.5) { // ignore the weird centered value ~3.29
-				for (const t of targets) {
-					const dist = Math.abs(hat - t.v);
-					if (dist < bestDist) {
-						bestDist = dist;
-						best = t;
-					}
-				}
-			}
-			gpDpad = best
-				? { u: !!best.u, d: !!best.d, l: !!best.l, r: !!best.r }
-				: { u: false, d: false, l: false, r: false };
-		}
 		const bits = {
 			u: kbDpad.u || gpDpad.u,
 			d: kbDpad.d || gpDpad.d,
@@ -1570,7 +1465,7 @@ function startGame(canvas) {
 				};
 				dpadPendingT += dt;
 				if ((dpadPending.u ? 1 : 0) + (dpadPending.d ? 1 : 0) + (dpadPending.l ? 1 : 0) + (dpadPending.r ? 1 : 0) >= 2 || dpadPendingT >= DPAD_DIAG_WIN) {
-					dpadMove = (padProfile === "basic" || swapStickDpad) ? null : classifyDpad(dpadPending);
+					dpadMove = padProfile === "basic" ? null : classifyDpad(dpadPending);
 					dpadLatch = true;
 					dpadPending = null;
 				}
@@ -1578,7 +1473,7 @@ function startGame(canvas) {
 		} else if (dpadPending) {
 			dpadPendingT += dt;
 			if (dpadPendingT >= DPAD_DIAG_WIN) {
-				dpadMove = (padProfile === "basic" || swapStickDpad) ? null : classifyDpad(dpadPending);
+				dpadMove = padProfile === "basic" ? null : classifyDpad(dpadPending);
 				dpadLatch = true;
 				dpadPending = null;
 			}
@@ -1587,68 +1482,43 @@ function startGame(canvas) {
 			padLive = true;
 			padName = gp.id || "Xbox";
 			const st = radialDeadzone(gp.axes[0] || 0, -(gp.axes[1] || 0), .18);
-			const rst = isT3
-				? radialDeadzone(gp.axes[2] || 0, -(gp.axes[5] || 0), .22)   // right stick Y is on axis 5
-				: radialDeadzone(gp.axes[2] || 0, -(gp.axes[3] || 0), .22);
-			const lt = isT3
-				? (gp.buttons[8] && gp.buttons[8].value || 0)
-				: (gp.buttons[6] && gp.buttons[6].value || 0);
-			const rt = isT3
-				? (gp.buttons[9] && gp.buttons[9].value || 0)
-				: (gp.buttons[7] && gp.buttons[7].value || 0);
-			if (padProfile === "v3" || padProfile === "v4") {
+			const rst = radialDeadzone(gp.axes[2] || 0, -(gp.axes[3] || 0), .22);
+			const lt = gp.buttons[6] && gp.buttons[6].value || 0;
+			const rt = gp.buttons[7] && gp.buttons[7].value || 0;
+			if (padProfile === "v3") {
 				ctrlL = ctrlL || lt > .52;
 				ctrlR = ctrlR || rt > .52;
 			}
-			// Stick ↔ D-pad swap support
-			const stickMove = (st.x !== 0 || st.y !== 0);
-			const dpadDigital = {
-				x: (bits.r ? 1 : 0) - (bits.l ? 1 : 0),
-				y: (bits.u ? 1 : 0) - (bits.d ? 1 : 0)
-			};
-			const dpadMag = Math.hypot(dpadDigital.x, dpadDigital.y);
-			if (dpadMag > 1) { dpadDigital.x /= dpadMag; dpadDigital.y /= dpadMag; }
-
-			if (swapStickDpad) {
-				// Physical D-pad → continuous movement, physical left stick → specials
-				if (dpadMag > 0.1) {
-					dx = dpadDigital.x;
-					dy = dpadDigital.y;
-					autoRun = false;
-				} else if ((padProfile === "v3" || padProfile === "v4") && (ctrlL || ctrlR)) autoRun = true;
-				else autoRun = false;
-				// Classify left stick into special moves (same thresholds as right-stick extras)
-				if (!ctrlR) {
-					if (st.x < -.55) dpadMove = dpadMove || "shakeL";
-					if (st.x > .55) dpadMove = dpadMove || "shakeR";
-					if (st.y > .65) dpadMove = dpadMove || "hurdle";
-					if (st.y < -.65) dpadMove = dpadMove || "deadleg";
+			if (st.x !== 0 || st.y !== 0) {
+				dx = st.x;
+				dy = st.y;
+				autoRun = false;
+				if (padProfile === "v3" && ctrlL) {
+					blockLdx = st.x;
+					blockLdy = st.y;
 				}
-				// Still allow right-stick extras when not swapped away
-				// Right stick does NOT fire specials — only steers teammates when LT/RT held
-			} else {
-				// Normal: left stick → continuous movement, D-pad → specials
-				if (stickMove) {
-					dx = st.x;
-					dy = st.y;
-					autoRun = false;
-					// Blocker steer comes from right stick when triggers held (see main loop)
-				} else if ((padProfile === "v3" || padProfile === "v4") && (ctrlL || ctrlR)) autoRun = true;
-				else autoRun = false;
-				// v4: right stick only steers teammates (LT/RT). v3: RS specials still available.
-				if (padProfile === "v3" && !ctrlR) {
-					if (rst.x < -.55) dpadMove = dpadMove || "shakeL";
-					if (rst.x > .55) dpadMove = dpadMove || "shakeR";
-					if (rst.y > .65) dpadMove = dpadMove || "hurdle";
-					if (rst.y < -.65) dpadMove = dpadMove || "deadleg";
+				if (padProfile === "v3" && ctrlR) {
+					if (ctrlL && Math.hypot(rst.x, rst.y) >= .14) {
+						blockRdx = rst.x;
+						blockRdy = rst.y;
+					} else {
+						blockRdx = st.x;
+						blockRdy = st.y;
+					}
 				}
+			} else if (padProfile === "v3" && (ctrlL || ctrlR)) autoRun = true;
+			else autoRun = false;
+			if (padProfile === "v3" && !ctrlR) {
+				if (rst.x < -.55) dpadMove = dpadMove || "shakeL";
+				if (rst.x > .55) dpadMove = dpadMove || "shakeR";
+				if (rst.y > .65) dpadMove = dpadMove || "hurdle";
+				if (rst.y < -.65) dpadMove = dpadMove || "deadleg";
 			}
 			if (btn(0)) sprint = true;
 			if (btn(1)) spin = true;
 			if (btn(2)) dive = true;
 			if (btn(3)) {
-				if (padProfile === "v4") truck = true;
-				else if (padProfile === "v3") hurdle = true;
+				if (padProfile === "v3") hurdle = true;
 				else truck = true;
 			}
 			if (btn(4)) jukeL = true;
@@ -1679,7 +1549,7 @@ function startGame(canvas) {
 			if (bits.d) dy -= 1;
 			dpadMove = null;
 		}
-		if ((padProfile === "v3" || padProfile === "v4") && !gp) {
+		if (padProfile === "v3" && !gp) {
 			if (ctrlL) {
 				blockLdx = dx;
 				blockLdy = dy;
@@ -1732,16 +1602,16 @@ function startGame(canvas) {
 			const side = Math.sign(d.x - rb.x) || 1;
 			const trail = rb.y - d.y;
 			let chance = 0;
-			if (kind === "jukeL") chance = side > 0 ? .88 : .38;
-			else if (kind === "jukeR") chance = side < 0 ? .88 : .38;
-			else if (kind === "shakeL" || kind === "shakeR") chance = d.state === "commit" ? .95 : .82;
-			else if (kind === "spin") chance = Math.abs(side) && trail > -.8 ? .92 : .55;
-			else if (kind.startsWith("deadleg")) chance = trail > .2 ? .9 : .45;
+			if (kind === "jukeL") chance = side > 0 ? .78 : .28;
+			else if (kind === "jukeR") chance = side < 0 ? .78 : .28;
+			else if (kind === "shakeL" || kind === "shakeR") chance = d.state === "commit" ? .9 : .72;
+			else if (kind === "spin") chance = Math.abs(side) && trail > -.5 ? .58 : .28;
+			else if (kind.startsWith("deadleg")) chance = trail > .2 ? .82 : .35;
 			else continue;
 			if (d.state === "breakdown") chance *= .75;
 			if (Math.random() > chance) continue;
 			d.state = "whiff";
-			d.whiffT = kind.startsWith("shake") ? .72 : .55;
+			d.whiffT = kind.startsWith("shake") ? .52 : .38;
 			d.low = true;
 			const spd = Math.hypot(d.vx, d.vy) || d.speed * .6;
 			const ang = Math.atan2(d.vy, d.vx) || d.facing;
@@ -1750,15 +1620,7 @@ function startGame(canvas) {
 			d.vy = Math.sin(ang) * spd * boost;
 			if (kind === "shakeL") d.vx += 3.2;
 			else if (kind === "shakeR") d.vx -= 3.2;
-			if (kind === "spin") {
-				// Defender bites on the fake lane, then runner spins the other way
-				const bite = Math.sign(d.x - rb.x) || 1;
-				d.vx += bite * (4.8 + Math.random() * 2.2);
-				d.vy *= 0.45;
-				d.whiffT = 0.72 + Math.random() * 0.25;
-				d.laneOffset = (d.laneOffset || 0) + bite * 2.4;
-			}
-			if (kind.startsWith("shake") || kind === "spin" || d.state === "whiff" && dd < 2.35 && chance >= .7) triggerAnkleCam(rb, d);
+			if (kind.startsWith("shake") || d.state === "whiff" && dd < 2.35 && chance >= .7) triggerAnkleCam(rb, d);
 		}
 	}
 	function resolveHurdle() {
@@ -2036,31 +1898,18 @@ function startGame(canvas) {
 		} else fumbleSeq = null;
 	}
 	function pickSpikeStyle(player) {
-		// 7 horizontal zones across the goal line
-		// 1 & 7: near pylons (2.5 yd) → pylon leap
-		// 2: between 1 and left post → nonchalant / casual
-		// 3: left post area → windmill
-		// 4: between posts → punt through uprights
-		// 5: right post area → windmill
-		// 6: between right post and right pylon → windmill spike
-		const fl = fieldLeft(), fr = fieldRight();
-		const mid = (fl + fr) / 2;
-		// Uprights ~18.5 ft apart ≈ 3.1 yd from center each side
-		const postHalf = Math.max(2.4, FIELD_WIDTH * 0.052);
-		const leftPost = mid - postHalf;
-		const rightPost = mid + postHalf;
-		const pylonW = 2.8;
-		const postR = 4.2; // windmill zone radius around each upright
-		const x = player.x;
-		if (x <= fl + pylonW) return "pylon";              // zone 1 near left pylon
-		if (x >= fr - pylonW) return "pylon";              // zone 7 near right pylon
-		// Zone 4: between the uprights
-		if (x >= leftPost && x <= rightPost) return "punt";
-		// Zones 3, 5, 6: windmill spike (dunk removed)
-		if (Math.abs(x - leftPost) <= postR) return "force"; // zone 3
-		if (Math.abs(x - rightPost) <= postR) return "force"; // zone 5
-		if (x < leftPost - postR) return "casual";          // zone 2
-		return "force"; // zone 6 windmill
+		const mid = (fieldLeft() + fieldRight()) / 2;
+		const postHalf = FIELD_WIDTH * .14;
+		const centerHalf = Math.max(1.15, FIELD_WIDTH * .03);
+		const mag = Math.hypot(lastSteer.dx, lastSteer.dy) || 1;
+		const lateral = Math.abs(lastSteer.dx / mag);
+		const off = Math.abs(player.x - mid);
+		if (off <= postHalf) {
+			if (off <= centerHalf && Math.random() < .18) return "post";
+			return "dunk";
+		}
+		if (lateral < .32) return "casual";
+		return "force";
 	}
 	function spikeDirFromInput(player) {
 		if (Math.abs(lastSteer.dx) > .18) return lastSteer.dx < 0 ? -1 : 1;
@@ -2070,8 +1919,8 @@ function startGame(canvas) {
 	}
 	function startScoreSeq(who, player, spike, playYards, nextStart) {
 		tdZoom = true;
-		const doSpike = true; // always celebrate based on cross location
-		const style = who === "off" ? pickSpikeStyle(player) : (spike ? "force" : "casual");
+		const doSpike = !!(spike || who === "def");
+		const style = doSpike ? pickSpikeStyle(player) : "none";
 		scoreSeq = {
 			who,
 			t: 0,
@@ -2087,8 +1936,7 @@ function startGame(canvas) {
 			nextStart,
 			playYards,
 			bounced: false,
-			bounceN: 0,
-			hanging: false
+			bounceN: 0
 		};
 		player.hasBall = !doSpike;
 		player.hop = 0;
@@ -2098,33 +1946,19 @@ function startGame(canvas) {
 	function tickScore(dt) {
 		const s = scoreSeq;
 		if (!s) return;
-		// Celebration rate tracks game speed linearly but milder (k≈0.45)
-		const celebRate = Math.max(0.55, 1 + 0.45 * (playSpeed - 1));
-		const cdt = dt * celebRate;
-		s.t += cdt;
+		s.t += dt;
 		const p = s.player;
 		const dir = s.spikeDir || 1;
 		if (s.who === "off") {
-			p.y = Math.min(105.5, p.y + 3.2 * cdt);
+			p.y = Math.min(105.5, p.y + 3.2 * dt);
 			p.vy = 3.2;
 		} else {
-			p.y = Math.max(-6.2, p.y - 8.2 * celebRate * dt);
-			p.vy = -8.2 * celebRate;
+			p.y = Math.max(-6.2, p.y - 8.2 * playSpeed * dt);
+			p.vy = -8.2 * playSpeed;
 		}
-		if (s.spikeStyle === "pylon" && s.spike) {
-			// Diagonal leap toward pylon — stay mostly in camera frame
-			const toward = (p.x < (fieldLeft() + fieldRight()) / 2) ? -1 : 1;
-			const edge = toward < 0 ? fieldLeft() + 0.6 : fieldRight() - 0.6;
-			if (s.t < .5) {
-				p.x += (edge - p.x) * Math.min(1, 3.2 * cdt);
-				p.y = Math.min(101.2, p.y + 2.8 * cdt);
-				p.hop = Math.sin(s.t / .5 * Math.PI) * 2.6;
-				p.low = false;
-			} else {
-				p.x = edge;
-				p.hop = Math.max(0, 1.3 - (s.t - .5) * 3.2);
-				p.low = s.t > .65;
-			}
+		if (s.spikeStyle === "dunk" && s.spike) {
+			if (s.t < .48) p.hop = Math.sin(s.t / .48 * Math.PI) * 3.35;
+			else p.hop = Math.max(0, 1.35 - (s.t - .48) * 4.2);
 		} else if (s.spikeStyle === "force" && s.spike) {
 			if (s.t < .28) {
 				p.x = clamp(p.x + dir * 6.4 * dt, fieldLeft() + 1.2, fieldRight() - 1.2);
@@ -2135,15 +1969,20 @@ function startGame(canvas) {
 				p.low = false;
 			} else p.low = true;
 		} else p.x = clamp(p.x, fieldLeft() + 1, fieldRight() - 1);
-		const releaseAt = s.spikeStyle === "force" ? .62 : s.spikeStyle === "pylon" ? .48 : s.spikeStyle === "post" ? .42 : .32;
+		const releaseAt = s.spikeStyle === "force" ? .62 : s.spikeStyle === "dunk" ? .38 : s.spikeStyle === "post" ? .42 : .32;
 		if (s.spike && !s.ballOut && s.t > releaseAt) {
 			s.ballOut = true;
 			p.hasBall = false;
-			// Keep dunk hang hop; only set hop for styles that need it
-			if (s.spikeStyle === "force") p.hop = .7;
-			else if (s.spikeStyle !== "pylon") p.hop = 1.1;
+			p.hop = s.spikeStyle === "force" ? .7 : s.spikeStyle === "dunk" ? 1.2 : 1.1;
 			const mid = (fieldLeft() + fieldRight()) / 2;
-			if (s.spikeStyle === "punt") {
+			if (s.spikeStyle === "dunk") {
+				s.ballX = p.x;
+				s.ballY = p.y + .8;
+				s.ballHop = 7.4;
+				s.ballHopV = 9.2;
+				s.ballVx = (mid - p.x) * .2;
+				s.ballVy = s.who === "off" ? 18 : -18;
+			} else if (s.spikeStyle === "punt") {
 				s.ballX = p.x;
 				s.ballY = p.y + .4;
 				s.ballHop = 5.2;
@@ -2165,16 +2004,6 @@ function startGame(canvas) {
 				s.ballVx = (mid - p.x) * 1.25;
 				s.ballVy = 11.6;
 				p.low = true;
-			} else if (s.spikeStyle === "pylon") {
-				const toward = (p.x < (fieldLeft() + fieldRight()) / 2) ? -1 : 1;
-				s.ballX = p.x + toward * 0.9;
-				s.ballY = p.y + 0.3;
-				s.ballHop = 1.8;
-				s.ballHopV = 4.2;
-				s.ballVx = toward * (3.2 + Math.random() * 2);
-				s.ballVy = 2.5;
-				p.low = true;
-				s.pylonHit = true;
 			} else if (s.spikeStyle === "force") {
 				s.ballX = p.x + dir * .85;
 				s.ballY = p.y + .15;
@@ -2193,12 +2022,12 @@ function startGame(canvas) {
 			}
 		}
 		if (s.ballOut) {
-			const g = s.spikeStyle === "punt" || s.spikeStyle === "throw" || s.spikeStyle === "post" ? 11.2 : s.spikeStyle === "force" ? 28 : 18;
+			const g = s.spikeStyle === "punt" || s.spikeStyle === "throw" || s.spikeStyle === "post" || s.spikeStyle === "dunk" ? 11.2 : s.spikeStyle === "force" ? 28 : 18;
 			s.ballHopV -= g * dt;
 			s.ballHop += s.ballHopV * dt;
 			s.ballX += (s.ballVx || 0) * dt;
 			s.ballY += (s.ballVy || (s.who === "off" ? 1.4 : -1.4)) * dt;
-			if (s.spikeStyle === "punt" || s.spikeStyle === "throw" || s.spikeStyle === "post") s.ballVy = (s.ballVy || 0) - 1.6 * dt;
+			if (s.spikeStyle === "punt" || s.spikeStyle === "throw" || s.spikeStyle === "post" || s.spikeStyle === "dunk") s.ballVy = (s.ballVy || 0) - 1.6 * dt;
 			if (s.ballHop <= 0) {
 				s.ballHop = 0;
 				s.bounceN = (s.bounceN || 0) + 1;
@@ -2215,8 +2044,8 @@ function startGame(canvas) {
 				}
 			}
 		}
-		if (p.hop > 0 && !(s.spikeStyle === "force" && s.t < .68)) p.hop = Math.max(0, p.hop - 4 * dt);
-		const hold = s.who === "def" ? s.spike ? 1.18 : .48 : s.spikeStyle === "force" ? 1.85 : s.spikeStyle === "pylon" ? 1.7 : s.spikeStyle === "punt" || s.spikeStyle === "throw" ? 1.55 : s.spikeStyle === "post" ? 1.4 : s.spike ? 1.12 : 1.55;
+		if (p.hop > 0 && !(s.spikeStyle === "force" && s.t < .68) && s.spikeStyle !== "dunk") p.hop = Math.max(0, p.hop - 4 * dt);
+		const hold = s.who === "def" ? s.spike ? 1.18 : .48 : s.spikeStyle === "force" ? 1.85 : s.spikeStyle === "dunk" || s.spikeStyle === "punt" || s.spikeStyle === "throw" ? 1.55 : s.spikeStyle === "post" ? 1.4 : s.spike ? 1.12 : 1.55;
 		if (s.t > hold) {
 			const next = s.nextStart;
 			const who = s.who;
@@ -2516,17 +2345,6 @@ function startGame(canvas) {
 			scoreTouchdown();
 			return;
 		}
-		// No defender contact → brief grounded recovery, then get back up
-		if (dive && !dive.contacted) {
-			rb.hop = 0;
-			rb.low = true;
-			dive = null;
-			activeMove = null;
-			moveTimer = 0;
-			moveCooldown = 0.95;   // can't start another move immediately
-			getUpT = 0.95;     // stays low while getting up
-			return;
-		}
 		const yg = Math.round(rb.y - playStartYard);
 		rb.hop = 0;
 		rb.low = true;
@@ -2560,7 +2378,7 @@ function startGame(canvas) {
 		score += 100;
 		tdZoom = true;
 		postTdMode = document.querySelector("input[name=\"postTdMode\"]:checked")?.value || "increment";
-		tdIncrement = parseInt($("incrementInput")?.value || "5", 10) || 5;
+		tdIncrement = parseInt($("incrementInput")?.value || "-5", 10) || -5;
 		randMin = clamp(parseInt($("randMin")?.value || "20", 10) || 20, 1, 99);
 		randMax = clamp(parseInt($("randMax")?.value || "80", 10) || 80, 1, 99);
 		const nextStart = chooseNextStartAfterTD();
@@ -2626,7 +2444,7 @@ function startGame(canvas) {
 			const lo = Math.min(randMin, randMax);
 			return userToAbsolute(lo + Math.random() * (Math.max(randMin, randMax) - lo));
 		}
-		return userToAbsolute(clamp(absoluteToUser(driveStartYard) + tdIncrement, 1, 99));
+		return userToAbsolute(clamp(absoluteToUser(driveStartYard) - tdIncrement, 1, 99));
 	}
 	function endPlay(reason, yardsGained, forcedBallYard = null) {
 		playActive = false;
@@ -2743,8 +2561,8 @@ function startGame(canvas) {
 	function fullRestart(keepOffense = false) {
 		clearAutoStart();
 		modalShow("nameModal", false);
-		userStartYard = clamp(parseInt($("startYardInput")?.value || "40", 10) || 40, 1, 99);
-		tdIncrement = parseInt($("incrementInput")?.value || "5", 10) || 5;
+		userStartYard = clamp(parseInt($("startYardInput")?.value || "20", 10) || 20, 1, 99);
+		tdIncrement = parseInt($("incrementInput")?.value || "-5", 10) || -5;
 		randMin = clamp(parseInt($("randMin")?.value || "20", 10) || 20, 1, 99);
 		randMax = clamp(parseInt($("randMax")?.value || "80", 10) || 80, 1, 99);
 		postTdMode = document.querySelector("input[name=\"postTdMode\"]:checked")?.value || "increment";
@@ -2758,7 +2576,7 @@ function startGame(canvas) {
 		randomizeSurface();
 		rebuildUniformSelects();
 		syncAbbrFromOffense();
-		logoFlip = (() => { const r = Math.random(); return r < 0.5 ? 0 : r < 0.75 ? 1 : 2; })();
+		logoFlip = Math.random() < .5 ? 1 : -1;
 		fieldArtSide = Math.random() < .5 ? "off" : "def";
 		camCorner = Math.random() < .5 ? "sw" : "nw";
 		const cornerEl = $("camCornerSelect");
@@ -2888,8 +2706,7 @@ function startGame(canvas) {
 		if (fullReplay) {
 			if (inp.confirm || inp.replayPress || inp.pausePress) {
 				fullReplay = null;
-				setPaused(true);
-				pauseBannerHTML("pause");
+				setPaused(false);
 			} else {
 				fullReplay.acc += dt * 1.05;
 				const step = 1 / REPLAY_HZ;
@@ -2898,8 +2715,7 @@ function startGame(canvas) {
 					fullReplay.i += 1;
 					if (fullReplay.i >= fullReplay.frames.length) {
 						fullReplay = null;
-						setPaused(true);
-						pauseBannerHTML("pause");
+						setPaused(false);
 					}
 				}
 			}
@@ -2918,27 +2734,6 @@ function startGame(canvas) {
 			dx: inp.dx,
 			dy: inp.dy
 		};
-		// Right stick steers teammates activated by LT/RT
-		if (playActive && !paused && (inp.ctrlL || inp.ctrlR)) {
-			const pads = navigator.getGamepads ? navigator.getGamepads() : [];
-			let g = null;
-			for (let i = 0; i < pads.length; i++) {
-				const p = pads[i];
-				if (p && p.connected !== false) { g = p; break; }
-			}
-			if (g) {
-				const isT3pad = /1949.*0402|Vendor:\s*1949\s*Product:\s*0402/i.test(g.id || "");
-				const rx = g.axes[2] || 0;
-				const ry = -(isT3pad ? (g.axes[5] || 0) : (g.axes[3] || 0));
-				const rmag = Math.hypot(rx, ry);
-				if (rmag > 0.18) {
-					const scale = Math.min(1, (rmag - 0.18) / 0.82) / rmag;
-					const rdx = rx * scale, rdy = ry * scale;
-					if (inp.ctrlL) { inp.blockLdx = rdx; inp.blockLdy = rdy; }
-					if (inp.ctrlR) { inp.blockRdx = rdx; inp.blockRdy = rdy; }
-				}
-			}
-		}
 		if ((inp.ctrlL || inp.ctrlR) && autoRun && Math.hypot(inp.dx, inp.dy) < .12 && Math.hypot(lastSteer.dx, lastSteer.dy) > .08) {
 			inp.dx = lastSteer.dx;
 			inp.dy = lastSteer.dy;
@@ -3078,17 +2873,6 @@ function startGame(canvas) {
 			if (!touching) celebFumbleLock = false;
 		} else celebFumbleLock = false;
 		if (moveCooldown > 0) moveCooldown -= dt;
-		if (getUpT > 0) {
-			getUpT -= dt;
-			if (rb) {
-				rb.low = true;
-				rb.hop = 0;
-			}
-			if (getUpT <= 0) {
-				getUpT = 0;
-				if (rb) rb.low = false;
-			}
-		}
 		if (moveTimer > 0) {
 			moveTimer -= dt;
 			if (moveTimer <= 0) {
@@ -3098,7 +2882,7 @@ function startGame(canvas) {
 				}
 				if (rb && activeMove === "spin") rb.spinT = 0;
 				activeMove = null;
-				if (rb && getUpT <= 0) rb.low = false;
+				if (rb) rb.low = false;
 				if (rb) rb.hop = 0;
 				hurdleTarget = null;
 				hurdleOk = false;
@@ -3489,15 +3273,11 @@ function startGame(canvas) {
 				const dd = dist(b, d);
 				if (dd < gap + .08) {
 					if (d.state === "whiff" || d.state === "recover" || d.recoverT > 0) return;
-					// Wrong-side / past-the-defender = don't cling (anti-holding)
-					const pastDef = rb && (b.y > d.y + 0.35) && dist(b, rb) > dist(d, rb);
-					const wrongSide = rb && Math.sign(b.x - d.x) === Math.sign(d.x - rb.x) && Math.abs(b.x - d.x) > 0.4 && dist(b, rb) > dist(d, rb) + 0.15;
 					const holding = rb && dist(d, rb) + .25 < dist(b, rb);
-					if (holding || pastDef || wrongSide || rb && dist(d, rb) > 9.2) {
+					if (holding || rb && dist(d, rb) > 9.2) {
 						d.engageT = 0;
-						if (b.blockTarget === d) b.blockTarget = null;
 						d.state = "recover";
-						d.recoverT = .08;
+						d.recoverT = .1;
 						d.low = false;
 						const ang = rb ? Math.atan2(rb.y - d.y, rb.x - d.x) : -Math.PI / 2;
 						d.vx = Math.cos(ang) * 9;
@@ -3505,13 +3285,13 @@ function startGame(canvas) {
 						return;
 					}
 					if (d.engageT <= 0) {
-						const holding2 = rb && dist(d, rb) + .25 < dist(b, rb);
+						const holding = rb && dist(d, rb) + .25 < dist(b, rb);
 						const farPlay = rb && dist(d, rb) > 8.5;
-						const slipP = (d._pushYards || 0) > .65 || d.y > 95.5 || rb && d.y > rb.y + 2.4 || playAge > 1.35 || idleCarrierT > .28 ? .94 : .62;
-						if (holding2 || farPlay || idleCarrierT > .4 || Math.random() < slipP) {
+						const slipP = (d._pushYards || 0) > .65 || d.y > 95.5 || rb && d.y > rb.y + 2.4 || playAge > 1.35 || idleCarrierT > .28 ? .94 : .58;
+						if (holding || farPlay || idleCarrierT > .4 || Math.random() < slipP) {
 							d.engageT = 0;
 							d.state = "recover";
-							d.recoverT = holding2 ? .08 : .14 + Math.random() * .12;
+							d.recoverT = holding ? .08 : .14 + Math.random() * .12;
 							d.low = false;
 							const ang = rb ? Math.atan2(rb.y - d.y, rb.x - d.x) : -Math.PI / 2;
 							d.vx = Math.cos(ang) * (8 + Math.random() * 3);
@@ -3520,9 +3300,9 @@ function startGame(canvas) {
 						}
 						const fatigue = playAge < 1.6 ? 1 : Math.max(.28, 1 - (playAge - 1.6) * .32);
 						d.engageT = (.14 + Math.random() * .12) * fatigue;
-						if (b.y <= d.y + .55 && Math.random() < (b.group === "FB" ? .28 : .20)) {
+						if (b.y <= d.y + .55 && Math.random() < (b.group === "FB" ? .16 : .11)) {
 							d.state = "whiff";
-							d.whiffT = 1.35 + Math.random() * .45;
+							d.whiffT = 1.85 + Math.random() * .7;
 							d.low = true;
 							d.spinT = .7 + Math.random() * .35;
 							d.vx = (Math.sign(d.x - b.x) || 1) * (2.4 + Math.random() * 1.6);
@@ -3637,18 +3417,13 @@ function startGame(canvas) {
 			if (d.slowed > 0) {
 				d.speed = d.baseSpeed * .55 * defMult() * playSpeed;
 				d.slowed -= dt;
-			} else {
-				let lag = 1;
-				if (d.dtLag && rb && (rb.y - d.y) < 10) lag = 0.55 + Math.max(0, (rb.y - d.y) / 10) * 0.45;
-				else if (d.dtLag && rb && (rb.y - d.y) >= 10) d.dtLag = false;
-				d.speed = d.baseSpeed * defMult() * playSpeed * lag;
-			}
+			} else d.speed = d.baseSpeed * defMult() * playSpeed;
 			if (d.sprintOn) d.speed *= SPRINT_MULT;
 			if (d.engageT > 0) d.speed *= .32;
 			if (d.lagT > 0) d.speed *= .45;
 			if (trail > 2.2 && distToRb > 3.6) d.speed *= .94;
-			if (distToRb < 2.9) d.state = "commit";
-			else if (distToRb < 5.6) d.state = "breakdown";
+			if (distToRb < 3.4) d.state = "commit";
+			else if (distToRb < 5.2) d.state = "breakdown";
 			else d.state = "pursue";
 			if (d.state === "commit" && d.lagT === 0 && distToRb < 4.4 && distToRb > 3.2) d.lagT = .04 + Math.random() * .05;
 			let shownJob = d.job;
@@ -3691,26 +3466,9 @@ function startGame(canvas) {
 					ty = rb.y;
 				}
 			} else {
-				// Level-based contain: don't all collapse to the same point
-				const level = d.job === "deep" || d.isSafety ? 2 : d.job === "drop" || d.job === "hook" || d.job === "robber" ? 1 : 0;
-				const lead = distToRb < 3.2 ? 0 : Math.min(2.4, distToRb * (.12 + level * .04));
-				const sideBias = (d.laneOffset || 0) * (0.35 + level * 0.15);
-				const containY = level === 2 ? rb.y + 2.8 : level === 1 ? rb.y + 1.1 : rb.y;
-				tx = rb.x + (rb.vx || 0) * lead * .12 + sideBias;
-				ty = (behindLos ? rb.y : containY) + (rb.vy || 0) * lead * .06;
-				// Support angle: shade toward the ball-carrier's open side relative to other defenders
-				if (level < 2 && distToRb > 4.5) {
-					let nearestAlly = null, nad = 99;
-					defenders.forEach((o) => {
-						if (o === d || o.state === "whiff") return;
-						const dd = dist(o, d);
-						if (dd < nad && dd < 9) { nad = dd; nearestAlly = o; }
-					});
-					if (nearestAlly) {
-						const away = Math.sign(d.x - nearestAlly.x) || 1;
-						tx += away * 0.55;
-					}
-				}
+				const lead = distToRb < 3.2 ? 0 : Math.min(2.1, distToRb * .14);
+				tx = rb.x + (rb.vx || 0) * lead * .1 + (d.laneOffset || 0) * .22;
+				ty = rb.y + (behindLos ? 0 : (rb.vy || 0) * lead * .08);
 			}
 			if (rb.y >= 98.4 && (d.isSafety || d.job === "deep")) {
 				tx = rb.x * .7 + d.x * .3;
@@ -4258,29 +4016,20 @@ function startGame(canvas) {
 		ctx.lineWidth = Math.max(2, r * .28);
 		const armSwing = celebrating ? .15 : legSwing * .8;
 		const armL = sector <= 4 ? -1 : 1;
-		const puntSpike = spiking && scoreSeq && scoreSeq.spikeStyle === "punt";
-		const throwSpike = spiking && scoreSeq && scoreSeq.spikeStyle === "throw";
 		ctx.beginPath();
-		// Skip the default free arm during special spike poses so it doesn't read as a third limb
-		if (!forceSpike && !puntSpike && !dunkSpike && !postSpike) {
-			ctx.moveTo(sx - r * (.45 - pose.rot * .2), sy - r * .1);
-			ctx.lineTo(sx - r * .9 + armSwing * r * .3 * armL, sy + r * .35);
-		}
+		ctx.moveTo(sx - r * (.45 - pose.rot * .2), sy - r * .1);
+		ctx.lineTo(sx - r * .9 + armSwing * r * .3 * armL, sy + r * .35);
 		if (forceSpike) {
-			// Windmill: shorter arc, opposite arm tucked
-			ctx.moveTo(sx - r * .35, sy - r * .05);
-			ctx.lineTo(sx - r * .55, sy + r * .25);
 			if (st < .28) {
-				ctx.moveTo(sx + r * .2, sy - r * .12);
-				ctx.lineTo(sx + spikeDir * r * .7, sy - r * .28);
+				ctx.moveTo(sx + r * .3, sy - r * .15);
+				ctx.lineTo(sx + spikeDir * r * .85, sy - r * .35);
 			} else if (!scoreSeq.ballOut) {
 				const ang = -Math.PI * .15 + spikeDir * ((st - .28) / .34) * Math.PI * 2.15;
-				const reach = r * 0.78;
-				ctx.moveTo(sx + spikeDir * r * .1, sy - r * .08);
-				ctx.lineTo(sx + Math.cos(ang) * reach, sy + Math.sin(ang) * reach);
+				ctx.moveTo(sx + spikeDir * r * .12, sy - r * .12);
+				ctx.lineTo(sx + Math.cos(ang) * r * 1.2, sy + Math.sin(ang) * r * 1.2);
 			} else {
-				ctx.moveTo(sx + spikeDir * r * .12, sy - r * .08);
-				ctx.lineTo(sx + spikeDir * r * .55, sy + r * .35);
+				ctx.moveTo(sx + spikeDir * r * .18, sy - r * .12);
+				ctx.lineTo(sx + spikeDir * r * 1.12, sy + r * 1.05);
 			}
 		} else if (dunkSpike) {
 			if (st < .48) {
@@ -4299,20 +4048,15 @@ function startGame(canvas) {
 			ctx.lineTo(sx - r * .05, sy - r * 1.15);
 			ctx.moveTo(sx + r * .2, sy - r * .2);
 			ctx.lineTo(sx + r * .12, sy - r * 1.18);
-		} else if (puntSpike) {
-			// Plant arm + short kicking leg extension (not a long arm through the body)
-			ctx.moveTo(sx - r * .4, sy - r * .05);
-			ctx.lineTo(sx - r * .65, sy + r * .2);
-			ctx.moveTo(sx + r * .15, sy + r * .15);
-			ctx.lineTo(sx + r * .35, sy + r * .55);
-		} else if (throwSpike) {
-			ctx.moveTo(sx - r * .35, sy - r * .05);
-			ctx.lineTo(sx - r * .55, sy + r * .22);
-			ctx.moveTo(sx + r * .2, sy - r * .2);
-			ctx.lineTo(sx + r * .65, sy - r * .75);
+		} else if (spiking && scoreSeq.spikeStyle === "punt") {
+			ctx.moveTo(sx + r * .3, sy - r * .1);
+			ctx.lineTo(sx + r * .55, sy + r * 1.05);
+		} else if (spiking && scoreSeq.spikeStyle === "throw") {
+			ctx.moveTo(sx + r * .25, sy - r * .25);
+			ctx.lineTo(sx + r * .85, sy - r * 1.05);
 		} else if (celebrating) {
 			ctx.moveTo(sx + r * .35, sy - r * .2);
-			ctx.lineTo(sx + r * .85, sy - r * .55);
+			ctx.lineTo(sx + r * 1.2, sy - r * .72);
 		} else {
 			ctx.moveTo(sx + r * (.45 + pose.rot * .2), sy - r * .1);
 			ctx.lineTo(sx + r * .9 - armSwing * r * .3 * armL, sy + r * .35);
@@ -4374,7 +4118,7 @@ function startGame(canvas) {
 				if (st < .28) drawFootball(sx + spikeDir * r * .9, sy - r * .4, r * 1.08, -.5);
 				else {
 					const ang = -Math.PI * .15 + spikeDir * ((st - .28) / .34) * Math.PI * 2.15;
-					drawFootball(sx + Math.cos(ang) * r * 0.82, sy + Math.sin(ang) * r * 0.82, r * 1.08, ang);
+					drawFootball(sx + Math.cos(ang) * r * 1.22, sy + Math.sin(ang) * r * 1.22, r * 1.08, ang);
 				}
 			} else if (dunkSpike && !scoreSeq.ballOut) drawFootball(sx + r * .02, sy - r * (st < .48 ? 1.72 : .2), r * 1.18, st < .48 ? -1.55 : .8);
 			else if (postSpike && !scoreSeq.ballOut) drawFootball(sx + r * .05, sy - r * 1.22, r * 1.08, -1.4);
@@ -4554,8 +4298,6 @@ function startGame(canvas) {
 		ctx.restore();
 		ctx.globalAlpha = 1;
 	}
-
-
 	function drawMidfieldLogo() {
 		if (!midLogoOn) return;
 		const fl = fieldLeft(), fr = fieldRight();
@@ -4566,11 +4308,11 @@ function startGame(canvas) {
 		const ang = Math.atan2(right.sy - left.sy, right.sx - left.sx);
 		const uni = getUni(fieldArtSide);
 		const span = Math.hypot(right.sx - left.sx, right.sy - left.sy);
-		const radX = Math.min(span * .11, FIELD_WIDTH * .15 * SCALE_X);
+		const radX = Math.min(span * .16, FIELD_WIDTH * .22 * SCALE_X);
 		const radY = radX * .72;
 		ctx.save();
 		ctx.translate(midP.sx, midP.sy);
-		ctx.rotate(ang + (logoFlip === 1 ? Math.PI / 2 : logoFlip === 2 ? -Math.PI / 2 : 0));
+		ctx.rotate(ang + (logoFlip < 0 ? Math.PI : 0));
 		ctx.fillStyle = uni.helmet;
 		ctx.globalAlpha = .4;
 		ctx.beginPath();
@@ -4851,8 +4593,8 @@ function startGame(canvas) {
 	function artAlpha(along) {
 		if (peekHeld || peekToggle) return .92;
 		if (preSnapTimer > 0) return Math.min(1, preSnapTimer / .25) * .95;
-		const hold = 1.0 + clamp(along, 0, 1) * .28;
-		const fadeDur = 0.58;
+		const hold = 2.05 + clamp(along, 0, 1) * .55;
+		const fadeDur = 1.15;
 		const t = playAge - hold;
 		if (t <= 0) return .88;
 		return Math.max(0, .88 * (1 - t / fadeDur));
@@ -4860,11 +4602,11 @@ function startGame(canvas) {
 	function zoneAlpha() {
 		if (peekHeld || peekToggle) return .9;
 		if (preSnapTimer > 0) return Math.min(1, preSnapTimer / .25) * .95;
-		const hold = 2.05;
-		const fadeDur = 0.75;
+		const hold = 4.15;
+		const fadeDur = 1.55;
 		const t = playAge - hold;
-		if (t <= 0) return .72;
-		return Math.max(0, .72 * (1 - t / fadeDur));
+		if (t <= 0) return .9;
+		return Math.max(0, .9 * (1 - t / fadeDur));
 	}
 	function drawAssignmentArrow(x0, y0, x1, y1, color, a0, a1) {
 		if (a0 == null) a0 = .9;
@@ -5505,25 +5247,20 @@ function startGame(canvas) {
 		defUni = parseInt(e.target.value, 10);
 		paintRoster();
 	};
-	const offStrEl = $("offStrSlider");
-	const offStrLab = $("offStrLabel");
-	if (offStrEl) {
-		offStrength = parseFloat(offStrEl.value) || 1.00;
-		if (offStrLab) offStrLab.textContent = offStrength.toFixed(2) + "×";
-		offStrEl.oninput = () => {
-			offStrength = parseFloat(offStrEl.value) || 1.00;
-			if (offStrLab) offStrLab.textContent = offStrength.toFixed(2) + "×";
-		};
-	}
-	const defStrEl = $("defStrSlider");
-	const defStrLab = $("defStrLabel");
-	if (defStrEl) {
-		defStrength = parseFloat(defStrEl.value) || 1.00;
-		if (defStrLab) defStrLab.textContent = defStrength.toFixed(2) + "×";
-		defStrEl.oninput = () => {
-			defStrength = parseFloat(defStrEl.value) || 1.00;
-			if (defStrLab) defStrLab.textContent = defStrength.toFixed(2) + "×";
-		};
+	$("advSlider").oninput = () => {
+		pendingAdvantage = parseInt($("advSlider").value, 10);
+		const lab = $("advLabel");
+		if (lab) lab.textContent = (pendingAdvantage > 0 ? "+" : "") + pendingAdvantage;
+		activeAdvantage = pendingAdvantage;
+	};
+	{
+		const adv = $("advSlider");
+		if (adv) {
+			pendingAdvantage = parseInt(adv.value, 10);
+			activeAdvantage = pendingAdvantage;
+			const lab = $("advLabel");
+			if (lab) lab.textContent = (pendingAdvantage > 0 ? "+" : "") + pendingAdvantage;
+		}
 	}
 	const spdEl = $("speedSlider");
 	if (spdEl) {
@@ -5612,19 +5349,9 @@ function startGame(canvas) {
 	syncCamCornerUi();
 	const profSel = $("profileSelect");
 	if (profSel) {
-		padProfile = profSel.value || "v4";
+		padProfile = profSel.value || "v3";
 		profSel.onchange = () => {
-			padProfile = profSel.value || "v4";
-		};
-	}
-	const swapCheck = $("swapStickDpadCheck");
-	const swapLab = $("swapStickDpadLabel");
-	if (swapCheck) {
-		swapStickDpad = swapCheck.checked;
-		if (swapLab) swapLab.textContent = swapStickDpad ? "On" : "Off";
-		swapCheck.onchange = () => {
-			swapStickDpad = swapCheck.checked;
-			if (swapLab) swapLab.textContent = swapStickDpad ? "On" : "Off";
+			padProfile = profSel.value || "v3";
 		};
 	}
 	const repSel = $("replayModeSelect");
@@ -5657,7 +5384,7 @@ function startGame(canvas) {
 	refreshPersonnelUI();
 	refreshAllNumbers();
 	if (defUni === offUni) defUni = randChoice(UNIFORMS.filter((u) => u.id !== offUni)).id;
-	logoFlip = (() => { const r = Math.random(); return r < 0.5 ? 0 : r < 0.75 ? 1 : 2; })();
+	logoFlip = Math.random() < .5 ? 1 : -1;
 	fieldArtSide = Math.random() < .5 ? "off" : "def";
 	syncAbbrFromOffense();
 	randomizeSurface();

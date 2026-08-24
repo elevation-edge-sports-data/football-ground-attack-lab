@@ -15,16 +15,15 @@
   <main class="lab-main">
     <header class="lab-header">
       <div>
-        <p class="lab-eyebrow">Elevation Edge · v4</p>
+        <p class="lab-eyebrow">Elevation Edge · v3</p>
         <h1>Football Ground Attack Lab</h1>
       </div>
-            <nav class="lab-versions" aria-label="Version archive">
-        <span class="lab-versions-label">Archive</span>
+      <nav class="lab-versions" aria-label="Version archive">
+        <span>Compare</span>
         <a href="archive/v0.html" target="_blank" rel="noreferrer">v0</a>
         <a href="archive/v1.html" target="_blank" rel="noreferrer">v1</a>
         <a href="archive/v2.html" target="_blank" rel="noreferrer">v2</a>
-        <a href="archive/v3/index.html" target="_blank" rel="noreferrer">v3</a>
-        <a href="index.html" aria-current="page">v4</a>
+        <a href="index.html" aria-current="page">v3</a>
         <a href="https://github.com/elevation-edge-sports-data/football-ground-attack-lab" target="_blank" rel="noreferrer">GitHub</a>
       </nav>
     </header>
@@ -61,16 +60,12 @@
             <input id="speedSlider" type="range" min="0.5" max="2" step="0.05" value="1.25" />
             <span id="speedLabel">1.25×</span>
           </label>
-          <label class="lab-row">
-            Offense
-            <input id="offStrSlider" type="range" min="0.70" max="1.40" step="0.05" value="0.90" />
-            <span id="offStrLabel">0.90×</span>
-          </label>
-          <label class="lab-row">
-            Defense
-            <input id="defStrSlider" type="range" min="0.70" max="1.40" step="0.05" value="1.15" />
-            <span id="defStrLabel">1.15×</span>
-          </label>
+          <div class="lab-row">
+            <span>Def</span>
+            <input id="advSlider" type="range" min="-5" max="5" value="-1" step="1" />
+            <span>Off</span>
+            <span id="advLabel">-1</span>
+          </div>
           <label class="lab-row">
             Fumbles
             <span style="display:flex;align-items:center;gap:4px">
@@ -125,16 +120,8 @@
             <select id="profileSelect">
               <option value="basic">Basic (v1)</option>
               <option value="classic">Classic (v2)</option>
-              <option value="v3">Trio (v3)</option>
-              <option value="v4" selected>Advanced (v4)</option>
+              <option value="v3" selected>Trio (v3)</option>
             </select>
-          </label>
-          <label class="lab-row">
-            Move layout
-            <span style="display:flex;align-items:center;gap:4px">
-              <input id="swapStickDpadCheck" type="checkbox" />
-              <span id="swapStickDpadLabel">Stick (std)</span>
-            </span>
           </label>
         </div>
 
@@ -201,10 +188,10 @@
           <summary class="lab-panel-title" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;list-style:none">
             Game Config <span aria-hidden>▾</span>
           </summary>
-          <label class="lab-row">Start yd <input type="number" id="startYardInput" value="40" min="1" max="99" /></label>
+          <label class="lab-row">Start yd <input type="number" id="startYardInput" value="20" min="1" max="99" /></label>
           <div class="lab-row">
             <label><input type="radio" name="postTdMode" value="increment" checked /> Inc</label>
-            <input type="number" id="incrementInput" value="5" />
+            <input type="number" id="incrementInput" value="-5" />
           </div>
           <div class="lab-row">
             <label><input type="radio" name="postTdMode" value="random" /> Rand</label>
@@ -238,16 +225,16 @@
         (D-pad is eight extra moves, click RS pause). Trio (v3) = LT/RT steer nearest teammate
         left/right, D-pad up-left / up-right stiff, H peeks the defense.
         <br />
-        <strong>Xbox Trio:</strong> Stick run · A burst · B spin · X dive · Y truck (v4) / hurdle (v3) · LB/RB juke ·
-        LT/RT teammate (stick still cuts you and them) · D-pad: up hurdle (v4) / truck (v3) · up-left / up-right stiff ·
+        <strong>Xbox Trio:</strong> Stick run · A burst · B spin · X dive · Y hurdle · LB/RB juke ·
+        LT/RT teammate (stick still cuts you and them) · D-pad: up truck · up-left / up-right stiff ·
         left / right shake · down dead-leg · down-left / down-right dead-leg cut · RS also shake ·
         View celebrate · click RS pause · H peek
         <br />
         <strong>Goal line (inside 5):</strong> D-pad up / up-left / up-right plow a lane · X dive ducks under
-        a pile or into a crease · Y truck powers through contact · D-pad up hurdle leaps or glances off the stack.
+        a pile or into a crease · Y hurdle leaps or glances off the stack.
         <br />
         <strong>Keys:</strong> WASD run · Space burst · Q/E juke · IJKL miss-pad (I+J / I+L stiff) ·
-        F spin · C dive · V truck (v4) / hurdle (v3) · Z/X teammate (v3) or stiff (classic) · G celebrate · H peek ·
+        F spin · C dive · V hurdle (v3) / truck (classic) · Z/X teammate (v3) or stiff (classic) · G celebrate · H peek ·
         R replay · P pause
       </div>
       <div class="lab-scores">
