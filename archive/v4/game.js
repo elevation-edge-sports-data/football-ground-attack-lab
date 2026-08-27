@@ -1,11 +1,11 @@
 "use strict";
 /**
- * Football Ground Attack Lab v5 engine
+ * Football Ground Attack Lab v3 engine
  * Port of v2 canvas sim + v3 cameras, replay, dual-trigger control, play art.
  */
 
 /**
-* Football Ground Attack Lab v5 engine
+* Football Ground Attack Lab v3 engine
 * Port of v2 canvas sim + v3 cameras, replay, dual-trigger control, play art.
 */
 /**
@@ -13,16 +13,94 @@
 * Port of the v1 canvas sim + locked v2 mapping / AI / truck / burst / fumble.
 */
 const UNIFORMS = [
-	{ id: 0, abbr: "DEN", name: "Broncos", helmet: "#002244", jersey: "#FB4F14", pants: "#002244", number: "#FFFFFF", facemask: "#FFFFFF", endPrimary: "#002244", endSecondary: "#FB4F14", logoFill: "#002244", logoMark: "#FB4F14" },
-	{ id: 1, abbr: "KC", name: "Chiefs", helmet: "#E31837", jersey: "#FFFFFF", pants: "#E31837", number: "#E31837", facemask: "#FFFFFF", endPrimary: "#E31837", endSecondary: "#FFB81C", logoFill: "#E31837", logoMark: "#FFB81C" },
-	{ id: 2, abbr: "BUF", name: "Bills", helmet: "#FFFFFF", jersey: "#00338D", pants: "#00338D", number: "#FFFFFF", facemask: "#00338D", endPrimary: "#00338D", endSecondary: "#FFFFFF", logoFill: "#00338D", logoMark: "#FFFFFF" },
-	{ id: 3, abbr: "PIT", name: "Steelers", helmet: "#101820", jersey: "#101820", pants: "#FFB612", number: "#FFB612", facemask: "#FFB612", endPrimary: "#101820", endSecondary: "#FFB612", logoFill: "#101820", logoMark: "#FFB612" },
-	{ id: 4, abbr: "JAX", name: "Jaguars", helmet: "#101820", jersey: "#006778", pants: "#101820", number: "#D7A22A", facemask: "#D7A22A", endPrimary: "#006778", endSecondary: "#D7A22A", logoFill: "#006778", logoMark: "#D7A22A" },
-	{ id: 5, abbr: "NE", name: "Patriots", helmet: "#A5ACAF", jersey: "#FFFFFF", pants: "#002244", number: "#C60C30", facemask: "#C60C30", endPrimary: "#002244", endSecondary: "#C60C30", logoFill: "#002244", logoMark: "#C60C30" },
-	{ id: 6, abbr: "LV", name: "Raiders", helmet: "#A5ACAF", jersey: "#000000", pants: "#A5ACAF", number: "#FFFFFF", facemask: "#000000", endPrimary: "#000000", endSecondary: "#A5ACAF", logoFill: "#000000", logoMark: "#A5ACAF" },
-	{ id: 7, abbr: "SF", name: "49ers", helmet: "#B3995D", jersey: "#AA0000", pants: "#B3995D", number: "#FFFFFF", facemask: "#FFFFFF", endPrimary: "#AA0000", endSecondary: "#B3995D", logoFill: "#AA0000", logoMark: "#B3995D" },
-	{ id: 8, abbr: "MIN", name: "Vikings", helmet: "#4F2683", jersey: "#FFFFFF", pants: "#4F2683", number: "#4F2683", facemask: "#FFC62F", endPrimary: "#4F2683", endSecondary: "#FFC62F", logoFill: "#4F2683", logoMark: "#FFC62F" },
-	{ id: 9, abbr: "GB", name: "Packers", helmet: "#FFB612", jersey: "#203731", pants: "#FFB612", number: "#FFFFFF", facemask: "#203731", endPrimary: "#203731", endSecondary: "#FFB612", logoFill: "#203731", logoMark: "#FFB612" }
+	{
+		id: 0,
+		abbr: "DEN",
+		name: "Broncos",
+		helmet: "#002244",
+		jersey: "#FB4F14",
+		pants: "#002244",
+		number: "#FFFFFF",
+		endPrimary: "#002244",
+		endSecondary: "#FB4F14"
+	},
+	{
+		id: 1,
+		abbr: "KC",
+		name: "Chiefs",
+		helmet: "#E31837",
+		jersey: "#FFFFFF",
+		pants: "#E31837",
+		number: "#E31837",
+		endPrimary: "#E31837",
+		endSecondary: "#FFB81C"
+	},
+	{
+		id: 2,
+		abbr: "MIN",
+		name: "Vikings",
+		helmet: "#4F2683",
+		jersey: "#FFC62F",
+		pants: "#4F2683",
+		number: "#4F2683",
+		endPrimary: "#4F2683",
+		endSecondary: "#FFC62F"
+	},
+	{
+		id: 3,
+		abbr: "JAX",
+		name: "Jaguars",
+		helmet: "#101820",
+		jersey: "#006778",
+		pants: "#101820",
+		number: "#D7A22A",
+		endPrimary: "#101820",
+		endSecondary: "#006778"
+	},
+	{
+		id: 4,
+		abbr: "LV",
+		name: "Raiders",
+		helmet: "#A5ACAF",
+		jersey: "#000000",
+		pants: "#A5ACAF",
+		number: "#FFFFFF",
+		endPrimary: "#000000",
+		endSecondary: "#A5ACAF"
+	},
+	{
+		id: 5,
+		abbr: "BUF",
+		name: "Bills",
+		helmet: "#C60C30",
+		jersey: "#00338D",
+		pants: "#00338D",
+		number: "#FFFFFF",
+		endPrimary: "#00338D",
+		endSecondary: "#C60C30"
+	},
+	{
+		id: 6,
+		abbr: "SF",
+		name: "49ers",
+		helmet: "#B3995D",
+		jersey: "#AA0000",
+		pants: "#B3995D",
+		number: "#FFFFFF",
+		endPrimary: "#AA0000",
+		endSecondary: "#B3995D"
+	},
+	{
+		id: 7,
+		abbr: "GB",
+		name: "Packers",
+		helmet: "#FFB612",
+		jersey: "#203731",
+		pants: "#FFB612",
+		number: "#FFFFFF",
+		endPrimary: "#203731",
+		endSecondary: "#FFB612"
+	}
 ];
 const NUM_POOLS = {
 	QB: [10, 18, 8],
@@ -76,24 +154,56 @@ const NUM_POOLS = {
 };
 const OFF_PLAYS = [
 	{
-		id: "blastR",
-		name: "Blast",
-		arrow: [.45, .55],
-		blockStyle: "zoneR",
+		id: "diveL",
+		name: "Dive Left",
+		arrow: [-.25],
+		blockStyle: "tight",
 		lockFirst: false,
 		steps: [{
-			dx: .35,
-			dy: .55,
-			t: .16
-		}, {
-			dx: .4,
-			dy: .9,
-			t: .22
+			dx: -.15,
+			dy: 1,
+			t: .18
+		}]
+	},
+	{
+		id: "diveR",
+		name: "Dive Right",
+		arrow: [.25],
+		blockStyle: "tight",
+		lockFirst: false,
+		steps: [{
+			dx: .15,
+			dy: 1,
+			t: .18
+		}]
+	},
+	{
+		id: "blastL",
+		name: "Blast Left",
+		arrow: [-.35],
+		blockStyle: "push",
+		lockFirst: false,
+		steps: [{
+			dx: -.25,
+			dy: 1,
+			t: .2
+		}]
+	},
+	{
+		id: "blastR",
+		name: "Blast Right",
+		arrow: [.35],
+		blockStyle: "push",
+		lockFirst: false,
+		steps: [{
+			dx: .25,
+			dy: 1,
+			t: .2
 		}]
 	},
 	{
 		id: "sweepL",
-		name: "Pitch",
+		name: "Sweep Left",
 		arrow: [-1.15],
 		blockStyle: "wallL",
 		lockFirst: false,
@@ -105,7 +215,7 @@ const OFF_PLAYS = [
 	},
 	{
 		id: "sweepR",
-		name: "Sweep",
+		name: "Sweep Right",
 		arrow: [1.15],
 		blockStyle: "wallR",
 		lockFirst: false,
@@ -116,100 +226,8 @@ const OFF_PLAYS = [
 		}]
 	},
 	{
-		id: "swingR",
-		name: "Swing",
-		arrow: [.55, .35],
-		blockStyle: "swingR",
-		lockFirst: false,
-		steps: [{
-			dx: .25,
-			dy: .4,
-			t: .16
-		}, {
-			dx: .55,
-			dy: .75,
-			t: .22
-		}]
-	},
-	{
-		id: "river",
-		name: "River",
-		arrow: [-.4, .55, -.25, .7],
-		blockStyle: "river",
-		lockFirst: true,
-		steps: [{
-			dx: -.45,
-			dy: .25,
-			t: .14
-		}, {
-			dx: .5,
-			dy: .45,
-			t: .16
-		}, {
-			dx: -.3,
-			dy: .4,
-			t: .14
-		}, {
-			dx: .55,
-			dy: .7,
-			t: .2
-		}]
-	},
-	{
-		id: "diveL",
-		name: "Zig Zag",
-		arrow: [-.45, .55, -.5, .5, -.35],
-		blockStyle: "zigzag",
-		lockFirst: false,
-		steps: [{
-			dx: -.42,
-			dy: .72,
-			t: .18
-		}, {
-			dx: .58,
-			dy: .75,
-			t: .18
-		}, {
-			dx: -.52,
-			dy: .78,
-			t: .18
-		}, {
-			dx: .5,
-			dy: .78,
-			t: .18
-		}, {
-			dx: -.38,
-			dy: .85,
-			t: .22
-		}]
-	},
-	{
-		id: "blastL",
-		name: "Wedge",
-		arrow: [.4, -1.35],
-		blockStyle: "wedgeL",
-		lockFirst: false,
-		steps: [{
-			dx: .45,
-			dy: .12,
-			t: .13
-		}, {
-			dx: -1.15,
-			dy: .5,
-			t: .2
-		}, {
-			dx: -.85,
-			dy: .75,
-			t: .2
-		}, {
-			dx: -.55,
-			dy: .9,
-			t: .18
-		}]
-	},
-	{
 		id: "counterL",
-		name: "Counter",
+		name: "Counter Left",
 		arrow: [.7, -1.1],
 		blockStyle: "pullL",
 		lockFirst: true,
@@ -222,74 +240,80 @@ const OFF_PLAYS = [
 			dy: .7,
 			t: .22
 		}]
-	}];
-const AUDIBLE_BUTTONS = [
-	// A snap · B defense menu · Y cancel · LT/RT flip — not pick slots
-	{ id: "LB", label: "LB", match: (inp) => inp.jukeL },
-	{ id: "RB", label: "RB", match: (inp) => inp.jukeR },
-	{ id: "UP", label: "↑", match: (inp) => inp._dpadUp },
-	{ id: "DN", label: "↓", match: (inp) => inp._dpadDn },
-	{ id: "LEFT", label: "←", match: (inp) => inp._dpadLeft },
-	{ id: "RIGHT", label: "→", match: (inp) => inp._dpadRight },
-	{ id: "SELECT", label: "Select", match: (inp) => inp.celebrate },
-	{ id: "START", label: "Start", match: (inp) => inp.pausePress }
+	},
+	{
+		id: "counterR",
+		name: "Counter Right",
+		arrow: [-.7, 1.1],
+		blockStyle: "pullR",
+		lockFirst: true,
+		steps: [{
+			dx: -.55,
+			dy: .2,
+			t: .2
+		}, {
+			dx: .85,
+			dy: .7,
+			t: .22
+		}]
+	}
 ];
 const DEF_SCHEMES = [
 	{
-		id: "cover4Quarters",
-		name: "Chaos Contain",
-		depthLB: 5.5,
-		depthDB: 12,
-		cluster: "spread"
-	},
-	{
-		id: "overloadBlitz",
-		name: "Overload Blitz",
-		depthLB: 4.4,
-		depthDB: 9.2,
-		cluster: "left"
-	},
-	{
-		id: "stormBlitz",
-		name: "Safety Strike",
-		depthLB: 4.2,
-		depthDB: 9.5,
-		cluster: "middle"
-	},
-	{
-		id: "prevent",
-		name: "Cloud Zone",
-		depthLB: 6.8,
-		depthDB: 13.5,
+		id: "base",
+		name: "Cover 2 Shell",
+		depthLB: 5,
+		depthDB: 9,
 		cluster: "spread"
 	},
 	{
 		id: "tight",
-		name: "Grizzly",
+		name: "Tight Box",
 		depthLB: 4.2,
 		depthDB: 8,
 		cluster: "middle"
 	},
 	{
 		id: "wide",
-		name: "House Blitz",
+		name: "Spread Contain",
 		depthLB: 5.2,
 		depthDB: 9.5,
 		cluster: "wide"
 	},
 	{
-		id: "goalLine",
-		name: "Squirrel Storm",
-		depthLB: 3.6,
-		depthDB: 6.2,
+		id: "shadeL",
+		name: "Shade Left",
+		depthLB: 4.6,
+		depthDB: 8.5,
+		cluster: "left"
+	},
+	{
+		id: "shadeR",
+		name: "Shade Right",
+		depthLB: 4.6,
+		depthDB: 8.5,
+		cluster: "right"
+	},
+	{
+		id: "press",
+		name: "Press Front",
+		depthLB: 3.8,
+		depthDB: 7.2,
 		cluster: "middle"
 	},
 	{
-		id: "base",
-		name: "Spin Cycle",
-		depthLB: 5,
-		depthDB: 9,
+		id: "soft",
+		name: "Soft Zone",
+		depthLB: 6.2,
+		depthDB: 11,
 		cluster: "spread"
+	},
+	{
+		id: "goalLine",
+		name: "Goal Line",
+		depthLB: 3.6,
+		depthDB: 6.2,
+		cluster: "middle"
 	}
 ];
 const CAMERAS = {
@@ -350,7 +374,7 @@ const CAMERAS = {
 	}
 };
 const SPRINT_MULT = 1.38;
-const STORAGE_KEY = "fga_lab_top5_v5";
+const STORAGE_KEY = "fga_lab_top5_v3";
 const DPAD_DIAG_WIN = .04;
 function clamp(v, lo, hi) {
 	return Math.max(lo, Math.min(hi, v));
@@ -360,23 +384,6 @@ function dist(a, b) {
 }
 function randChoice(arr) {
 	return arr[Math.floor(Math.random() * arr.length)];
-}
-function hashSeed(str) {
-	let h = 2166136261 >>> 0;
-	for (let i = 0; i < str.length; i++) {
-		h ^= str.charCodeAt(i);
-		h = Math.imul(h, 16777619);
-	}
-	return h >>> 0;
-}
-function mulberry32(a) {
-	return function () {
-		a |= 0;
-		a = a + 0x6D2B79F5 | 0;
-		let t = Math.imul(a ^ a >>> 15, 1 | a);
-		t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
-		return ((t ^ t >>> 14) >>> 0) / 4294967296;
-	};
 }
 function shuffle(arr) {
 	for (let i = arr.length - 1; i > 0; i--) {
@@ -403,9 +410,9 @@ function startGame(canvas) {
 	let ezTextMode = "ee";
 	let ezCustomText = "ELEVATION EDGE";
 	let midLogoOn = true;
-	const BASE_CANVAS_H = 620;
+	const BASE_CANVAS_H = 780;
 	const PX_PER_YARD_X = BASE_CANVAS_H / 100;
-	const VISIBLE_YARDS = 54;
+	const VISIBLE_YARDS = 48;
 	let SCALE_X = PX_PER_YARD_X;
 	let SCALE_Y = BASE_CANVAS_H / VISIBLE_YARDS;
 	function refreshScale() {
@@ -427,8 +434,8 @@ function startGame(canvas) {
 		return FIELD_WIDTH;
 	}
 	let cameraY = 55;
-	let clock = 120;
-	let gameSeconds = 120;
+	let clock = 180;
+	let gameSeconds = 180;
 	let score = 0;
 	let totalYards = 0;
 	let tdCount = 0;
@@ -439,28 +446,24 @@ function startGame(canvas) {
 	let padName = "";
 	let sessionOver = false;
 	let gamesPlayed = 0;
-	let numOL = 5;
+	let numOL = 4;
 	let numFB = 1;
-	let numTE = 3;
-	let numQB = 1;
-	let numDT = 3;
+	let numTE = 0;
+	let numQB = 0;
+	let numDT = 0;
 	let numLBs = 2;
-	let numDBs = 6;
-	let playSpeed = 1.2;
-	let offStrength = 1.0;
-	let defStrength = 1.0;
-	let breakBlock = 1.0;   // defense ability to shed blocks (>1 sheds more)
-	let breakTackle = 1.0;  // RB ability to break tackles (>1 more YAC / fewer wraps)
+	let numDBs = 3;
+	let playSpeed = 1.25;
+	let offStrength = 0.90;
+	let defStrength = 1.15;
 	let fumblesOn = true;
-	let userStartYard = 50; // game-mode opening LOS (50)
-	let practiceStartYard = 70; // practice LOS (OPP 30), fully adjustable
-	let postTdMode = "random";
+	let userStartYard = 40;
+	let postTdMode = "increment";
 	let tdIncrement = 5;
-	let startSide = "own"; // own triangle down, opp triangle up
 	let randMin = 20;
 	let randMax = 80;
-	let ballYard = 50;
-	let playStartYard = 50;
+	let ballYard = 40;
+	let playStartYard = 40;
 	let driveStartYard = 40;
 	let ballX = 25;
 	let sprintCharge = 1;
@@ -473,34 +476,6 @@ function startGame(canvas) {
 	let camCorner = Math.random() < .5 ? "sw" : "nw";
 	let playArtMode = "on";
 	let padProfile = "v4";
-	let gameMode = "game"; // "game" | "practice"
-	let nextPlayOnSnap = true; // practice default: wait for A
-	let practiceOffPlayId = null;
-	let practiceDefSchemeId = null;
-	let practiceOffPlayIdPrev = null;
-	let practiceDefSchemeIdPrev = null;
-	let practiceYCancelEdge = false;
-	let practiceAwaitSnap = false;
-	let practiceFlipped = false;
-	let practiceFlipEdge = false;
-	let practiceDefFlipped = false;
-	let practiceDefFlipEdge = false;
-	let showRunnerTrail = true;
-	let speedTrail = false; // thickness-by-speed removed
-	let runnerTrail = []; // [{x,y,spd}, ...]
-	let _trailAcc = 0;
-	let practiceAudibleArm = false;
-	let practiceAudibleEdge = false;
-	let practiceDefAudibleArm = false;
-	let practiceDefAudibleEdge = false;
-	let practiceFocusSide = "off"; // "off" | "def" — focused playbook
-	let practiceBookLatch = false;
-	let practiceNumLatch = false;
-	let practiceStickNavT = 0;
-	let practiceStickLatch = 0;
-	let practiceDefStickLatch = 0;
-	let lastRsY = 0;
-	let allowSameUniform = false; // always enforce different kits
 	let swapStickDpad = false;
 	let replayMode = "pip";
 	let playAge = 0;
@@ -517,12 +492,8 @@ function startGame(canvas) {
 	let lastPlayFrames = [];
 	const REPLAY_HZ = 20;
 	const REPLAY_CAP = 1200;
-	const SAVED_CLIPS_KEY = "fga_saved_clips_v1";
-	const SAVED_CLIPS_MAX = 10;
 	let ctrlLeft = null;
 	let ctrlRight = null;
-	let latchCtrlL = null;
-	let latchCtrlR = null;
 	let playArtAnchor = {
 		x: 25,
 		y: 80
@@ -535,7 +506,7 @@ function startGame(canvas) {
 	let blockers = [];
 	let defenders = [];
 	let offUni = 0;
-	let defUni = 6; // LV
+	let defUni = 1;
 	const assignedNums = {
 		QB: [],
 		TE: [],
@@ -550,9 +521,6 @@ function startGame(canvas) {
 	let currentScheme = DEF_SCHEMES[0];
 	let preSnapTimer = 0;
 	let handoffDone = true;
-	let handoffT = 0;
-	let handoffPhase = "done"; // pre | toss | done
-	let handoffBall = null; // {x,y} mid-air during pitch
 	let celebrateTimer = 0;
 	let logoFlip = 1;
 	let fieldArtSide = "def";
@@ -596,93 +564,12 @@ function startGame(canvas) {
 	let dpadPending = null;
 	let dpadPendingT = 0;
 	let dpadMove = null;
-	function sideYardToAbsolute(side, yd50) {
-		const y = clamp(Math.round(yd50), 1, 50);
-		if (side === "opp") return clamp(100 - y, 1, 99);
-		return clamp(y, 1, 99);
-	}
-	function absoluteToSideYard(abs) {
-		const a = clamp(Math.round(abs), 1, 99);
-		if (a >= 50) return { side: "opp", yd: clamp(100 - a, 1, 50) };
-		return { side: "own", yd: clamp(a, 1, 50) };
-	}
 	function userToAbsolute(userYd) {
-		// legacy: treat raw number as absolute field yard
+		// Start yd input = own yard line (own 25 → abs 25, 75 yards to score)
 		return clamp(userYd, 1, 99);
 	}
 	function absoluteToUser(abs) {
 		return clamp(Math.round(abs), 1, 99);
-	}
-	function refreshStartTri() {
-		const tri = $("startSideTri");
-		if (!tri) return;
-		const yd = parseInt($("startYard50")?.value, 10);
-		if (yd === 50) {
-			tri.textContent = "◆";
-			tri.className = "los-tri mid";
-			tri.title = "50";
-			return;
-		}
-		if (startSide === "opp") {
-			tri.textContent = "▲";
-			tri.className = "los-tri opp";
-			tri.title = "OPP";
-		} else {
-			tri.textContent = "▼";
-			tri.className = "los-tri own";
-			tri.title = "OWN";
-		}
-	}
-	function syncStartYardFromUI() {
-		const ydEl = $("startYard50");
-		const hidden = $("startYardInput");
-		const sideEl = $("startSideSelect");
-		const yd = ydEl ? parseInt(ydEl.value, 10) || 50 : 50;
-		if (yd === 50) startSide = "own"; // 50 is midfield either way
-		userStartYard = sideYardToAbsolute(startSide, yd);
-		if (hidden) hidden.value = String(userStartYard);
-		if (sideEl) sideEl.value = startSide;
-		refreshStartTri();
-		return userStartYard;
-	}
-	function nudgeStartYard(dir) {
-		const el = $("startYard50");
-		if (!el) return;
-		let yd = clamp((parseInt(el.value, 10) || 50) + dir, 1, 50);
-		el.value = String(yd);
-		syncStartYardFromUI();
-	}
-	function syncPracticeYardFromUI() {
-		const sideEl = $("practiceSideSelect");
-		const ydEl = $("practiceYard50");
-		const side = sideEl ? sideEl.value : "opp";
-		const yd = ydEl ? parseInt(ydEl.value, 10) || 30 : 30;
-		practiceStartYard = sideYardToAbsolute(side, yd);
-		return practiceStartYard;
-	}
-	function applyPracticeLosNow() {
-		if (gameMode !== "practice") return;
-		const fixed = clamp(syncPracticeYardFromUI(), 1, 99);
-		practiceStartYard = fixed;
-		ballYard = fixed;
-		playStartYard = fixed;
-		driveStartYard = fixed;
-		ballX = (hashLeft() + hashRight()) / 2;
-		practiceAwaitSnap = true;
-		playActive = false;
-		try { placeEntitiesForNewPlay(); } catch (err) { console.error(err); }
-		updateBallOn();
-		if (typeof refreshPracticePreviews === "function") refreshPracticePreviews();
-		setPlayCall((currentPlay ? currentPlay.name : "Practice") + " @ " + yardLabel(fixed) + " — press A to snap");
-	}
-	function updateConfigPanelForMode() {
-		const title = $("configPanelTitle");
-		const gameBody = $("gameConfigBody");
-		const pracBody = $("practiceConfigBody");
-		const isPrac = gameMode === "practice";
-		if (title) title.innerHTML = (isPrac ? "Practice Config" : "Game Config") + ' <span aria-hidden>▾</span>';
-		if (gameBody) gameBody.classList.toggle("hidden", isPrac);
-		if (pracBody) pracBody.classList.toggle("hidden", !isPrac);
 	}
 	function yardLabel(y) {
 		if (y >= 100) return "TD";
@@ -810,7 +697,6 @@ function startGame(canvas) {
 			const uni = getUni(side);
 			p.color = uni.jersey;
 			p.helmet = uni.helmet;
-		p.facemask = uni.facemask || uni.number || "#c5c8cc";
 			p.pants = uni.pants;
 			p.numColor = uni.number;
 		}
@@ -872,7 +758,6 @@ function startGame(canvas) {
 			baseSpeed: 0,
 			color: uni.jersey,
 			helmet: uni.helmet,
-			facemask: uni.facemask || uni.number || "#c5c8cc",
 			pants: uni.pants,
 			numColor: uni.number,
 			number: nums[numIdx] !== void 0 ? nums[numIdx] : 0,
@@ -890,9 +775,6 @@ function startGame(canvas) {
 			recoverT: 0,
 			engageT: 0,
 			_pushYards: 0,
-			blitzDelay: 0,
-			driveBlock: false,
-			sturdyBlock: false,
 			_jitter: (Math.random() - .5) * .8,
 			low: false,
 			hop: 0,
@@ -926,32 +808,10 @@ function startGame(canvas) {
 			levelY: 3
 		};
 	}
-	function mirrorPlay(play) {
-		if (!play) return play;
-		const flipId = (id) => {
-			if (id.endsWith("L")) return id.slice(0, -1) + "R";
-			if (id.endsWith("R")) return id.slice(0, -1) + "L";
-			return id;
-		};
-		const flipName = (n) => n.replace(/Left/g, "§R§").replace(/Right/g, "Left").replace(/§R§/g, "Right");
-		return {
-			...play,
-			id: flipId(play.id),
-			name: flipName(play.name),
-			arrow: (play.arrow || []).map((a) => -a),
-			blockStyle: ({ wallL: "wallR", wallR: "wallL", pullL: "pullR", pullR: "pullL", zoneL: "zoneR", zoneR: "zoneL", swingL: "swingR", swingR: "swingL", river: "river" })[play.blockStyle] || play.blockStyle,
-			steps: (play.steps || []).map((s) => ({ ...s, dx: -s.dx }))
-		};
-	}
 	function choosePlay() {
 		let pool = OFF_PLAYS;
 		if (playStartYard >= 95 || ballYard >= 95) pool = OFF_PLAYS.filter((p) => !p.id.startsWith("counter"));
-		if (practiceOffPlayId) {
-			const found = OFF_PLAYS.find((p) => p.id === practiceOffPlayId) || pool[0];
-			currentPlay = practiceFlipped ? mirrorPlay(found) : { ...found, steps: (found.steps || []).map((s) => ({ ...s })) };
-		} else {
-			currentPlay = randChoice(pool);
-		}
+		currentPlay = randChoice(pool);
 		preSnapTimer = 0;
 		scriptSteps = (currentPlay.steps || []).map((s) => ({ ...s }));
 		scriptIndex = 0;
@@ -959,13 +819,8 @@ function startGame(canvas) {
 		scriptLocked = !!currentPlay.lockFirst;
 		const defName = currentScheme && currentScheme.name ? currentScheme.name : "";
 		setPlayCall(currentPlay.name + (revealDefThisPlay && defName ? " · vs " + defName : ""));
-		if (typeof refreshPracticePreviews === "function") refreshPracticePreviews();
 	}
 	function chooseScheme() {
-		if (practiceDefSchemeId) {
-			currentScheme = DEF_SCHEMES.find((s) => s.id === practiceDefSchemeId) || DEF_SCHEMES[0];
-			return;
-		}
 		if (playStartYard >= 95 || ballYard >= 95) {
 			currentScheme = DEF_SCHEMES.find((s) => s.id === "goalLine") || DEF_SCHEMES[0];
 			return;
@@ -985,7 +840,7 @@ function startGame(canvas) {
 		}
 	}
 	function placeEntitiesForNewPlay() {
-		revealDefThisPlay = true;
+		revealDefThisPlay = Math.random() < .5;
 		choosePlay();
 		chooseScheme();
 		if (currentPlay) {
@@ -1007,18 +862,12 @@ function startGame(canvas) {
 		celebFumbleLock = false;
 		tdZoom = false;
 		const snap = snapX();
-		const behind = playStartYard - 5;
+		const behind = playStartYard - (1.6 + Math.random() * 1.8);
 		rb = createPlayer(snap + (Math.random() - .5) * 1.4, behind, "HB", 0, "off");
 		rb.speed = 9;
-		rb.hasBall = false;
+		rb.hasBall = true;
 		qb = null;
-		handoffDone = false;
-		handoffT = 0;
-		handoffPhase = "pre"; // pre | toss | done
-		if (qb) { qb.hasBall = true; rb.hasBall = false; }
-		else if (rb) { rb.hasBall = true; handoffDone = true; handoffPhase = "done"; }
-		runnerTrail = [];
-		_trailAcc = 0;
+		handoffDone = true;
 		blockers = [];
 		for (let i = 0; i < numOL; i++) {
 			const b = createPlayer(snap + (i - (numOL - 1) / 2) * 2.6, playStartYard + 1.7, "OL", i, "off");
@@ -1033,19 +882,15 @@ function startGame(canvas) {
 			b.speed = 8.7;
 			blockers.push(b);
 		}
-		// QB under center (or slightly offset); FB always deeper behind QB
+		for (let i = 0; i < numFB; i++) {
+			const b = createPlayer(snap + (i - (numFB - 1) / 2) * 2, playStartYard + .4, "FB", i, "off");
+			b.speed = 8.95;
+			blockers.push(b);
+		}
 		if (numQB > 0) {
 			qb = createPlayer(snap - .35, playStartYard - .35, "QB", 0, "off");
 			qb.speed = 7.35;
 			blockers.push(qb);
-		}
-		for (let i = 0; i < numFB; i++) {
-			const qbY = qb ? qb.y : playStartYard - 0.35;
-			// Stack behind QB (toward own endzone = lower yard)
-			const fbY = qbY - 1.85 - i * 0.55;
-			const b = createPlayer(snap + (i - (numFB - 1) / 2) * 1.4, fbY, "FB", i, "off");
-			b.speed = 8.95;
-			blockers.push(b);
 		}
 		defenders = [];
 		const sch = currentScheme;
@@ -1061,37 +906,31 @@ function startGame(canvas) {
 			if (mode === "right") return mid - FIELD_WIDTH * .14 + t * FIELD_WIDTH * .42;
 			return mid + (t - .5) * FIELD_WIDTH * .64;
 		}
-		const EZ_BACK = 108.5; // keep bodies inside the endzone (back line is 110)
-		function clampDefAlignY(y) {
-			return clamp(y, playStartYard + 2.1, EZ_BACK);
-		}
-		const room = Math.max(4.2, EZ_BACK - playStartYard);
-		const depthScale = Math.min(1, room / 16);
+		const depthScale = 1;
 		for (let i = 0; i < numDT; i++) {
 			const t = numDT <= 1 ? .5 : i / (numDT - 1);
-			// Deeper alignment so DTs sit clearly on the defensive side of the OL (was ~+2.05)
-			const x = snap + (t - .5) * Math.min(FIELD_WIDTH * .32, 2.8 * numDT);
-			const d = createPlayer(x + (Math.random() - .5) * .4, clampDefAlignY(playStartYard + Math.min(3.25, room * 0.22) + (Math.random() - .5) * .3), "DT", i, "def");
+			const x = snap + (t - .5) * Math.min(FIELD_WIDTH * .28, 2.4 * numDT);
+			const d = createPlayer(x + (Math.random() - .5) * .5, playStartYard + 2.05 + (Math.random() - .5) * .35, "DT", i, "def");
 			d.baseSpeed = 7.7;
 			d.speed = d.baseSpeed;
 			d.dtLag = true;
 			defenders.push(d);
 		}
 		for (let i = 0; i < numLBs; i++) {
-			const d = createPlayer(clusterX(i, numLBs, sch.cluster) + (Math.random() - .5) * 1.3, clampDefAlignY(playStartYard + Math.min(sch.depthLB * depthScale, room * 0.42) + (Math.random() - .5) * .4), "LB", i, "def");
+			const d = createPlayer(clusterX(i, numLBs, sch.cluster) + (Math.random() - .5) * 1.3, playStartYard + sch.depthLB * depthScale + (Math.random() - .5) * .9, "LB", i, "def");
 			d.baseSpeed = 8.55;
 			d.speed = d.baseSpeed;
 			defenders.push(d);
 		}
 		for (let i = 0; i < numDBs; i++) {
 			const wide = i === 0 || i === numDBs - 1;
-			const extra = wide ? Math.min(1.0, room * 0.08) : Math.min(5.5 + Math.random() * 7, room * 0.72);
+			const extra = wide ? Math.random() * 1.2 : 5.5 + Math.random() * 7;
 			let x;
 			if (numDBs <= 1) x = mid;
 			else if (i === 0) x = flDb + FIELD_WIDTH * .1;
 			else if (i === numDBs - 1) x = frDb - FIELD_WIDTH * .1;
 			else x = clusterX(i - 1, Math.max(1, numDBs - 2), sch.cluster);
-			const d = createPlayer(x + (Math.random() - .5) * 1.2, clampDefAlignY(playStartYard + Math.min(sch.depthDB * depthScale + extra, room * 0.92)), "DB", i, "def");
+			const d = createPlayer(x + (Math.random() - .5) * 1.2, playStartYard + sch.depthDB * depthScale + extra, "DB", i, "def");
 			d.baseSpeed = 9.15;
 			d.speed = d.baseSpeed;
 			defenders.push(d);
@@ -1100,12 +939,6 @@ function startGame(canvas) {
 			d._pushYards = 0;
 		});
 		assignDefenseJobs();
-		defenders.forEach((d) => {
-			d.y = clampDefAlignY(d.y);
-			if (d.jobY != null) d.jobY = Math.min(d.jobY, EZ_BACK);
-			if (d.stutterY != null) d.stutterY = Math.min(d.stutterY, EZ_BACK);
-		});
-		if (practiceDefFlipped) mirrorDefenseHorizontal();
 		assignBlockJobs();
 		playAge = 0;
 		idleCarrierT = 0;
@@ -1119,7 +952,6 @@ function startGame(canvas) {
 		ctrlLeft = null;
 		ctrlRight = null;
 		updateCamera();
-		if (typeof refreshPracticePreviews === "function") refreshPracticePreviews();
 	}
 	function playSideSign() {
 		if ((currentPlay ? currentPlay.id : "").endsWith("L") || currentPlay && currentPlay.blockStyle === "wallL" || currentPlay && currentPlay.blockStyle === "pullL") return -1;
@@ -1134,416 +966,9 @@ function startGame(canvas) {
 		const fbs = blockers.filter((b) => b.group === "FB").sort((a, b) => a.x - b.x);
 		const qbs = blockers.filter((b) => b.group === "QB");
 		const defs = [...defenders].sort((a, b) => a.x - b.x);
-		// HB Zone / Blast: drive defenders BACK — every OL/TE claims someone
-		if (style === "zoneR" || style === "zoneL") {
-			const zSide = style === "zoneR" ? 1 : -1;
-			const used = new Set();
-			function takeDef(preferX, maxD, preferGroup) {
-				let best = null, bd = maxD;
-				for (const d of defs) {
-					if (used.has(d)) continue;
-					let dd = Math.hypot(d.x - preferX, (d.y - playStartYard) * 0.5);
-					if (preferGroup && d.group === preferGroup) dd *= 0.5;
-					if (dd < bd) { bd = dd; best = d; }
-				}
-				if (best) used.add(best);
-				return best;
-			}
-			const bGapX = snap + zSide * (ols.length >= 3 ? 2.4 : 1.9);
-			blockers.forEach((b) => {
-				b.blockTarget = null; b.blockMode = "man"; b.pullPhase = 0; b.pullVia = null;
-				b.driveSide = zSide; b.levelY = 2.8; b.driveBlock = true; b.sturdyBlock = false; b._userCtrl = 0;
-			});
-			ols.forEach((b, i) => {
-				b.blockMode = "reach";
-				b.driveSide = zSide;
-				b.driveBlock = true;
-				b.blockTarget = takeDef(b.x + zSide * 0.9, 22, "DT") || takeDef(b.x + zSide * 1.1, 24);
-				b.levelY = 2.4 + i * 0.3;
-			});
-			tes.forEach((b, i) => {
-				b.blockMode = "reach";
-				b.driveSide = zSide;
-				b.driveBlock = true;
-				b.blockTarget = takeDef(b.x + zSide * 1.4, 20, "DT") || takeDef(b.x + zSide * 1.4, 20);
-				b.levelY = 3.0 + i * 0.35;
-			});
-			fbs.forEach((b, i) => {
-				b.blockMode = "climb";
-				b.driveSide = zSide;
-				b.driveBlock = true;
-				b.levelY = 3.6 + i * 0.35;
-				b.blockTarget = takeDef(bGapX + zSide * i * 0.7, 24) || takeDef(bGapX, 28);
-				b.gapAimX = bGapX + zSide * 0.8;
-				b.gapAimY = playStartYard + 4.8 + i * 0.7;
-			});
-			qbs.forEach((b) => {
-				b.blockMode = "man";
-				b.driveSide = zSide;
-				b.driveBlock = true;
-				b.blockTarget = takeDef(snap - zSide * 2.2, 14, "DT") || takeDef(snap - zSide * 2.2, 14);
-				b.levelY = 1.2;
-			});
-			// Any unclaimed DT: assign nearest free OL
-			defs.filter((d) => d.group === "DT" && !used.has(d)).forEach((d) => {
-				const free = ols.find((b) => !b.blockTarget) || ols[0];
-				if (free) { free.blockTarget = d; free.driveBlock = true; used.add(d); }
-			});
-			return;
-		}
-		// Sweep Left: rightmost two pull; backside OL must claim DTs (no free rushers)
-		if (style === "wallL") {
-			const wSide = -1;
-			const used = new Set();
-			function takeDef(preferX, maxD, preferGroup) {
-				let best = null, bd = maxD;
-				for (const d of defs) {
-					if (used.has(d)) continue;
-					let dd = Math.hypot(d.x - preferX, (d.y - playStartYard) * 0.55);
-					if (preferGroup && d.group === preferGroup) dd *= 0.55;
-					if (dd < bd) { bd = dd; best = d; }
-				}
-				if (best) used.add(best);
-				return best;
-			}
-			blockers.forEach((b) => {
-				b.blockTarget = null; b.blockMode = "man"; b.pullPhase = 0; b.pullVia = null;
-				b.driveSide = wSide; b.levelY = 2.6; b.pullBoost = 1; b._userCtrl = 0;
-			});
-			const line = [...ols, ...tes].sort((a, b) => a.x - b.x);
-			const pullers = line.slice(-2).reverse();
-			pullers.forEach((b, i) => {
-				b.blockMode = "pull"; b.pullPhase = 0; b.driveSide = wSide;
-				b.pullVia = {
-					x: b.x - wSide * 0.3, y: playStartYard - 1.5 - i * 0.35,
-					x2: snap + wSide * (5.8 + i * 1.1), y2: playStartYard + 1.4 + i * 0.5
-				};
-				b.blockTarget = takeDef(snap + wSide * (7 + i), 24);
-				b.levelY = 4.0 + i * 0.4;
-			});
-			// Backside (right) blockers: prioritize DTs on their side — pancakes not free runs
-			line.forEach((b, i) => {
-				if (pullers.includes(b)) return;
-				b.blockMode = "man";
-				b.driveSide = Math.sign(b.x - snap) || 1;
-				const preferX = b.x + 0.6;
-				b.blockTarget = takeDef(preferX, 16, "DT") || takeDef(preferX, 20);
-				b.levelY = 2.0 + i * 0.25;
-			});
-			fbs.forEach((b, i) => {
-				b.blockMode = "climb"; b.driveSide = wSide; b.levelY = 5.5 + i * 0.4;
-				const outsideX = snap + wSide * (8.5 + i * 1.2);
-				b.blockTarget = takeDef(outsideX, 26);
-				b.gapAimX = outsideX; b.gapAimY = playStartYard + 5.5 + i * 0.6;
-			});
-			qbs.forEach((b) => {
-				b.blockMode = "man"; b.driveSide = -wSide;
-				b.blockTarget = takeDef(snap - wSide * 2.2, 12, "DT") || takeDef(snap - wSide * 2.2, 12);
-				b.levelY = 1.2;
-			});
-			return;
-		}
-		// Sweep Right: leftmost pull; EVERY other blocker must claim a defender (prefer DT)
-		if (style === "wallR") {
-			const wSide = 1;
-			const used = new Set();
-			function takeDef(preferX, maxD, preferGroup) {
-				let best = null, bd = maxD;
-				for (const d of defs) {
-					if (used.has(d)) continue;
-					let dd = Math.hypot(d.x - preferX, (d.y - playStartYard) * 0.5);
-					if (preferGroup && d.group === preferGroup) dd *= 0.45;
-					if (dd < bd) { bd = dd; best = d; }
-				}
-				if (best) used.add(best);
-				return best;
-			}
-			blockers.forEach((b) => {
-				b.blockTarget = null; b.blockMode = "man"; b.pullPhase = 0; b.pullVia = null;
-				b.driveSide = wSide; b.levelY = 3.0; b.pullBoost = 1; b.driveBlock = true; b._userCtrl = 0;
-			});
-			const line = [...ols, ...tes].sort((a, b) => a.x - b.x);
-			const pullers = line.slice(0, Math.min(2, line.length));
-			pullers.forEach((b, i) => {
-				b.blockMode = "pull"; b.pullPhase = 0; b.driveSide = wSide; b.driveBlock = true;
-				b.pullVia = {
-					x: b.x + wSide * 0.8, y: playStartYard + 0.4 + i * 0.2,
-					x2: snap + wSide * (6.0 + i * 1.1), y2: playStartYard + 3.4 + i * 0.6
-				};
-				b.blockTarget = takeDef(snap + wSide * (7 + i), 26);
-				b.levelY = 4.5 + i * 0.3;
-			});
-			line.forEach((b) => {
-				if (pullers.includes(b)) return;
-				b.blockMode = "reach";
-				b.driveSide = Math.sign(b.x - snap) || -1;
-				b.driveBlock = true;
-				b.blockTarget = takeDef(b.x, 18, "DT") || takeDef(b.x, 22);
-				b.levelY = 2.4;
-			});
-			// Force-cover remaining DTs
-			defs.filter((d) => d.group === "DT" && !used.has(d)).forEach((d) => {
-				const free = line.find((b) => !pullers.includes(b) && (!b.blockTarget || b.blockTarget.group !== "DT"));
-				const host = free || line[line.length - 1];
-				if (host) { host.blockTarget = d; host.blockMode = "reach"; host.driveBlock = true; used.add(d); }
-			});
-			fbs.forEach((b, i) => {
-				b.blockMode = "climb"; b.driveSide = wSide; b.driveBlock = true; b.levelY = 5.8;
-				const ox = snap + wSide * (8.5 + i);
-				b.blockTarget = takeDef(ox, 26); b.gapAimX = ox; b.gapAimY = playStartYard + 6;
-			});
-			qbs.forEach((b) => {
-				b.blockMode = "man"; b.driveBlock = true;
-				b.blockTarget = takeDef(snap - 2, 14, "DT") || takeDef(snap - 2, 14);
-				b.levelY = 1.2;
-			});
-			return;
-		}
-		// Swing Right: literal swinging door — leftmost arcs all the way to far right of hinge
-		if (style === "swingR" || style === "swingL") {
-			const gSide = style === "swingR" ? 1 : -1;
-			const used = new Set();
-			function takeDef(preferX, maxD) {
-				let best = null, bd = maxD;
-				for (const d of defs) {
-					if (used.has(d)) continue;
-					const dd = Math.hypot(d.x - preferX, (d.y - playStartYard) * 0.65);
-					if (dd < bd) { bd = dd; best = d; }
-				}
-				if (best) used.add(best);
-				return best;
-			}
-			blockers.forEach((b) => {
-				b.blockTarget = null; b.blockMode = "man"; b.pullPhase = 0; b.pullVia = null;
-				b.driveSide = gSide; b.levelY = 2.8; b.pullBoost = 1; b.driveBlock = true; b._userCtrl = 0;
-			});
-			const line = [...ols, ...tes].sort((a, b) => a.x - b.x);
-			if (!line.length) return;
-			const n = line.length;
-			const pivot = gSide > 0 ? line[n - 1] : line[0];
-			const hingeX = pivot.x;
-			const hingeY = playStartYard + 0.2;
-			// Hinge + next 1–2: punch DOWNFIELD to open the door swing
-			const hingeGroup = gSide > 0 ? line.slice(-Math.min(3, n)) : line.slice(0, Math.min(3, n));
-			hingeGroup.forEach((b, i) => {
-				b.blockMode = "reach";
-				b.driveSide = gSide;
-				b.driveBlock = true;
-				b.levelY = 3.6 + i * 0.35;
-				b.blockTarget = takeDef(b.x + gSide * (0.8 + i * 0.3), 16);
-				b.gapAimX = b.x + gSide * 0.5;
-				b.gapAimY = playStartYard + 3.5 + i * 0.5;
-			});
-			// Door panel: everyone else swings on a circular arc around hinge
-			// rank 1 = nearest non-hinge traveler … rank high = leftmost → ends furthest outside hinge
-			const panel = line.filter((b) => !hingeGroup.includes(b));
-			panel.forEach((b) => {
-				const i = line.indexOf(b);
-				// For swingR: leftmost (i=0) has highest rank
-				const rank = gSide > 0 ? (n - 1 - i) : i;
-				const radius = Math.max(2.2, Math.abs(b.x - hingeX) + 0.4);
-				// Arc through backfield: start left of hinge, midpoint deep, end right of hinge
-				// Angle in field plane: 0 = +x, π/2 = +y (downfield)
-				const startAng = gSide > 0 ? Math.PI * 0.92 : Math.PI * 0.08;
-				const endAng = gSide > 0 ? -0.25 - rank * 0.08 : Math.PI + 0.25 + rank * 0.08;
-				const midAng = gSide > 0
-					? startAng + (endAng - startAng) * 0.45
-					: startAng + (endAng - startAng) * 0.45;
-				const midR = radius * (0.85 + rank * 0.06);
-				const endR = radius * 0.55 + 1.2 + rank * 1.35;
-				const midX = hingeX + Math.cos(midAng) * midR;
-				const midY = hingeY + Math.sin(midAng) * midR - (0.8 + rank * 0.55);
-				const endX = hingeX + gSide * (1.3 + rank * 1.55);
-				const endY = playStartYard + 1.3 + rank * 0.25;
-				b.blockMode = "pull";
-				b.pullPhase = 0;
-				b.driveSide = gSide;
-				b.pullBoost = 1.05 + Math.min(0.22, rank * 0.05);
-				b.pullVia = { x: midX, y: Math.min(playStartYard - 0.3, midY), x2: endX, y2: endY };
-				b.blockTarget = takeDef(endX + gSide * 0.8, 20);
-				b.levelY = 2.5 + rank * 0.3;
-			});
-			fbs.forEach((b) => {
-				b.blockMode = "climb"; b.driveSide = gSide; b.driveBlock = true; b.levelY = 4.6;
-				b.blockTarget = takeDef(hingeX + gSide * 5, 20);
-				b.gapAimX = hingeX + gSide * 5.2; b.gapAimY = playStartYard + 4.5;
-			});
-			qbs.forEach((b) => {
-				b.blockMode = "man";
-				b.blockTarget = takeDef(snap - gSide * 2, 12);
-				b.levelY = 1.2;
-			});
-			return;
-		}
-		// River: purge middle — inside blockers drive defenders SIDEWAYS; levels downfield; sturdy holds
-		if (style === "river") {
-			const used = new Set();
-			function takeDef(preferX, maxD) {
-				let best = null, bd = maxD;
-				for (const d of defs) {
-					if (used.has(d)) continue;
-					const dd = Math.hypot(d.x - preferX, (d.y - playStartYard) * 0.6);
-					if (dd < bd) { bd = dd; best = d; }
-				}
-				if (best) used.add(best);
-				return best;
-			}
-			blockers.forEach((b) => {
-				b.blockTarget = null; b.blockMode = "man"; b.pullPhase = 0; b.pullVia = null;
-				b.driveSide = 0; b.levelY = 3; b.sturdyBlock = true; b.driveBlock = false; b._userCtrl = 0;
-			});
-			const line = [...ols, ...tes].sort((a, b) => a.x - b.x);
-			const midI = (line.length - 1) / 2;
-			line.forEach((b, i) => {
-				const outward = Math.sign(i - midI) || (i % 2 === 0 ? -1 : 1);
-				// Inside: wash defenders out of the A/B gaps
-				b.blockMode = "reach";
-				b.driveSide = outward;
-				b.sturdyBlock = true;
-				b.blockTarget = takeDef(b.x + outward * 1.4, 18);
-				// Staggered levels so RB can weave S-path through channels
-				b.levelY = 2.2 + Math.abs(i - midI) * 0.9 + (i % 2) * 0.35;
-			});
-			fbs.forEach((b, i) => {
-				b.blockMode = "climb";
-				b.sturdyBlock = true;
-				b.driveSide = i % 2 === 0 ? 1 : -1;
-				b.levelY = 5.0 + i * 0.8;
-				b.blockTarget = takeDef(snap + b.driveSide * 2.5, 20);
-				b.gapAimX = snap + b.driveSide * 3.2;
-				b.gapAimY = playStartYard + 5.5;
-			});
-			qbs.forEach((b) => {
-				b.blockMode = "man";
-				b.sturdyBlock = true;
-				b.blockTarget = takeDef(snap, 12);
-				b.levelY = 1.5;
-			});
-			return;
-		}
-
-		// Wedge Left: mass pull left like a swinging gate, staggered levels; RB fake R then pitch L
-		if (style === "wedgeL") {
-			const used = new Set();
-			function takeDef(preferX, maxD) {
-				let best = null, bd = maxD;
-				for (const d of defs) {
-					if (used.has(d)) continue;
-					const dd = Math.hypot(d.x - preferX, (d.y - playStartYard) * 0.55);
-					if (dd < bd) { bd = dd; best = d; }
-				}
-				if (best) used.add(best);
-				return best;
-			}
-			const line = [...ols, ...tes].sort((a, b) => a.x - b.x);
-			const hinge = line[0] || null; // left edge acts as wedge tip
-			blockers.forEach((b) => {
-				b.blockTarget = null; b.blockMode = "man"; b.pullPhase = 0; b.pullVia = null;
-				b.driveSide = -1; b.levelY = 3; b.driveBlock = true; b.sturdyBlock = true; b._userCtrl = 0;
-			});
-			line.forEach((b, i) => {
-				const rank = line.length - 1 - i; // rightmost travels farthest left
-				if (hinge && b === hinge) {
-					b.blockMode = "reach";
-					b.driveBlock = true;
-					b.sturdyBlock = true;
-					b.gapAimX = b.x - 1.2;
-					b.gapAimY = playStartYard + 4.5;
-					b.blockTarget = takeDef(b.x - 1.5, 16);
-					b.levelY = 4;
-					return;
-				}
-				b.blockMode = "pull";
-				b.pullPhase = 0;
-				b.pullBoost = 1 + rank * 0.06;
-				const midX = snap - 2.8 - rank * 0.55;
-				const midY = playStartYard - (1.1 + rank * 0.65);
-				const endX = snap - (6.5 + rank * 1.55);
-				const endY = playStartYard + 2.4 + rank * 0.95; // staggered levels
-				b.pullVia = { x: midX, y: midY, x2: endX, y2: endY };
-				b.pullBoost = 1.08 + rank * 0.08;
-				b.blockTarget = takeDef(endX, 22);
-				b.gapAimX = endX;
-				b.gapAimY = endY + 1.2;
-				b.levelY = 3 + rank * 0.9;
-				b.driveBlock = true;
-			});
-			fbs.forEach((b, i) => {
-				b.blockMode = "pull";
-				b.pullPhase = 0;
-				b.pullBoost = 1.2;
-				b.pullVia = {
-					x: snap - 1.2, y: playStartYard - 2.6,
-					x2: snap - (10 + i * 1.2), y2: playStartYard + 5.8 + i
-				};
-				b.blockTarget = takeDef(snap - 11, 24);
-				b.levelY = 6 + i;
-				b.driveBlock = true;
-			});
-			qbs.forEach((b) => {
-				b.blockMode = "man";
-				b.blockTarget = takeDef(snap + 2, 12);
-			});
-			return;
-		}
-		// Zig Zag: blockers form staggered lane matching runner path L-R-L-R-L
-		if (style === "zigzag") {
-			const used = new Set();
-			function takeDef(preferX, maxD) {
-				let best = null, bd = maxD;
-				for (const d of defs) {
-					if (used.has(d)) continue;
-					const dd = Math.hypot(d.x - preferX, (d.y - playStartYard) * 0.55);
-					if (dd < bd) { bd = dd; best = d; }
-				}
-				if (best) used.add(best);
-				return best;
-			}
-			// Path waypoints (match art / steps) relative to snap + LOS
-			const zigs = [
-				{ x: snap - 2.4, y: playStartYard + 3.2, side: -1 },
-				{ x: snap + 2.6, y: playStartYard + 6.4, side: 1 },
-				{ x: snap - 2.7, y: playStartYard + 9.5, side: -1 },
-				{ x: snap + 2.4, y: playStartYard + 12.4, side: 1 },
-				{ x: snap - 1.4, y: playStartYard + 15.0, side: -1 }
-			];
-			blockers.forEach((b) => {
-				b.blockTarget = null; b.blockMode = "man"; b.pullPhase = 0; b.pullVia = null;
-				b.driveSide = -1; b.levelY = 3; b.driveBlock = true; b.sturdyBlock = true; b._userCtrl = 0;
-			});
-			const line = [...ols, ...tes].sort((a, b) => a.x - b.x);
-			// Pair blockers to zig points: seal outside of each bend
-			line.forEach((b, i) => {
-				const z = zigs[Math.min(i, zigs.length - 1)];
-				const sealX = z.x + z.side * 1.35; // outside the lane
-				b.blockMode = "reach";
-				b.driveSide = z.side;
-				b.sturdyBlock = true;
-				b.driveBlock = true;
-				b.levelY = (z.y - playStartYard) * 0.55;
-				b.blockTarget = takeDef(sealX, 18);
-				b.gapAimX = sealX;
-				b.gapAimY = z.y;
-			});
-			fbs.forEach((b, i) => {
-				const z = zigs[Math.min(1 + i, zigs.length - 1)];
-				b.blockMode = "climb";
-				b.driveSide = z.side;
-				b.sturdyBlock = true;
-				b.levelY = z.y - playStartYard;
-				b.blockTarget = takeDef(z.x + z.side * 1.8, 20);
-				b.gapAimX = z.x + z.side * 1.5;
-				b.gapAimY = z.y + 0.5;
-			});
-			qbs.forEach((b) => {
-				b.blockMode = "man";
-				b.blockTarget = takeDef(snap + 1.5, 12);
-				b.levelY = 1.2;
-			});
-			return;
-		}
 		let nPull = 0;
 		if (style === "pullL" || style === "pullR") nPull = 1 + (Math.random() < .42 ? 1 : 0);
+		else if (style === "wallL" || style === "wallR") nPull = Math.random() < .5 ? 1 : Math.random() < .2 ? 2 : 0;
 		else nPull = Math.random() < .38 ? 1 : Math.random() < .12 ? 2 : 0;
 		nPull = Math.min(nPull, Math.max(0, ols.length - 1));
 		const pullers = [];
@@ -1612,911 +1037,10 @@ function startGame(canvas) {
 			b.levelY = 1.2;
 		});
 	}
-
-
-	function assignOverloadBlitzJobs(fl, fr, mid, _rnd) {
-		const W = fr - fl;
-		const used = new Set();
-		const dts = defenders.filter((d) => d.group === "DT").sort((a, b) => a.x - b.x);
-		const lbs = defenders.filter((d) => d.group === "LB").sort((a, b) => a.x - b.x);
-		const dbs = defenders.filter((d) => d.group === "DB").sort((a, b) => a.x - b.x);
-
-		function claimBlitz(d, jobX, jobY, opts) {
-			opts = opts || {};
-			d.job = "blitz";
-			d.jobX = clamp(jobX, fl + 2.5, fr - 2.5);
-			d.jobY = jobY;
-			d.zoneRx = 1.2;
-			d.zoneRy = 1.2;
-			d.zoneFollow = false;
-			d.artCurve = !!opts.curve;
-			d.stutter = !!opts.stutter;
-			if (d.stutter) {
-				d.stutterX = clamp(opts.stutterX != null ? opts.stutterX : (d.x + jobX) / 2, fl + 3, fr - 3);
-				d.stutterY = opts.stutterY != null ? opts.stutterY : playStartYard + 1.1;
-				d.artCurve = true;
-			}
-			d.readT = 0.1 + _rnd() * 0.18;
-			d.isSafety = false;
-			d.isCorner = false;
-			d.aggressor = true;
-			used.add(d);
-		}
-		function claimZone(d, job, x, y, rx, ry, follow) {
-			d.job = job;
-			d.jobX = clamp(x, fl + 2.5, fr - 2.5);
-			d.jobY = y;
-			d.zoneRx = rx;
-			d.zoneRy = ry;
-			d.zoneFollow = !!follow || job === "drop" || job === "spy";
-			d.artCurve = false;
-			d.stutter = false;
-			d.readT = job === "deep" ? 0.4 + _rnd() * 0.3 : 0.22 + _rnd() * 0.25;
-			d.isSafety = job === "deep";
-			d.isCorner = job === "curl" || job === "flat";
-			d.aggressor = false;
-			used.add(d);
-		}
-
-		// --- Overload LEFT (matches Madden OverloadBlitz art) ---
-		// Leftmost DB: blitz down-and-in, force contain
-		if (dbs[0]) {
-			claimBlitz(dbs[0], mid - W * 0.08, playStartYard - 0.35, {
-				curve: true,
-				stutter: true,
-				stutterX: dbs[0].x + W * 0.06,
-				stutterY: playStartYard + 1.4
-			});
-		}
-		// Leftmost LB: sweep into next available gap (inside the DB path)
-		if (lbs[0]) {
-			claimBlitz(lbs[0], mid - W * 0.04, playStartYard - 0.15, {
-				curve: true,
-				stutter: true,
-				stutterX: lbs[0].x + W * 0.1,
-				stutterY: playStartYard + 0.9
-			});
-		}
-		// Leftmost DT: inside angle — pull OL in, open lanes for LB/DB
-		if (dts[0]) {
-			claimBlitz(dts[0], mid - W * 0.02, playStartYard - 0.45, {
-				curve: true,
-				stutter: false
-			});
-		}
-		// Other DTs: straight-ahead blitz
-		dts.slice(1).forEach((d) => {
-			claimBlitz(d, d.x, playStartYard - 0.25 - _rnd() * 0.35, { curve: false });
-		});
-		// Middle LB (or second from left): also blitz overloaded side
-		if (lbs[1]) {
-			claimBlitz(lbs[1], mid - W * 0.06, playStartYard - 0.2, {
-				curve: true,
-				stutter: false
-			});
-		}
-		// Any further LBs: straight / light contain-side blitz
-		lbs.slice(2).forEach((d, i) => {
-			claimBlitz(d, d.x - W * 0.03, playStartYard - 0.15, { curve: i === 0 });
-		});
-
-		// --- Backside / residual: ZONE (not man) ---
-		const freeDbs = dbs.filter((d) => !used.has(d));
-		// Nearest available DB → left curl/flat
-		if (freeDbs[0]) {
-			claimZone(freeDbs[0], "curl", fl + W * 0.16, playStartYard + 4.4, W * 0.13, 1.9, false);
-		}
-		// Next two DBs → deep halves
-		if (freeDbs[1]) {
-			claimZone(freeDbs[1], "deep", fl + W * 0.32, Math.min(99, playStartYard + 15), W * 0.2, 5.0, false);
-		}
-		if (freeDbs[2]) {
-			claimZone(freeDbs[2], "deep", fr - W * 0.32, Math.min(99, playStartYard + 15), W * 0.2, 5.0, false);
-		}
-		// Remaining DB slots / leftover defenders: drop + curl flat right
-		const rest = defenders.filter((d) => !used.has(d)).sort((a, b) => a.x - b.x);
-		const zoneTail = [
-			{ job: "drop", x: mid + W * 0.04, y: playStartYard + 8.0, rx: W * 0.11, ry: 2.5, follow: true },
-			{ job: "curl", x: fr - W * 0.16, y: playStartYard + 4.4, rx: W * 0.13, ry: 1.9, follow: false },
-			{ job: "deep", x: mid, y: Math.min(99, playStartYard + 14.5), rx: W * 0.18, ry: 4.5, follow: false },
-			{ job: "flat", x: fr - W * 0.22, y: playStartYard + 3.6, rx: W * 0.12, ry: 1.5, follow: false }
-		];
-		rest.forEach((d, i) => {
-			const slot = zoneTail[Math.min(i, zoneTail.length - 1)];
-			claimZone(d, slot.job, slot.x, slot.y, slot.rx, slot.ry, slot.follow);
-		});
-
-		defenders.forEach((d, i) => {
-			d.laneOffset = (i - (defenders.length - 1) / 2) * 1.7;
-		});
-	}
-
-
-
-	function assignStormBlitzJobs(fl, fr, mid, _rnd) {
-		// Storm Blitz: front 4 angle-right; outside contains arc; one cross blitz; deep middle + flat L/R
-		const W = fr - fl;
-		const used = new Set();
-		const dts = defenders.filter((d) => d.group === "DT").sort((a, b) => a.x - b.x);
-		const lbs = defenders.filter((d) => d.group === "LB").sort((a, b) => a.x - b.x);
-		const dbs = defenders.filter((d) => d.group === "DB").sort((a, b) => a.x - b.x);
-
-		function claimBlitz(d, jobX, jobY, opts) {
-			opts = opts || {};
-			d.job = "blitz";
-			d.jobX = clamp(jobX, fl + 2.5, fr - 2.5);
-			d.jobY = jobY;
-			d.zoneRx = 1.2;
-			d.zoneRy = 1.2;
-			d.zoneFollow = false;
-			d.artCurve = !!opts.curve;
-			d.stutter = !!opts.stutter;
-			if (d.stutter) {
-				d.stutterX = clamp(opts.stutterX != null ? opts.stutterX : (d.x + jobX) / 2, fl + 3, fr - 3);
-				d.stutterY = opts.stutterY != null ? opts.stutterY : playStartYard + 1.0;
-			}
-			d.readT = 0.08 + _rnd() * 0.15;
-			d.isSafety = false;
-			d.isCorner = false;
-			d.aggressor = true;
-			used.add(d);
-		}
-		function claimZone(d, job, x, y, rx, ry, follow) {
-			d.job = job;
-			d.jobX = clamp(x, fl + 2.5, fr - 2.5);
-			d.jobY = y;
-			d.zoneRx = rx;
-			d.zoneRy = ry;
-			d.zoneFollow = !!follow || job === "drop" || job === "spy";
-			d.artCurve = false;
-			d.stutter = false;
-			d.readT = job === "deep" ? 0.45 + _rnd() * 0.3 : 0.22 + _rnd() * 0.25;
-			d.isSafety = job === "deep";
-			d.isCorner = job === "flat" || job === "curl";
-			d.aggressor = false;
-			used.add(d);
-		}
-
-		// Front 4 (DTs, pad with LBs if fewer than 4 DTs): all blitz angle RIGHT
-		const front = [...dts];
-		while (front.length < 4 && lbs.length) {
-			const lb = lbs.find((d) => !front.includes(d) && !used.has(d));
-			if (!lb) break;
-			front.push(lb);
-		}
-		front.slice(0, 4).forEach((d, i) => {
-			const angX = d.x + W * (0.06 + i * 0.015); // angle right
-			claimBlitz(d, angX, playStartYard - 0.25 - _rnd() * 0.3, {
-				curve: true,
-				stutter: false
-			});
-		});
-
-		// Outside contain: leftmost free LB/DB and rightmost free LB/DB — angled curved arc blitz
-		const freeLbDb = [...lbs, ...dbs].filter((d) => !used.has(d)).sort((a, b) => a.x - b.x);
-		const leftContain = freeLbDb[0];
-		const rightContain = freeLbDb.length > 1 ? freeLbDb[freeLbDb.length - 1] : null;
-		if (leftContain) {
-			claimBlitz(leftContain, fl + W * 0.12, playStartYard - 0.1, {
-				curve: true,
-				stutter: true,
-				stutterX: fl + W * 0.22,
-				stutterY: playStartYard + 1.6
-			});
-			leftContain.job = "contain"; // show as contain art color while still rushing
-			leftContain.zoneRx = 2.2;
-			leftContain.zoneRy = 2.0;
-		}
-		if (rightContain && rightContain !== leftContain) {
-			claimBlitz(rightContain, fr - W * 0.12, playStartYard - 0.1, {
-				curve: true,
-				stutter: true,
-				stutterX: fr - W * 0.22,
-				stutterY: playStartYard + 1.6
-			});
-			rightContain.job = "contain";
-			rightContain.zoneRx = 2.2;
-			rightContain.zoneRy = 2.0;
-		}
-
-		// Next LB/DB to the right of left contain: cross blitz between 3rd and 4th DT
-		const gapX = dts.length >= 4
-			? (dts[2].x + dts[3].x) / 2
-			: dts.length >= 2
-				? (dts[dts.length - 2].x + dts[dts.length - 1].x) / 2
-				: mid + W * 0.05;
-		const crossCands = [...lbs, ...dbs].filter((d) => !used.has(d)).sort((a, b) => a.x - b.x);
-		// prefer one just right of left contain / mid-left
-		let cross = crossCands.find((d) => d.x >= mid - W * 0.15) || crossCands[0];
-		if (cross) {
-			claimBlitz(cross, gapX, playStartYard - 0.35, {
-				curve: true,
-				stutter: true,
-				stutterX: cross.x - W * 0.04,
-				stutterY: playStartYard + 0.8
-			});
-		}
-
-				// 4 deepest DBs: move 30% closer to LOS
-		const byDepth = [...dbs].sort((a, b) => b.y - a.y);
-		byDepth.slice(0, 4).forEach((d) => {
-			const depth = d.y - playStartYard;
-			d.y = playStartYard + depth * 0.7;
-		});
-
-		// Two free DBs/safeties: cross-blitz into adjacent gaps (no cross-field flat)
-		const freeSaf = defenders.filter((d) => !used.has(d) && d.group === "DB").sort((a, b) => a.x - b.x);
-		const gapA = mid - W * 0.06;
-		const gapB = mid + W * 0.06;
-		if (freeSaf[0] && freeSaf[1]) {
-			// Cross: left safety attacks right gap, right safety attacks left gap — land one gap apart
-			claimBlitz(freeSaf[0], gapB, playStartYard - 0.3, {
-				curve: true, stutter: true,
-				stutterX: mid, stutterY: playStartYard + 1.2
-			});
-			claimBlitz(freeSaf[1], gapA, playStartYard - 0.3, {
-				curve: true, stutter: true,
-				stutterX: mid, stutterY: playStartYard + 1.2
-			});
-		} else if (freeSaf[0]) {
-			claimBlitz(freeSaf[0], gapA, playStartYard - 0.3, { curve: true, stutter: true });
-		}
-
-		// Coverage residual: flats on matching side only + optional deep
-		const cov = defenders.filter((d) => !used.has(d)).sort((a, b) => a.x - b.x);
-		const leftCov = cov.filter((d) => d.x <= mid);
-		const rightCov = cov.filter((d) => d.x > mid);
-		if (leftCov[0]) claimZone(leftCov[0], "flat", fl + W * 0.18, playStartYard + 4.0, W * 0.12, 1.6, false);
-		if (rightCov[0]) claimZone(rightCov[0], "flat", fr - W * 0.18, playStartYard + 4.0, W * 0.12, 1.6, false);
-		const rest = defenders.filter((d) => !used.has(d));
-		if (rest[0]) claimZone(rest[0], "deep", mid, Math.min(99, playStartYard + 14), W * 0.2, 4.8, false);
-		rest.slice(1).forEach((d, i) => {
-			const side = d.x < mid ? -1 : 1;
-			claimZone(d, "drop", mid + side * W * 0.1, playStartYard + 8, W * 0.1, 2.4, true);
-		});
-
-		defenders.forEach((d, i) => {
-			d.laneOffset = (i - (defenders.length - 1) / 2) * 1.7;
-		});
-	}
-
-	function assignJamMiddleJobs(fl, fr, mid, _rnd) {
-		const W = fr - fl;
-		const used = new Set();
-		const dbs = defenders.filter((d) => d.group === "DB").sort((a, b) => a.x - b.x);
-		const others = defenders.filter((d) => d.group !== "DB").sort((a, b) => a.x - b.x);
-		// Spread DBs: wider horizontally, deeper vertically — no LOS stack
-		if (dbs.length >= 2) {
-			dbs[0].x = clamp(mid - W * 0.36, fl + 3, mid - 3);
-			dbs[dbs.length - 1].x = clamp(mid + W * 0.36, mid + 3, fr - 3);
-		}
-		dbs.forEach((d, i) => {
-			const t = dbs.length <= 1 ? 0.5 : i / (dbs.length - 1);
-			d.x = clamp(mid + (t - 0.5) * W * 0.72, fl + 3, fr - 3);
-			d.y = playStartYard + 9.5 + Math.abs(t - 0.5) * 3.5 + _rnd() * 0.6;
-		});
-		others.forEach((d, i) => {
-			const t = others.length <= 1 ? 0.5 : i / (others.length - 1);
-			d.x = clamp(mid + (t - 0.5) * W * 0.45, fl + 4, fr - 4);
-			if (d.group === "DT") d.y = playStartYard + 3.2 + _rnd() * 0.5;
-			else d.y = playStartYard + 5.5 + Math.abs(t - 0.5) * 1.5 + _rnd() * 0.4;
-		});
-		function claimZone(d, job, x, y, rx, ry, follow) {
-			d.job = job;
-			d.jobX = clamp(x, fl + 2.5, fr - 2.5);
-			d.jobY = y;
-			d.zoneRx = rx; d.zoneRy = ry;
-			d.zoneFollow = !!follow || job === "drop";
-			d.artCurve = false; d.stutter = false;
-			d.blitzDelay = 0;
-			d.readT = 0.25 + _rnd() * 0.25;
-			d.isSafety = false;
-			d.aggressor = false;
-			// Misdirection: show as blitz first, then settle into zone
-			d.fakeBlitz = true;
-			d.reactT = 0.55 + _rnd() * 0.45;
-			used.add(d);
-		}
-		function claimBlitz(d, jobX, delay, curve, cross) {
-			d.job = "blitz";
-			d.jobX = clamp(jobX, mid - W * 0.2, mid + W * 0.2);
-			d.jobY = playStartYard - 0.2 - _rnd() * 0.3;
-			d.zoneRx = 1.2; d.zoneRy = 1.2;
-			d.zoneFollow = false;
-			d.artCurve = !!curve || !!cross;
-			d.stutter = !!cross;
-			if (cross) {
-				d.stutterX = mid + (d.x < mid ? W * 0.08 : -W * 0.08);
-				d.stutterY = playStartYard + 1.0;
-			}
-			d.blitzDelay = delay || 0;
-			d.readT = (delay || 0) + 0.06;
-			d.aggressor = true;
-			// Misdirection: show drop/coverage first, then fire
-			d.fakeBlitz = true;
-			d.reactT = 0.5 + _rnd() * 0.55 + (delay || 0) * 0.3;
-			used.add(d);
-		}
-		// 2 DBs drop
-		const dropDbs = dbs.slice(0, 2);
-		dropDbs.forEach((d, i) => {
-			claimZone(d, "drop", mid + (i === 0 ? -W * 0.1 : W * 0.1), playStartYard + 10.5, W * 0.11, 2.4, true);
-		});
-		// Flat each side — prefer remaining DBs then LB
-		const free = [...dbs.filter((d) => !used.has(d)), ...others.filter((d) => !used.has(d))];
-		const leftFlat = free.find((d) => d.x <= mid) || free[0];
-		if (leftFlat) claimZone(leftFlat, "flat", mid - W * 0.28, playStartYard + 5.2, W * 0.12, 1.6, false);
-		const rightFlat = free.find((d) => !used.has(d) && d.x >= mid) || free.find((d) => !used.has(d));
-		if (rightFlat) claimZone(rightFlat, "flat", mid + W * 0.28, playStartYard + 5.2, W * 0.12, 1.6, false);
-		// Rest: curved / crossover / delayed blitzes into pocket
-		const delays = [0, 0.45, 0.75, 1.05, 0.6, 1.2, 0.3];
-		const rush = defenders.filter((d) => !used.has(d)).sort((a, b) => a.x - b.x);
-		rush.forEach((d, i) => {
-			const t = rush.length <= 1 ? 0.5 : i / (rush.length - 1);
-			const gap = mid - W * 0.14 + t * W * 0.28;
-			const cross = i % 3 === 1;
-			const curve = true;
-			const delay = delays[i % delays.length];
-			claimBlitz(d, gap, delay, curve, cross);
-		});
-		defenders.forEach((d, i) => { d.laneOffset = (i - (defenders.length - 1) / 2) * 1.5; });
-	}
-
-	function assignFreeFireJobs(fl, fr, mid, _rnd) {
-		// Free Fire: aggressive arcing / delayed blitzes; corners tighter to LOS & hash
-		const W = fr - fl;
-		const used = new Set();
-		const dts = defenders.filter((d) => d.group === "DT").sort((a, b) => a.x - b.x);
-		const lbs = defenders.filter((d) => d.group === "LB").sort((a, b) => a.x - b.x);
-		const dbs = defenders.filter((d) => d.group === "DB").sort((a, b) => a.x - b.x);
-		// Pull wide DBs 5 yd closer to LOS and 5 yd toward center (pre-snap align)
-		if (dbs.length >= 2) {
-			const left = dbs[0], right = dbs[dbs.length - 1];
-			left.x = clamp(left.x + 5, fl + 2, mid - 2);
-			left.y = Math.max(playStartYard + 2.5, left.y - 5);
-			right.x = clamp(right.x - 5, mid + 2, fr - 2);
-			right.y = Math.max(playStartYard + 2.5, right.y - 5);
-		}
-		const delays = [0, 0.35, 0.6, 0.95, 1.25, 0.75, 1.05];
-		function claimBlitz(d, jobX, jobY, delay, curve) {
-			d.job = "blitz";
-			d.jobX = clamp(jobX, fl + 2.5, fr - 2.5);
-			d.jobY = jobY;
-			d.zoneRx = 1.2; d.zoneRy = 1.2;
-			d.zoneFollow = false;
-			d.artCurve = !!curve;
-			d.stutter = !!curve;
-			if (curve) {
-				d.stutterX = (d.x + jobX) / 2 + (_rnd() - 0.5) * 2;
-				d.stutterY = playStartYard + 1.2 + _rnd();
-			}
-			d.blitzDelay = delay || 0;
-			d.readT = (delay || 0) + 0.05;
-			d.aggressor = true;
-			used.add(d);
-		}
-		function claimZone(d, job, x, y, rx, ry, follow) {
-			d.job = job;
-			d.jobX = clamp(x, fl + 2.5, fr - 2.5);
-			d.jobY = y;
-			d.zoneRx = rx; d.zoneRy = ry;
-			d.zoneFollow = !!follow || job === "drop";
-			d.artCurve = false; d.stutter = false;
-			d.blitzDelay = 0;
-			d.readT = 0.3 + _rnd() * 0.25;
-			d.isSafety = job === "deep";
-			d.aggressor = false;
-			used.add(d);
-		}
-		// Most rush with arcs; keep 1–2 deep/flat
-		const pool = [...defenders].sort((a, b) => a.x - b.x);
-		const coverN = Math.min(2, Math.max(1, Math.floor(pool.length * 0.2)));
-		const cover = pool.filter((d) => d.group === "DB").slice(-coverN);
-		if (!cover.length && pool.length) cover.push(pool[pool.length - 1]);
-		cover.forEach((d, i) => {
-			if (i === 0) claimZone(d, "deep", mid, playStartYard + 14, W * 0.2, 5, false);
-			else claimZone(d, "flat", d.x < mid ? fl + W * 0.2 : fr - W * 0.2, playStartYard + 4, W * 0.12, 1.6, false);
-		});
-		let di = 0;
-		const gapL = mid - W * 0.15;
-		const gapR = mid + W * 0.15;
-		const rushers = defenders.filter((d) => !used.has(d)).sort((a, b) => a.x - b.x);
-		rushers.forEach((d, i) => {
-			const t = rushers.length <= 1 ? 0.5 : i / (rushers.length - 1);
-			const gap = gapL + t * (gapR - gapL);
-			const delay = delays[di++ % delays.length];
-			claimBlitz(d, gap + (_rnd() - 0.5) * 0.6, playStartYard - 0.3, delay, true);
-		});
-		defenders.forEach((d, i) => { d.laneOffset = (i - (defenders.length - 1) / 2) * 1.7; });
-	}
-
-	function assignZoneBlitzJobs(fl, fr, mid, _rnd) {
-		const W = fr - fl;
-		const used = new Set();
-		const dts = defenders.filter((d) => d.group === "DT").sort((a, b) => a.x - b.x);
-		const lbs = defenders.filter((d) => d.group === "LB").sort((a, b) => a.x - b.x);
-		const dbs = defenders.filter((d) => d.group === "DB").sort((a, b) => a.x - b.x);
-		function claimZone(d, job, x, y, rx, ry, follow) {
-			d.job = job;
-			d.jobX = clamp(x, fl + 2.5, fr - 2.5);
-			d.jobY = y;
-			d.zoneRx = rx; d.zoneRy = ry;
-			d.zoneFollow = !!follow || job === "drop";
-			d.artCurve = false; d.stutter = false;
-			d.blitzDelay = 0;
-			d.readT = job === "deep" ? 0.4 + _rnd() * 0.3 : 0.25 + _rnd() * 0.2;
-			d.isSafety = job === "deep";
-			d.aggressor = false;
-			used.add(d);
-		}
-		function claimBlitz(d, jobX) {
-			d.job = "blitz";
-			d.jobX = clamp(jobX, fl + 2.5, fr - 2.5);
-			d.jobY = playStartYard - 0.25;
-			d.zoneRx = 1.2; d.zoneRy = 1.2;
-			d.zoneFollow = false;
-			d.artCurve = false; // no crossover
-			d.stutter = false;
-			d.blitzDelay = 0;
-			d.readT = 0.1 + _rnd() * 0.12;
-			d.aggressor = true;
-			used.add(d);
-		}
-		// DTs drop on opposite sides: one flat, one curl
-		if (dts[0]) claimZone(dts[0], "flat", fl + W * 0.2, playStartYard + 4.0, W * 0.12, 1.7, false);
-		if (dts[dts.length - 1] && dts[dts.length - 1] !== dts[0]) {
-			claimZone(dts[dts.length - 1], "curl", fr - W * 0.2, playStartYard + 4.5, W * 0.13, 1.9, false);
-		}
-		// Extra DTs also soft drop mid if any
-		dts.forEach((d) => {
-			if (used.has(d)) return;
-			claimZone(d, "drop", d.x, playStartYard + 7.5, W * 0.1, 2.3, true);
-		});
-		// Priority: 2 deep halves — 1 DB, 1 LB if available
-		if (dbs[0]) claimZone(dbs[0], "deep", fl + W * 0.32, playStartYard + 15, W * 0.18, 5, false);
-		if (lbs[0]) claimZone(lbs[0], "deep", fr - W * 0.32, playStartYard + 15, W * 0.18, 5, false);
-		else if (dbs[1]) claimZone(dbs[1], "deep", fr - W * 0.32, playStartYard + 15, W * 0.18, 5, false);
-		// 1 DB drop
-		const freeDb = dbs.find((d) => !used.has(d));
-		if (freeDb) claimZone(freeDb, "drop", mid, playStartYard + 8.5, W * 0.11, 2.5, true);
-		// Optional extra drop LB/DB
-		const extraDrop = [...lbs, ...dbs].find((d) => !used.has(d));
-		if (extraDrop && _rnd() < 0.85) claimZone(extraDrop, "drop", mid + (_rnd() - 0.5) * W * 0.1, playStartYard + 7.8, W * 0.1, 2.3, true);
-		// Remaining: straight gap blitzes, unique gaps, no cross
-		// Gaps stay inside the pocket (between the tackles), not outside contain
-		const gaps = [];
-		const nGap = 6;
-		const gapL = mid - W * 0.16;
-		const gapR = mid + W * 0.16;
-		for (let i = 0; i < nGap; i++) gaps.push(gapL + (i / Math.max(1, nGap - 1)) * (gapR - gapL));
-		let gi = 0;
-		defenders.filter((d) => !used.has(d)).sort((a, b) => a.x - b.x).forEach((d) => {
-			claimBlitz(d, gaps[gi++ % gaps.length]);
-		});
-		defenders.forEach((d, i) => { d.laneOffset = (i - (defenders.length - 1) / 2) * 1.7; });
-	}
-
-	function assignPreventJobs(fl, fr, mid, _rnd) {
-		const W = fr - fl;
-		const used = new Set();
-		const sorted = [...defenders].sort((a, b) => a.x - b.x);
-		const dbs = defenders.filter((d) => d.group === "DB").sort((a, b) => a.x - b.x);
-		const nonDb = defenders.filter((d) => d.group !== "DB").sort((a, b) => a.x - b.x);
-
-		const deepY = Math.min(99, playStartYard + 16.5);
-		const quarters = [
-			{ id: "q1", job: "deep", x: fl + W * 0.125, y: deepY, rx: W * 0.15, ry: 5.4 },
-			{ id: "q2", job: "deep", x: fl + W * 0.375, y: deepY + 0.4, rx: W * 0.15, ry: 5.6 },
-			{ id: "q3", job: "deep", x: fl + W * 0.625, y: deepY + 0.4, rx: W * 0.15, ry: 5.6 },
-			{ id: "q4", job: "deep", x: fl + W * 0.875, y: deepY, rx: W * 0.15, ry: 5.4 }
-		];
-		// Middle two quarters prioritized when fewer than 4 available
-		const midQuarters = [quarters[1], quarters[2]];
-		const outerQuarters = [quarters[0], quarters[3]];
-
-		function claim(d, slot) {
-			d.job = slot.job;
-			d.jobX = clamp(slot.x, fl + 2.5, fr - 2.5);
-			d.jobY = slot.y;
-			d.zoneRx = slot.rx;
-			d.zoneRy = slot.ry;
-			d.zoneFollow = !!slot.follow || slot.job === "drop" || slot.job === "spy";
-			d.artCurve = false;
-			d.stutter = false;
-			d.isSafety = slot.job === "deep";
-			d.isCorner = slot.job === "curl" || slot.job === "flat";
-			d.readT = slot.job === "deep" ? 0.5 + _rnd() * 0.35 : 0.25 + _rnd() * 0.3;
-			d.aggressor = slot.job === "blitz";
-			used.add(d);
-		}
-		function freePool(preferDbFirst) {
-			const a = preferDbFirst
-				? [...dbs.filter((d) => !used.has(d)), ...nonDb.filter((d) => !used.has(d))]
-				: [...nonDb.filter((d) => !used.has(d)), ...dbs.filter((d) => !used.has(d))];
-			return a;
-		}
-
-		// Priority 1: 4 deep quarters — middle 2 filled first, then outers; DBs preferred
-		const deepSlots = [];
-		const n = defenders.length;
-		if (n >= 4) deepSlots.push(...midQuarters, ...outerQuarters);
-		else if (n === 3) deepSlots.push(...midQuarters, outerQuarters[0]);
-		else if (n === 2) deepSlots.push(...midQuarters);
-		else if (n === 1) deepSlots.push(midQuarters[0]);
-
-		const deepPool = freePool(true);
-		deepSlots.forEach((slot, i) => {
-			if (i >= deepPool.length) return;
-			// Match L→R among assigned: sort chosen by x against slot x
-			claim(deepPool[i], slot);
-		});
-		// Re-sort deep assignees L→R onto quarters L→R for cleaner art when 4 filled
-		if (deepSlots.length >= 4) {
-			const deepDefs = defenders.filter((d) => used.has(d) && d.job === "deep").sort((a, b) => a.x - b.x);
-			deepDefs.forEach((d, i) => {
-				if (quarters[i]) {
-					d.jobX = quarters[i].x;
-					d.jobY = quarters[i].y;
-					d.zoneRx = quarters[i].rx;
-					d.zoneRy = quarters[i].ry;
-				}
-			});
-		}
-
-		// Priority 2: curl/flat L and R (2)
-		const curls = [
-			{ job: "curl", x: fl + W * 0.17, y: playStartYard + 4.5, rx: W * 0.13, ry: 1.9, side: -1 },
-			{ job: "curl", x: fr - W * 0.17, y: playStartYard + 4.5, rx: W * 0.13, ry: 1.9, side: 1 }
-		];
-		const curlPool = freePool(true);
-		curls.forEach((slot) => {
-			if (!curlPool.length) return;
-			// pick spatially closest free
-			let best = 0, bestD = 1e9;
-			curlPool.forEach((d, i) => {
-				if (used.has(d)) return;
-				const pen = (slot.side < 0 && d.x > mid) || (slot.side > 0 && d.x < mid) ? 30 : 0;
-				const dist = Math.abs(d.x - slot.x) + pen;
-				if (dist < bestD) { bestD = dist; best = i; }
-			});
-			const d = curlPool.splice(best, 1)[0];
-			if (d && !used.has(d)) claim(d, slot);
-		});
-
-		// Priority 3: drop zone (2)
-		const drops = [
-			{ job: "drop", x: mid - W * 0.08, y: playStartYard + 8.5, rx: W * 0.1, ry: 2.6, follow: true },
-			{ job: "drop", x: mid + W * 0.08, y: playStartYard + 8.5, rx: W * 0.1, ry: 2.6, follow: true }
-		];
-		const dropPool = freePool(false); // LBs/DTs fine for hook drops
-		drops.forEach((slot) => {
-			const cand = dropPool.find((d) => !used.has(d));
-			if (cand) claim(cand, slot);
-		});
-
-		// Priority 4: blitz (3) — randomized which defenders + which gaps (not always same side)
-		const blitzPool = freePool(false).filter((d) => !used.has(d));
-		// Shuffle with seeded rng
-		for (let i = blitzPool.length - 1; i > 0; i--) {
-			const j = Math.floor(_rnd() * (i + 1));
-			const tmp = blitzPool[i]; blitzPool[i] = blitzPool[j]; blitzPool[j] = tmp;
-		}
-		const gapXs = [
-			mid - W * 0.18, mid - W * 0.06, mid + W * 0.06, mid + W * 0.18,
-			fl + W * 0.22, fr - W * 0.22
-		];
-		for (let i = gapXs.length - 1; i > 0; i--) {
-			const j = Math.floor(_rnd() * (i + 1));
-			const tmp = gapXs[i]; gapXs[i] = gapXs[j]; gapXs[j] = tmp;
-		}
-		blitzPool.slice(0, 3).forEach((d, i) => {
-			claim(d, {
-				job: "blitz",
-				x: gapXs[i % gapXs.length],
-				y: playStartYard - 0.2 - _rnd() * 0.4,
-				rx: 1.2,
-				ry: 1.2
-			});
-			d.artCurve = _rnd() < 0.45;
-			d.stutter = _rnd() < 0.35;
-		});
-
-		// Priority 5: any remaining → drop zone
-		defenders.filter((d) => !used.has(d)).forEach((d, i) => {
-			const side = i % 2 === 0 ? -1 : 1;
-			claim(d, {
-				job: "drop",
-				x: mid + side * W * (0.12 + (i * 0.04)),
-				y: playStartYard + 7.5 + (i % 3) * 0.6,
-				rx: W * 0.1,
-				ry: 2.4,
-				follow: true
-			});
-		});
-
-		defenders.forEach((d, i) => {
-			d.laneOffset = (i - (defenders.length - 1) / 2) * 1.7;
-		});
-	}
-
-	function assignCover4QuartersJobs(fl, fr, mid, _rnd) {
-		const W = fr - fl;
-		const deepY = Math.min(99, playStartYard + 15.5);
-		const quarters = [
-			{ id: "q1", job: "deep", x: fl + W * 0.125, y: deepY, rx: W * 0.16, ry: 5.2 },
-			{ id: "q2", job: "deep", x: fl + W * 0.375, y: deepY, rx: W * 0.16, ry: 5.2 },
-			{ id: "q3", job: "deep", x: fl + W * 0.625, y: deepY, rx: W * 0.16, ry: 5.2 },
-			{ id: "q4", job: "deep", x: fl + W * 0.875, y: deepY, rx: W * 0.16, ry: 5.2 }
-		];
-		const under = [
-			{ id: "curlL", job: "curl", x: fl + W * 0.18, y: playStartYard + 4.6, rx: W * 0.14, ry: 2.0, side: -1 },
-			{ id: "drop", job: "drop", x: mid, y: playStartYard + 6.8, rx: W * 0.105, ry: 2.4, side: 0, follow: true },
-			{ id: "curlR", job: "curl", x: fr - W * 0.18, y: playStartYard + 4.6, rx: W * 0.14, ry: 2.0, side: 1 }
-		];
-		const used = new Set();
-		function claim(d, slot) {
-			d.job = slot.job;
-			d.jobX = clamp(slot.x, fl + 2.5, fr - 2.5);
-			d.jobY = slot.y;
-			d.zoneRx = slot.rx;
-			d.zoneRy = slot.ry;
-			d.zoneFollow = !!slot.follow || slot.job === "drop" || slot.job === "spy";
-			d.artCurve = false;
-			d.stutter = false;
-			d.isSafety = slot.job === "deep";
-			d.isCorner = slot.job === "curl" || slot.job === "flat";
-			d.readT = slot.job === "deep" ? 0.45 + _rnd() * 0.35 : 0.25 + _rnd() * 0.3;
-			// Drop defender: mild nudge toward center (halfway vs prior aggressive pull)
-			if (slot.job === "drop") {
-				d.x = d.x * 0.55 + mid * 0.45;
-				d.y = Math.min(d.y, playStartYard + 7.2);
-				d.y = Math.max(d.y, playStartYard + 5.6);
-			}
-			used.add(d);
-		}
-function remaining(group) {
-			return defenders.filter((d) => !used.has(d) && (!group || d.group === group)).sort((a, b) => a.x - b.x);
-		}
-		function remainingAny() {
-			return defenders.filter((d) => !used.has(d)).sort((a, b) => a.x - b.x);
-		}
-		// On this play: all DBs take zone coverage (deep / curl / drop) — never blitz.
-		const dbs = remaining("DB");
-		const nonDb = defenders.filter((d) => d.group !== "DB").sort((a, b) => a.x - b.x);
-
-		// --- Priority 1: deep quarters — fill with DBs first (L→R), then other positions ---
-		function pickDeepSlotList(count) {
-			if (count >= 4) return quarters.slice();
-			if (count === 3) {
-				const meanX = (dbs.length ? dbs : nonDb).slice(0, 3).reduce((s, d) => s + d.x, 0) / Math.max(1, Math.min(3, (dbs.length || nonDb.length)));
-				return meanX < mid ? [quarters[0], quarters[1], quarters[2]] : [quarters[1], quarters[2], quarters[3]];
-			}
-			if (count === 2) return [quarters[1], quarters[2]]; // middle two preferred
-			if (count === 1) return null; // handled per-player
-			return [];
-		}
-		// Assign DBs to deep first
-		const dbDeepBudget = Math.min(4, dbs.length);
-		if (dbDeepBudget === 1) {
-			claim(dbs[0], dbs[0].x < mid ? quarters[1] : quarters[2]);
-		} else if (dbDeepBudget > 0) {
-			const slots = pickDeepSlotList(dbDeepBudget);
-			for (let i = 0; i < dbDeepBudget; i++) claim(dbs[i], slots[i]);
-		}
-		// Fill remaining deep slots with non-DB (only if fewer than 4 deep filled)
-		let deepFilled = [...used].filter((d) => d.job === "deep").length;
-		if (deepFilled < 4) {
-			const need = 4 - deepFilled;
-			const open = quarters.filter((q) => ![...used].some((d) => d.job === "deep" && Math.abs(d.jobX - q.x) < 0.01));
-			// Match open quarters L→R with remaining non-DB L→R
-			const pool = remainingAny().filter((d) => d.group !== "DB");
-			const nAssign = Math.min(need, open.length, pool.length);
-			// Prefer middle quarters when only 2 total deep desired was already handled; here fill empties L→R
-			for (let i = 0; i < nAssign; i++) claim(pool[i], open[i]);
-			deepFilled += nAssign;
-		}
-		// If we still have < 2 deep and only 2 total defenders scenario already handled via DB path.
-
-		// --- Priority 2: underneath — remaining DBs first, then LB/DT, spatial match ---
-		const freeSlots = under.slice();
-		function assignUnder(pool) {
-			const freeDefs = pool.filter((d) => !used.has(d));
-			while (freeSlots.length && freeDefs.length) {
-				let best = null, bestScore = 1e9;
-				for (const d of freeDefs) {
-					if (used.has(d)) continue;
-					for (const s of freeSlots) {
-						const sidePen = (s.side < 0 && d.x > mid + W * 0.08) ? 40
-							: (s.side > 0 && d.x < mid - W * 0.08) ? 40
-							: (s.side === 0 ? Math.abs(d.x - mid) * 0.15 : 0);
-						const dist = Math.hypot(d.x - s.x, (d.y - s.y) * 0.55) + sidePen;
-						if (dist < bestScore) {
-							bestScore = dist;
-							best = { d, s };
-						}
-					}
-				}
-				if (!best) break;
-				claim(best.d, best.s);
-				freeSlots.splice(freeSlots.indexOf(best.s), 1);
-				const ix = freeDefs.indexOf(best.d);
-				if (ix >= 0) freeDefs.splice(ix, 1);
-			}
-		}
-		assignUnder(remaining("DB"));
-		assignUnder(remainingAny().filter((d) => d.group !== "DB"));
-
-		// Any DB still unassigned (more DBs than 7 zone slots): put on nearest deep quarter as extra help / soft deep
-		remaining("DB").forEach((d) => {
-			const q = quarters.reduce((best, slot) => {
-				const dist = Math.abs(d.x - slot.x);
-				return !best || dist < best.dist ? { slot, dist } : best;
-			}, null);
-			if (q) claim(d, { ...q.slot, rx: q.slot.rx * 0.85, ry: q.slot.ry });
-		});
-
-		// --- Priority 3+: blitz — LB and DT only (no DB blitz on this play) ---
-		remainingAny().filter((d) => d.group !== "DB").forEach((d) => {
-			d.job = "blitz";
-			d.jobX = clamp(d.x, fl + 2.7, fr - 2.7);
-			d.jobY = playStartYard - 0.2 - _rnd() * 0.5;
-			d.zoneRx = 1.2;
-			d.zoneRy = 1.2;
-			d.zoneFollow = false;
-			d.artCurve = false;
-			d.stutter = false;
-			d.readT = 0.12 + _rnd() * 0.2;
-			d.isSafety = false;
-			d.isCorner = false;
-			used.add(d);
-		});
-
-		defenders.forEach((d, i) => {
-			d.laneOffset = (i - (defenders.length - 1) / 2) * 1.7;
-			d.aggressor = d.job === "blitz";
-		});
-		const ranked = [...defenders].filter((d) => d.job === "blitz").sort((a, b) => a.y - b.y);
-		ranked.slice(0, Math.min(3, ranked.length)).forEach((d) => { d.aggressor = true; });
-	}
-
-
-	function mirrorDefenseHorizontal() {
-		const mid = (fieldLeft() + fieldRight()) / 2;
-		defenders.forEach((d) => {
-			d.x = mid - (d.x - mid);
-			if (d.jobX != null) d.jobX = mid - (d.jobX - mid);
-			if (d.stutterX != null) d.stutterX = mid - (d.stutterX - mid);
-			if (d.laneOffset != null) d.laneOffset = -d.laneOffset;
-		});
-	}
-
-	function assignSpinCycleJobs(fl, fr, mid, _rnd) {
-		// Spin Cycle: cyclone — body paths arc CCW around a storm center (not torso spin)
-		const W = fr - fl;
-		const cx = mid;
-		const cy = playStartYard + 8.0;
-		const defs = [...defenders];
-		// Keep normal front / LB / DB depths (like Grizzly / Safety Strike / Chaos) — only jobs arc
-		const dts = defs.filter((d) => d.group === "DT").sort((a, b) => a.x - b.x);
-		const lbs = defs.filter((d) => d.group === "LB").sort((a, b) => a.x - b.x);
-		const dbs = defs.filter((d) => d.group === "DB").sort((a, b) => a.x - b.x);
-		dts.forEach((d, i) => {
-			const t = dts.length <= 1 ? 0.5 : i / (dts.length - 1);
-			d.x = clamp(mid + (t - 0.5) * W * 0.28, fl + 4, fr - 4);
-			d.y = playStartYard + 3.1 + _rnd() * 0.35;
-		});
-		lbs.forEach((d, i) => {
-			const t = lbs.length <= 1 ? 0.5 : i / (lbs.length - 1);
-			d.x = clamp(mid + (t - 0.5) * W * 0.42, fl + 4, fr - 4);
-			d.y = playStartYard + 5.2 + _rnd() * 0.4;
-		});
-		dbs.forEach((d, i) => {
-			const t = dbs.length <= 1 ? 0.5 : i / (dbs.length - 1);
-			d.x = clamp(mid + (t - 0.5) * W * 0.62, fl + 3, fr - 3);
-			d.y = playStartYard + 9.5 + Math.abs(t - 0.5) * 2.2 + _rnd() * 0.5;
-		});
-		defs.sort((a, b) => Math.atan2(a.y - cy, a.x - cx) - Math.atan2(b.y - cy, b.x - cx));
-		const n = defs.length;
-		defs.forEach((d, i) => {
-			const ang0 = Math.atan2(d.y - cy, d.x - cx);
-			const right = d.x >= cx;
-			const deep = d.y > cy + 1.5;
-			// Quadrant-flavored destinations (CCW cyclone feel)
-			let job, jobX, jobY, midAng;
-			if (!right && !deep) {
-				// upper-left-ish → blitz down and in
-				job = "blitz";
-				jobX = cx - W * 0.04;
-				jobY = playStartYard - 0.25;
-				midAng = ang0 + 0.7;
-			} else if (right && !deep) {
-				// lower-right front → arc back into coverage
-				job = i % 2 === 0 ? "curl" : "flat";
-				jobX = cx + W * 0.22;
-				jobY = playStartYard + 6.5;
-				midAng = ang0 + 0.85;
-			} else if (right && deep) {
-				// upper right → spin left and down toward LOS
-				job = "blitz";
-				jobX = cx + W * 0.06;
-				jobY = playStartYard - 0.15;
-				midAng = ang0 + 0.95;
-			} else {
-				// deep left → drop / deep, continuing CCW
-				job = d.group === "DB" ? "deep" : "drop";
-				jobX = cx - W * 0.18;
-				jobY = playStartYard + (job === "deep" ? 14 : 9);
-				midAng = ang0 + 0.65;
-			}
-			const rad0 = Math.hypot(d.x - cx, d.y - cy);
-			const midR = rad0 * 0.9;
-			d.job = job;
-			d.jobX = clamp(jobX, fl + 2.5, fr - 2.5);
-			d.jobY = jobY;
-			d.zoneRx = job === "deep" ? W * 0.16 : job === "blitz" ? 1.2 : W * 0.11;
-			d.zoneRy = job === "deep" ? 4.5 : job === "blitz" ? 1.2 : 2.0;
-			d.zoneFollow = job === "drop";
-			d.aggressor = job === "blitz";
-			d.artCurve = true;
-			d.stutter = true;
-			// Arc waypoint: CCW along the ring (cyclone path)
-			d.stutterX = clamp(cx + Math.cos(midAng) * midR, fl + 3, fr - 3);
-			d.stutterY = cy + Math.sin(midAng) * midR * 0.55;
-			d.readT = 0.12 + _rnd() * 0.25;
-			d.reactT = 0.2 + _rnd() * 0.25;
-			d.fakeBlitz = false;
-			d.spinT = 0; // no torso whirl
-			d.isSafety = job === "deep";
-			d.isCorner = job === "flat" || job === "curl";
-			d.blitzDelay = job === "blitz" ? 0.05 + _rnd() * 0.2 : 0;
-			d.laneOffset = (i - (n - 1) / 2) * 1.2;
-		});
-	}
-
 	function assignDefenseJobs() {
-		// Practice: deterministic jobs for a given scheme + personnel so offense play changes
-		// do not reshuffle defense art when the defensive call is unchanged.
-		const _rnd = mulberry32(hashSeed([
-					(practiceDefSchemeId || (currentScheme && currentScheme.id) || "base"),
-					numDT, numLBs, numDBs, numOL, numTE, numFB,
-					Math.round(playStartYard), Math.round(FIELD_WIDTH)
-				].join("|")));
 		const fl = fieldLeft();
 		const fr = fieldRight();
 		const mid = (fl + fr) / 2;
-		const schemeId = (currentScheme && currentScheme.id) || (practiceDefSchemeId) || "base";
-		if (schemeId === "cover4Quarters") {
-			assignCover4QuartersJobs(fl, fr, mid, _rnd);
-			return;
-		}
-		if (schemeId === "overloadBlitz") {
-			assignOverloadBlitzJobs(fl, fr, mid, _rnd);
-			return;
-		}
-		if (schemeId === "prevent") {
-			assignPreventJobs(fl, fr, mid, _rnd);
-			return;
-		}
-		if (schemeId === "stormBlitz") {
-			assignStormBlitzJobs(fl, fr, mid, _rnd);
-			return;
-		}
-		if (schemeId === "wide") {
-			assignFreeFireJobs(fl, fr, mid, _rnd);
-			return;
-		}
-		if (schemeId === "tight") {
-			assignZoneBlitzJobs(fl, fr, mid, _rnd);
-			return;
-		}
-		if (schemeId === "goalLine") {
-			assignJamMiddleJobs(fl, fr, mid, _rnd);
-			return;
-		}
-		if (schemeId === "base") {
-			assignSpinCycleJobs(fl, fr, mid, _rnd);
-			return;
-		}
 		const dbs = defenders.filter((d) => d.group === "DB").sort((a, b) => a.x - b.x);
 		const lbs = defenders.filter((d) => d.group === "LB").sort((a, b) => a.x - b.x);
 		const ol = blockers.filter((b) => b.group === "OL").sort((a, b) => a.x - b.x);
@@ -2565,25 +1089,25 @@ function remaining(group) {
 			opts = opts || {};
 			d.job = "blitz";
 			d.jobX = takeLane(preferX != null ? preferX : d.x);
-			d.jobY = playStartYard - .25 - _rnd() * .85;
-			d.artCurve = opts.curve != null ? opts.curve : _rnd() < .42;
+			d.jobY = playStartYard - .25 - Math.random() * .85;
+			d.artCurve = opts.curve != null ? opts.curve : Math.random() < .42;
 			d.stutter = !!opts.stutter;
 			if (d.stutter) {
 				const swing = opts.swing != null ? opts.swing : d.x < mid ? 1.7 : -1.7;
 				d.stutterX = clamp((d.x + d.jobX) / 2 + swing, fl + 3.4, fr - 3.4);
-				d.stutterY = playStartYard + 1.05 + _rnd() * 1.2;
+				d.stutterY = playStartYard + 1.05 + Math.random() * 1.2;
 				d.artCurve = true;
 			}
 		}
 		defenders.filter((d) => d.group === "DT").forEach((d, i) => {
-			d.readT = .12 + _rnd() * .28;
-			setBlitz(d, d.x + (i % 2 === 0 ? -.4 : .4), { curve: _rnd() < .3, stutter: false });
+			d.readT = .12 + Math.random() * .28;
+			setBlitz(d, d.x + (i % 2 === 0 ? -.4 : .4), { curve: Math.random() < .3, stutter: false });
 		});
 		let corners = [];
 		let safeties = [];
 		if (dbs.length <= 1) {
 			if (dbs[0]) {
-				if (_rnd() < .5) corners = dbs;
+				if (Math.random() < .5) corners = dbs;
 				else safeties = dbs;
 			}
 		} else if (dbs.length === 2) corners = dbs;
@@ -2591,7 +1115,7 @@ function remaining(group) {
 			corners = [dbs[0], dbs[dbs.length - 1]];
 			safeties = dbs.slice(1, -1);
 		}
-		function zoneFor(d, kind, x, y, rx, ry, follow) {
+		function zoneFor(d, kind, x, y, rx, ry) {
 			d.job = kind;
 			d.jobX = clamp(x, fl + 3, fr - 3);
 			d.jobY = y;
@@ -2599,23 +1123,21 @@ function remaining(group) {
 			d.zoneRy = ry;
 			d.artCurve = false;
 			d.stutter = false;
-			// drop / spy zones track the defender; most others are fixed field points
-			d.zoneFollow = !!follow || kind === "drop" || kind === "spy";
 		}
 		corners.forEach((d) => {
 			d.isCorner = true;
 			d.isSafety = false;
-			d.readT = .35 + _rnd() * .55;
+			d.readT = .35 + Math.random() * .55;
 			const side = d.x < mid ? -1 : 1;
-			const r = _rnd();
+			const r = Math.random();
 			if (r < .22) d.job = "blitz";
 			else if (r < .28) d.job = "man";
 			else if (r < .42) d.job = "deep";
 			else if (r < .62) d.job = "flat";
 			else d.job = "contain";
-			if (d.job === "contain") zoneFor(d, "contain", side < 0 ? fl + FIELD_WIDTH * .16 : fr - FIELD_WIDTH * .16, playStartYard + 5 + _rnd() * 2, 2.4, 2.8);
-			else if (d.job === "deep") zoneFor(d, "deep", side < 0 ? fl + FIELD_WIDTH * .24 : fr - FIELD_WIDTH * .24, Math.min(99, playStartYard + 12 + _rnd() * 4), 6.4, 5);
-			else if (d.job === "flat") zoneFor(d, "flat", side < 0 ? fl + FIELD_WIDTH * .2 : fr - FIELD_WIDTH * .2, playStartYard + 3.2 + _rnd(), 5.4, 1.32);
+			if (d.job === "contain") zoneFor(d, "contain", side < 0 ? fl + FIELD_WIDTH * .16 : fr - FIELD_WIDTH * .16, playStartYard + 5 + Math.random() * 2, 2.4, 2.8);
+			else if (d.job === "deep") zoneFor(d, "deep", side < 0 ? fl + FIELD_WIDTH * .24 : fr - FIELD_WIDTH * .24, Math.min(99, playStartYard + 12 + Math.random() * 4), 6.4, 5);
+			else if (d.job === "flat") zoneFor(d, "flat", side < 0 ? fl + FIELD_WIDTH * .2 : fr - FIELD_WIDTH * .2, playStartYard + 3.2 + Math.random(), 5.4, 1.32);
 			else if (d.job === "man") {
 				const sorted = [...blockers].sort((a, b) => a.x - b.x);
 				const t = side < 0 ? sorted[0] : sorted[sorted.length - 1];
@@ -2623,8 +1145,8 @@ function remaining(group) {
 				d.jobX = d.x;
 				d.jobY = playStartYard + 6;
 			} else setBlitz(d, d.x - side * 2.4, {
-				curve: _rnd() < .55,
-				stutter: _rnd() < .4,
+				curve: Math.random() < .55,
+				stutter: Math.random() < .4,
 				swing: side * 1.8
 			});
 		});
@@ -2635,10 +1157,10 @@ function remaining(group) {
 		safeties.forEach((d) => {
 			d.isSafety = true;
 			d.isCorner = false;
-			d.readT = .4 + _rnd() * .65;
+			d.readT = .4 + Math.random() * .65;
 		});
 		const shells = ["cover2", "cover3", "cover4", "tampa2", "cover6", "palms"];
-		const shell = shells[Math.floor(_rnd() * shells.length)];
+		const shell = shells[Math.floor(Math.random() * shells.length)];
 		function deepAt(d, x, y, rx, ry, job) {
 			zoneFor(d, job || "deep", x, Math.min(99, y), rx, ry);
 			if (job === "deep" || job === "robber") d.isSafety = true;
@@ -2646,12 +1168,12 @@ function remaining(group) {
 		const poolDb = [...safeties, ...corners.filter((c) => c.job !== "contain")];
 		if (shell === "cover2") {
 			const two = (safeties.length >= 2 ? safeties : poolDb).slice(0, 2);
-			two.forEach((d, i) => deepAt(d, mid + (i === 0 ? -1 : 1) * FIELD_WIDTH * .2, playStartYard + 14.5 + _rnd() * 2.4, 8.4, 5.2, "deep"));
+			two.forEach((d, i) => deepAt(d, mid + (i === 0 ? -1 : 1) * FIELD_WIDTH * .2, playStartYard + 14.5 + Math.random() * 2.4, 8.4, 5.2, "deep"));
 		} else if (shell === "cover3") {
 			const midS = safeties[0] || poolDb[0];
-			if (midS) deepAt(midS, mid, playStartYard + 15.5 + _rnd() * 2, 6.2, 5.6, "deep");
+			if (midS) deepAt(midS, mid, playStartYard + 15.5 + Math.random() * 2, 6.2, 5.6, "deep");
 			const wings = corners.filter((c) => c !== midS).slice(0, 2);
-			wings.forEach((d, i) => deepAt(d, mid + (i === 0 ? -1 : 1) * FIELD_WIDTH * .22, playStartYard + 13 + _rnd() * 2, 5.4, 4.6, "deep"));
+			wings.forEach((d, i) => deepAt(d, mid + (i === 0 ? -1 : 1) * FIELD_WIDTH * .22, playStartYard + 13 + Math.random() * 2, 5.4, 4.6, "deep"));
 		} else if (shell === "cover4") {
 			const four = poolDb.slice(0, Math.min(4, poolDb.length));
 			four.forEach((d, i) => {
@@ -2669,7 +1191,7 @@ function remaining(group) {
 			corners.forEach((d, i) => {
 				if (d === midS) return;
 				const side = d.x < mid ? -1 : 1;
-				deepAt(d, side < 0 ? fl + FIELD_WIDTH * .18 : fr - FIELD_WIDTH * .18, playStartYard + 11.5 + _rnd() * 1.8, 6.2, 2.2, "curl");
+				deepAt(d, side < 0 ? fl + FIELD_WIDTH * .18 : fr - FIELD_WIDTH * .18, playStartYard + 11.5 + Math.random() * 1.8, 6.2, 2.2, "curl");
 			});
 		} else {
 			const two = (safeties.length >= 2 ? safeties : poolDb).slice(0, 2);
@@ -2681,22 +1203,22 @@ function remaining(group) {
 			deepAt(d, mid + side * FIELD_WIDTH * .14, playStartYard + 13 + i * 3, 6.4, 5, "deep");
 		});
 		lbs.forEach((d, i) => {
-			d.readT = .3 + _rnd() * .5;
+			d.readT = .3 + Math.random() * .5;
 			if (shell === "tampa2" && i === Math.floor(lbs.length / 2)) {
-				zoneFor(d, "hook", mid, playStartYard + 11.2 + _rnd(), 3.5, 3.3);
+				zoneFor(d, "hook", mid, playStartYard + 11.2 + Math.random(), 3.5, 3.3);
 				return;
 			}
-			const r = _rnd();
+			const r = Math.random();
 			if (r < .38) {
-				const cross = lbs.length >= 2 && _rnd() < .5;
+				const cross = lbs.length >= 2 && Math.random() < .5;
 				setBlitz(d, cross ? lbs[(i + 1) % lbs.length].x : d.x, {
 					curve: true,
-					stutter: cross || _rnd() < .28,
-					swing: (i % 2 === 0 ? 1 : -1) * (1.5 + _rnd())
+					stutter: cross || Math.random() < .28,
+					swing: (i % 2 === 0 ? 1 : -1) * (1.5 + Math.random())
 				});
-				if (_rnd() < .2) {
+				if (Math.random() < .2) {
 					d.fakeBlitz = true;
-					d.reactT = .45 + _rnd() * .35;
+					d.reactT = .45 + Math.random() * .35;
 				}
 			} else if (r < .5) {
 				d.job = "man";
@@ -2707,12 +1229,12 @@ function remaining(group) {
 				d.manIdx = t ? blockers.indexOf(t) : -1;
 				d.jobX = t ? t.x : d.x;
 				d.jobY = playStartYard + 3;
-				d.artCurve = lbs.length >= 2 && _rnd() < .4;
+				d.artCurve = lbs.length >= 2 && Math.random() < .4;
 			} else if (r < .72) {
-				const depth = 4.6 + i * 2.1 + _rnd() * 1.4;
+				const depth = 4.6 + i * 2.1 + Math.random() * 1.4;
 				zoneFor(d, "drop", mid + (i - (lbs.length - 1) / 2) * Math.max(5.4, FIELD_WIDTH * .12), playStartYard + depth, 2.6, 2.4);
 			} else if (r < .88) {
-				zoneFor(d, "hook", mid + (i - (lbs.length - 1) / 2) * Math.max(4.6, FIELD_WIDTH * .1) + (_rnd() - .5) * 1.4, playStartYard + 8.2 + _rnd() * 2.4, 3.2, 3);
+				zoneFor(d, "hook", mid + (i - (lbs.length - 1) / 2) * Math.max(4.6, FIELD_WIDTH * .1) + (Math.random() - .5) * 1.4, playStartYard + 8.2 + Math.random() * 2.4, 3.2, 3);
 			} else zoneFor(d, "flat", d.x < mid ? fl + FIELD_WIDTH * .2 : fr - FIELD_WIDTH * .2, playStartYard + 3.6, 5.2, 1.28);
 		});
 		// Deep coverage: either one deep-middle OR left+right deep DBs
@@ -2726,7 +1248,7 @@ function remaining(group) {
 			const dualDeep = hasLeftDeep && hasRightDeep;
 			if (!hasDeepMid && !dualDeep && defenders.length) {
 				const dbs = defenders.filter((d) => d.group === "DB");
-				if (dbs.length >= 2 && _rnd() < 0.55) {
+				if (dbs.length >= 2 && Math.random() < 0.55) {
 					// Dual deep halves
 					const left = dbs.slice().sort((a, b) => a.x - b.x)[0];
 					const right = dbs.slice().sort((a, b) => b.x - a.x)[0];
@@ -2734,7 +1256,7 @@ function remaining(group) {
 						const side = i === 0 ? -1 : 1;
 						d.job = "deep";
 						d.jobX = midX + side * FIELD_WIDTH * 0.18;
-						d.jobY = Math.min(99, playStartYard + 12 + _rnd() * 4);
+						d.jobY = Math.min(99, playStartYard + 12 + Math.random() * 4);
 						d.zoneRx = 6.4;
 						d.zoneRy = 5.2;
 						d.isSafety = true;
@@ -2748,8 +1270,8 @@ function remaining(group) {
 					});
 					const pick = cands[0] || defenders[0];
 					pick.job = "deep";
-					pick.jobX = midX + (_rnd() - .5) * 2.2;
-					pick.jobY = Math.min(99, playStartYard + 11 + _rnd() * 3);
+					pick.jobX = midX + (Math.random() - .5) * 2.2;
+					pick.jobY = Math.min(99, playStartYard + 11 + Math.random() * 3);
 					pick.zoneRx = 7.2;
 					pick.zoneRy = 5.5;
 					pick.isSafety = pick.group === "DB";
@@ -2760,13 +1282,13 @@ function remaining(group) {
 		const blitzCount = defenders.filter((d) => d.job === "blitz").length;
 		const need = Math.ceil(defenders.length * .3);
 		if (blitzCount < need) {
-			const candidates = defenders.filter((d) => d.job !== "blitz" && d.job !== "deep" && d.job !== "curl" && d.job !== "robber" && d.job !== "hook" && !d.isSafety).sort(() => _rnd() - .5);
+			const candidates = defenders.filter((d) => d.job !== "blitz" && d.job !== "deep" && d.job !== "curl" && d.job !== "robber" && d.job !== "hook" && !d.isSafety).sort(() => Math.random() - .5);
 			for (let i = 0; i < need - blitzCount && i < candidates.length; i++) {
 				const d = candidates[i];
 				if (d.job === "contain" && defenders.filter((x) => x.job === "contain").length <= 1) continue;
 				setBlitz(d, d.x, {
-					curve: _rnd() < .5,
-					stutter: _rnd() < .28
+					curve: Math.random() < .5,
+					stutter: Math.random() < .28
 				});
 			}
 		}
@@ -2789,10 +1311,10 @@ function remaining(group) {
 			if (cands[0]) zoneFor(cands[0], "contain", fl + FIELD_WIDTH * .16, playStartYard + 5.2, 2.4, 2.8);
 			if (cands[cands.length - 1] && cands[cands.length - 1] !== cands[0]) zoneFor(cands[cands.length - 1], "contain", fr - FIELD_WIDTH * .16, playStartYard + 5.2, 2.4, 2.8);
 		}
-		if (_rnd() < .32 && blockers.length && defenders.length) {
-			const victim = defenders[Math.floor(_rnd() * defenders.length)];
-			victim.misfireT = 1.8 + _rnd() * 1.4;
-			victim.misfireIdx = Math.floor(_rnd() * blockers.length);
+		if (Math.random() < .32 && blockers.length && defenders.length) {
+			const victim = defenders[Math.floor(Math.random() * defenders.length)];
+			victim.misfireT = 1.8 + Math.random() * 1.4;
+			victim.misfireIdx = Math.floor(Math.random() * blockers.length);
 		}
 		const ranked = [...defenders].sort((a, b) => {
 			const as = a.job === "blitz" ? 0 : 1;
@@ -2888,7 +1410,6 @@ function remaining(group) {
 	function getInput(dt) {
 		let dx = 0;
 		let dy = 0;
-		let rsY = 0;
 		let sprint = false;
 		let spin = false;
 		let dive = false;
@@ -3069,7 +1590,6 @@ function remaining(group) {
 			const rst = isT3
 				? radialDeadzone(gp.axes[2] || 0, -(gp.axes[5] || 0), .22)   // right stick Y is on axis 5
 				: radialDeadzone(gp.axes[2] || 0, -(gp.axes[3] || 0), .22);
-				rsY = rst.y;
 			const lt = isT3
 				? (gp.buttons[8] && gp.buttons[8].value || 0)
 				: (gp.buttons[6] && gp.buttons[6].value || 0);
@@ -3175,8 +1695,6 @@ function remaining(group) {
 			dx /= mag;
 			dy /= mag;
 		}
-		if (keys.has("BracketLeft") || keys.has("PageUp")) rsY = -1;
-		if (keys.has("BracketRight") || keys.has("PageDown")) rsY = 1;
 		peekHeld = peek || peekToggle;
 		return {
 			dx,
@@ -3201,10 +1719,7 @@ function remaining(group) {
 			blockLdx,
 			blockLdy,
 			blockRdx,
-			blockRdy,
-			_dpadUp: !!(bits && bits.u),
-			_dpadDn: !!(bits && bits.d),
-			_rsY: rsY
+			blockRdy
 		};
 	}
 	function tryMiss(kind) {
@@ -3213,7 +1728,7 @@ function remaining(group) {
 			if (d.engageT > 0) continue;
 			if (d.state !== "commit" && d.state !== "breakdown") continue;
 			const dd = dist(d, rb);
-			if (dd > 3.2) continue; // only miss nearby, not 20 yd dives
+			if (dd > 5.2) continue;
 			const side = Math.sign(d.x - rb.x) || 1;
 			const trail = rb.y - d.y;
 			let chance = 0;
@@ -3226,21 +1741,22 @@ function remaining(group) {
 			if (d.state === "breakdown") chance *= .75;
 			if (Math.random() > chance) continue;
 			d.state = "whiff";
-			d.whiffT = kind.startsWith("shake") ? .48 : .38;
+			d.whiffT = kind.startsWith("shake") ? .72 : .55;
 			d.low = true;
-			const spd = Math.min(4.5, Math.hypot(d.vx, d.vy) || d.speed * .45);
+			const spd = Math.hypot(d.vx, d.vy) || d.speed * .6;
 			const ang = Math.atan2(d.vy, d.vx) || d.facing;
-			const boost = kind.startsWith("shake") ? 1.15 : 1.08;
+			const boost = kind.startsWith("shake") ? 1.55 : 1.4;
 			d.vx = Math.cos(ang) * spd * boost;
-			d.vy = Math.sin(ang) * spd * boost * 0.55; // less downfield slide
-			if (kind === "shakeL") d.vx += 1.6;
-			else if (kind === "shakeR") d.vx -= 1.6;
+			d.vy = Math.sin(ang) * spd * boost;
+			if (kind === "shakeL") d.vx += 3.2;
+			else if (kind === "shakeR") d.vx -= 3.2;
 			if (kind === "spin") {
+				// Defender bites on the fake lane, then runner spins the other way
 				const bite = Math.sign(d.x - rb.x) || 1;
-				d.vx += bite * (2.0 + Math.random() * 1.1);
-				d.vy *= 0.35;
-				d.whiffT = 0.45 + Math.random() * 0.15;
-				d.laneOffset = (d.laneOffset || 0) + bite * 1.2;
+				d.vx += bite * (4.8 + Math.random() * 2.2);
+				d.vy *= 0.45;
+				d.whiffT = 0.72 + Math.random() * 0.25;
+				d.laneOffset = (d.laneOffset || 0) + bite * 2.4;
 			}
 			if (kind.startsWith("shake") || kind === "spin" || d.state === "whiff" && dd < 2.35 && chance >= .7) triggerAnkleCam(rb, d);
 		}
@@ -3335,8 +1851,7 @@ function remaining(group) {
 			},
 			fumbleSeq: fumbleSeq && { ...fumbleSeq },
 			currentPlayName: currentPlay ? currentPlay.name : "",
-			currentSchemeName: currentScheme ? currentScheme.name : "",
-			trail: showRunnerTrail && runnerTrail.length ? runnerTrail.map((p) => ({ x: p.x, y: p.y, spd: p.spd || 0 })) : null
+			currentSchemeName: currentScheme ? currentScheme.name : ""
 		};
 	}
 	function triggerAnkleCam(runner, defender) {
@@ -3345,7 +1860,7 @@ function remaining(group) {
 			runner,
 			defender
 		};
-		startPip(3.2);
+		startPip(2.6);
 	}
 	function startPip(seconds) {
 		if (replayMode === "off") return;
@@ -3358,116 +1873,6 @@ function remaining(group) {
 			acc: 0
 		};
 	}
-
-	function loadSavedClips() {
-		try {
-			const raw = localStorage.getItem(SAVED_CLIPS_KEY);
-			const list = raw ? JSON.parse(raw) : [];
-			return Array.isArray(list) ? list : [];
-		} catch {
-			return [];
-		}
-	}
-	function persistSavedClips(list) {
-		localStorage.setItem(SAVED_CLIPS_KEY, JSON.stringify(list.slice(0, SAVED_CLIPS_MAX)));
-	}
-	function renderSavedClips() {
-		const host = $("savedClipsList");
-		if (!host) return;
-		const list = loadSavedClips();
-		host.innerHTML = "";
-		if (!list.length) {
-			host.innerHTML = "<div class=\"clip-empty\">No saved plays yet</div>";
-			return;
-		}
-		list.forEach((clip, idx) => {
-			const row = document.createElement("div");
-			row.className = "clip-row";
-			const name = document.createElement("span");
-			name.className = "clip-name";
-			name.textContent = clip.name || ("Clip " + (idx + 1));
-			const meta = document.createElement("span");
-			meta.className = "clip-meta";
-			meta.textContent = (clip.playName || "?") + " vs " + (clip.schemeName || "?") + " · " + (clip.frames ? clip.frames.length : 0) + "f";
-			const playBtn = document.createElement("button");
-			playBtn.type = "button";
-			playBtn.textContent = "▶";
-			playBtn.title = "Play clip";
-			playBtn.onclick = () => playSavedClip(clip);
-			const dlBtn = document.createElement("button");
-			dlBtn.type = "button";
-			dlBtn.textContent = "↓";
-			dlBtn.title = "Download JSON";
-			dlBtn.onclick = () => downloadClipJson(clip);
-			const delBtn = document.createElement("button");
-			delBtn.type = "button";
-			delBtn.textContent = "×";
-			delBtn.title = "Delete";
-			delBtn.onclick = () => {
-				const next = loadSavedClips().filter((c) => c.id !== clip.id);
-				persistSavedClips(next);
-				renderSavedClips();
-			};
-			row.appendChild(name);
-			row.appendChild(meta);
-			row.appendChild(playBtn);
-			row.appendChild(dlBtn);
-			row.appendChild(delBtn);
-			host.appendChild(row);
-		});
-	}
-	function downloadClipJson(clip) {
-		const blob = new Blob([JSON.stringify(clip)], { type: "application/json" });
-		const a = document.createElement("a");
-		a.href = URL.createObjectURL(blob);
-		a.download = (clip.name || "fga-clip").replace(/[^\w\-]+/g, "_") + ".json";
-		a.click();
-		URL.revokeObjectURL(a.href);
-	}
-	function playSavedClip(clip) {
-		if (!clip || !clip.frames || clip.frames.length < 6) return;
-		fullReplay = {
-			frames: clip.frames,
-			i: 0,
-			acc: 0
-		};
-		setPaused(true);
-		pauseBannerHTML("replay");
-	}
-	function saveLastPlayClip() {
-		const frames = lastPlayFrames && lastPlayFrames.length >= 6 ? lastPlayFrames : playFrames;
-		if (!frames || frames.length < 6) {
-			setPlayCall("Nothing to save — run a play first");
-			return;
-		}
-		const defaultName = (currentPlay ? currentPlay.name : "Play") + " vs " + (currentScheme ? currentScheme.name : "D");
-		const name = window.prompt("Name this clip", defaultName);
-		if (name === null) return;
-		const clip = {
-			id: "c" + Date.now().toString(36),
-			name: (name || defaultName).slice(0, 48),
-			playName: currentPlay ? currentPlay.name : "",
-			schemeName: currentScheme ? currentScheme.name : "",
-			savedAt: new Date().toISOString(),
-			frames: frames.map((f) => ({
-				cameraY: f.cameraY,
-				camZoom: f.camZoom,
-				cameraMode: f.cameraMode,
-				rb: f.rb,
-				qb: f.qb,
-				blockers: f.blockers,
-				defenders: f.defenders,
-				playStartYard: f.playStartYard,
-				trail: f.trail
-			}))
-		};
-		const list = loadSavedClips();
-		list.unshift(clip);
-		persistSavedClips(list.slice(0, SAVED_CLIPS_MAX));
-		renderSavedClips();
-		setPlayCall("Saved \"" + clip.name + "\" (" + list.length + "/" + SAVED_CLIPS_MAX + ")");
-	}
-
 	function startFullReplay() {
 		const frames = lastPlayFrames && lastPlayFrames.length >= 6 ? lastPlayFrames : null;
 		if (!frames) return;
@@ -3510,7 +1915,7 @@ function remaining(group) {
 	}
 	function steerTeammate(b, sdx, sdy, dt) {
 		if (!b || !rb) return;
-		b._userCtrl = 0.22; // short linger; do not retarget all nearby blockers
+		b._userCtrl = .28;
 		let dx = Math.cos(rb.facing || Math.PI / 2);
 		let dy = Math.sin(rb.facing || Math.PI / 2);
 		const mag = Math.hypot(sdx, sdy);
@@ -3518,10 +1923,9 @@ function remaining(group) {
 			dx = sdx / mag;
 			dy = sdy / mag;
 		}
-		const spd = Math.min(10.5, (b.speed || 8.6) * offMult() * 1.05);
-		const step = spd * Math.min(dt, 0.05);
-		b.x += dx * step;
-		b.y += dy * step;
+		const spd = (b.speed || 8.6) * offMult() * 1.12;
+		b.x += dx * spd * dt;
+		b.y += dy * spd * dt;
 		b.facing = Math.atan2(dy, dx);
 		b.x = clamp(b.x, fieldLeft() + .8, fieldRight() - .8);
 		b.y = clamp(b.y, playStartYard - 10, 105);
@@ -3623,7 +2027,7 @@ function remaining(group) {
 		if (!fumbleSeq || !rb) return;
 		score += 50;
 		score = Math.max(0, score);
-		rb.hasBall = false;
+		rb.hasBall = true;
 		if (down) {
 			rb.low = true;
 			const yg = Math.round(spotY - playStartYard);
@@ -3689,9 +2093,7 @@ function remaining(group) {
 		player.hasBall = !doSpike;
 		player.hop = 0;
 		player.low = false;
-		// Snapshot frames at TD so PIP/full replay include run to the plane
-		lastPlayFrames = playFrames.slice();
-		if (who === "off") startPip(6.5);
+		if (who === "off") startPip(3.6);
 	}
 	function tickScore(dt) {
 		const s = scoreSeq;
@@ -4153,31 +2555,12 @@ function remaining(group) {
 	}
 	function scoreTouchdown() {
 		if (!rb || scoreSeq) return;
-		// Seal trail at the goal line — fill any gap so path reaches plane
-		if (showRunnerTrail && rb) {
-			for (const p of runnerTrail) { if (p.y > 100) p.y = 100; }
-			const last = runnerTrail.length ? runnerTrail[runnerTrail.length - 1] : null;
-			const x0 = last ? last.x : rb.x;
-			const y0 = last ? last.y : rb.y;
-			if (!last || y0 < 99.2) {
-				const steps = 4;
-				for (let i = 1; i <= steps; i++) {
-					const t = i / steps;
-					runnerTrail.push({
-						x: x0 + (rb.x - x0) * t,
-						y: Math.min(100, y0 + (100 - y0) * t)
-					});
-				}
-			} else {
-				runnerTrail.push({ x: rb.x, y: 100 });
-			}
-		}
 		const yg = Math.max(0, Math.round(rb.y - playStartYard));
 		tdCount += 1;
 		score += 100;
 		tdZoom = true;
-		postTdMode = postTdMode || "random";
-		tdIncrement = Number.isFinite(parseInt($("incrementInput")?.value, 10)) ? parseInt($("incrementInput").value, 10) : 0;
+		postTdMode = document.querySelector("input[name=\"postTdMode\"]:checked")?.value || "increment";
+		tdIncrement = parseInt($("incrementInput")?.value || "5", 10) || 5;
 		randMin = clamp(parseInt($("randMin")?.value || "20", 10) || 20, 1, 99);
 		randMax = clamp(parseInt($("randMax")?.value || "80", 10) || 80, 1, 99);
 		const nextStart = chooseNextStartAfterTD();
@@ -4240,15 +2623,10 @@ function remaining(group) {
 	}
 	function chooseNextStartAfterTD() {
 		if (postTdMode === "random") {
-			// Always OWN 20 through OPP 20 on a 5-yard line: abs 20,25,...,80
-			const spots = [];
-			for (let y = 20; y <= 80; y += 5) spots.push(y);
-			return spots[Math.floor(Math.random() * spots.length)];
+			const lo = Math.min(randMin, randMax);
+			return userToAbsolute(lo + Math.random() * (Math.max(randMin, randMax) - lo));
 		}
-		if (postTdMode === "fixed") return clamp(userStartYard, 1, 99);
-		const step = Math.abs(tdIncrement) || 5;
-		if (postTdMode === "decreasing") return clamp(driveStartYard - step, 1, 99);
-		return clamp(driveStartYard + step, 1, 99); // increasing
+		return userToAbsolute(clamp(absoluteToUser(driveStartYard) + tdIncrement, 1, 99));
 	}
 	function endPlay(reason, yardsGained, forcedBallYard = null) {
 		playActive = false;
@@ -4312,82 +2690,23 @@ function remaining(group) {
 	function rebuildUniformSelects() {
 		const offSel = $("offUniform");
 		const defSel = $("defUniform");
-		if (offSel && defSel) {
-			offSel.innerHTML = "";
-			defSel.innerHTML = "";
-			UNIFORMS.forEach((u) => {
-				const o1 = document.createElement("option");
-				o1.value = String(u.id);
-				o1.textContent = u.abbr || ("Kit " + u.id);
-				if (u.id === offUni) o1.selected = true;
-				offSel.appendChild(o1);
+		if (!offSel || !defSel) return;
+		offSel.innerHTML = "";
+		defSel.innerHTML = "";
+		UNIFORMS.forEach((u) => {
+			const o1 = document.createElement("option");
+			o1.value = String(u.id);
+			o1.textContent = u.abbr;
+			if (u.id === offUni) o1.selected = true;
+			offSel.appendChild(o1);
+			if (u.id !== offUni) {
 				const o2 = document.createElement("option");
 				o2.value = String(u.id);
-				o2.textContent = u.abbr || ("Kit " + u.id);
+				o2.textContent = u.abbr;
 				if (u.id === defUni) o2.selected = true;
 				defSel.appendChild(o2);
-			});
-		}
-		buildUniformBanner();
-	}
-	function makeUniSwatch(u, selected) {
-		const btn = document.createElement("button");
-		btn.type = "button";
-		btn.className = "uni-swatch";
-		btn.setAttribute("role", "option");
-		btn.setAttribute("aria-selected", selected ? "true" : "false");
-		btn.dataset.id = String(u.id);
-		btn.title = u.abbr || ("Kit " + u.id);
-		const helm = document.createElement("div");
-		helm.className = "uni-helmet";
-		helm.style.background = u.helmet;
-		const jer = document.createElement("div");
-		jer.className = "uni-jersey";
-		jer.style.background = u.jersey;
-		const pants = document.createElement("div");
-		pants.className = "uni-pants";
-		pants.style.background = u.pants;
-		btn.appendChild(helm);
-		btn.appendChild(jer);
-		btn.appendChild(pants);
-		return btn;
-	}
-	function buildUniformBanner() {
-		const offRow = $("offUniRow");
-		const defRow = $("defUniRow");
-		if (!offRow || !defRow) return;
-		offRow.innerHTML = "";
-		defRow.innerHTML = "";
-		UNIFORMS.forEach((u) => {
-			const ob = makeUniSwatch(u, u.id === offUni);
-			ob.onclick = () => selectOffUni(u.id);
-			offRow.appendChild(ob);
-			const db = makeUniSwatch(u, u.id === defUni);
-			db.onclick = () => selectDefUni(u.id);
-			defRow.appendChild(db);
+			}
 		});
-	}
-	function selectOffUni(id) {
-		id = parseInt(id, 10);
-		if (!Number.isFinite(id)) return;
-		offUni = id;
-		if (defUni === offUni) {
-			const alt = UNIFORMS.find((u) => u.id !== offUni);
-			if (alt) defUni = alt.id;
-		}
-		rebuildUniformSelects();
-		if (typeof paintRoster === "function") paintRoster();
-	}
-	function selectDefUni(id) {
-		id = parseInt(id, 10);
-		if (!Number.isFinite(id)) return;
-		defUni = id;
-		if (defUni === offUni) {
-			const alt = UNIFORMS.find((u) => u.id !== defUni);
-			if (alt) offUni = alt.id;
-		}
-		rebuildUniformSelects();
-		if (typeof paintRoster === "function") paintRoster();
 	}
 	function refreshPersonnelUI() {
 		Object.entries({
@@ -4420,24 +2739,22 @@ function remaining(group) {
 		turfTile = null;
 		const sel = $("surfaceSelect");
 		if (sel) sel.value = surface;
-		// EZ art: diamonds 75%, mountains 25% (off/solid only if user picks)
-		ezArtMode = Math.random() < 0.75 ? "diamonds" : "mountains";
-		const ez = $("ezArtSelect");
-		if (ez) ez.value = ezArtMode;
 	}
 	function fullRestart(keepOffense = false) {
 		clearAutoStart();
 		modalShow("nameModal", false);
-		userStartYard = (typeof syncStartYardFromUI === "function") ? syncStartYardFromUI() : clamp(parseInt($("startYardInput")?.value || "90", 10) || 90, 1, 99);
-		tdIncrement = Number.isFinite(parseInt($("incrementInput")?.value, 10)) ? parseInt($("incrementInput").value, 10) : 0;
+		userStartYard = clamp(parseInt($("startYardInput")?.value || "40", 10) || 40, 1, 99);
+		tdIncrement = parseInt($("incrementInput")?.value || "5", 10) || 5;
 		randMin = clamp(parseInt($("randMin")?.value || "20", 10) || 20, 1, 99);
 		randMax = clamp(parseInt($("randMax")?.value || "80", 10) || 80, 1, 99);
-		postTdMode = postTdMode || "random";
-		gameSeconds = parseInt($("minSelect")?.value || "120", 10) || 120;
+		postTdMode = document.querySelector("input[name=\"postTdMode\"]:checked")?.value || "increment";
+		gameSeconds = parseInt($("minSelect")?.value || "180", 10) || 180;
 		clock = gameSeconds;
-		if (defUni === offUni) {
-			defUni = offUni === 6 ? 0 : 6;
+		if (!keepOffense) {
+			if (Math.random() < .6) offUni = 0;
+			else offUni = randChoice(UNIFORMS.filter((u) => u.id !== 0)).id;
 		}
+		defUni = randChoice(UNIFORMS.filter((u) => u.id !== offUni)).id;
 		randomizeSurface();
 		rebuildUniformSelects();
 		syncAbbrFromOffense();
@@ -4622,7 +2939,7 @@ function remaining(group) {
 				}
 			}
 		}
-		if (playActive && (inp.ctrlL || inp.ctrlR) && autoRun && Math.hypot(inp.dx, inp.dy) < .12 && Math.hypot(lastSteer.dx, lastSteer.dy) > .08) {
+		if ((inp.ctrlL || inp.ctrlR) && autoRun && Math.hypot(inp.dx, inp.dy) < .12 && Math.hypot(lastSteer.dx, lastSteer.dy) > .08) {
 			inp.dx = lastSteer.dx;
 			inp.dy = lastSteer.dy;
 			if (inp.ctrlL && Math.hypot(inp.blockLdx, inp.blockLdy) < .12) {
@@ -4638,15 +2955,13 @@ function remaining(group) {
 		ctrlRight = null;
 		if (playActive && !paused && !sessionOver) {
 			if (inp.ctrlL) {
-				if (!latchCtrlL || !latchCtrlL.active) latchCtrlL = nearestTeammate(-1);
-				ctrlLeft = latchCtrlL;
+				ctrlLeft = nearestTeammate(-1);
 				steerTeammate(ctrlLeft, inp.blockLdx, inp.blockLdy, dt);
-			} else latchCtrlL = null;
+			}
 			if (inp.ctrlR) {
-				if (!latchCtrlR || !latchCtrlR.active || latchCtrlR === latchCtrlL) latchCtrlR = nearestTeammate(1, ctrlLeft);
-				ctrlRight = latchCtrlR;
+				ctrlRight = nearestTeammate(1, ctrlLeft);
 				steerTeammate(ctrlRight, inp.blockRdx, inp.blockRdy, dt);
-			} else latchCtrlR = null;
+			}
 		}
 		const nameOpen = !$("nameModal")?.classList.contains("hidden");
 		const contOpen = !$("continueModal")?.classList.contains("hidden");
@@ -4659,236 +2974,6 @@ function remaining(group) {
 			return;
 		}
 		confirmEdge = false;
-		// Practice mode: hold at pre-snap until A / confirm; RT flips the called play
-		if (practiceAwaitSnap && !paused && !fullReplay) {
-			// Menu toggles: X = offense focus, B = defense focus
-			if (inp.dive && !practiceAudibleEdge) {
-				practiceAudibleArm = !practiceAudibleArm;
-				if (practiceAudibleArm) {
-					practiceDefAudibleArm = false;
-					practiceFocusSide = "off";
-					if (typeof refreshPracticePreviews === "function") refreshPracticePreviews();
-				} else if (typeof refreshPracticePreviews === "function") {
-					refreshPracticePreviews();
-				}
-				updateAudibleHint();
-			}
-			practiceAudibleEdge = !!inp.dive;
-			if (inp.spin && !practiceDefAudibleEdge) {
-				practiceDefAudibleArm = !practiceDefAudibleArm;
-				if (practiceDefAudibleArm) {
-					practiceAudibleArm = false;
-					practiceFocusSide = "def";
-					if (typeof refreshPracticePreviews === "function") refreshPracticePreviews();
-				} else if (typeof refreshPracticePreviews === "function") {
-					refreshPracticePreviews();
-				}
-				updateAudibleHint();
-			}
-			practiceDefAudibleEdge = !!inp.spin;
-
-			const sy = inp.dy || 0;
-			const rsy = inp._rsY || 0;
-			const stickUp = (v) => Math.abs(v) > 0.55;
-
-			function cycleOffense(step) {
-				practiceFocusSide = "off";
-				const idx = Math.max(0, OFF_PLAYS.findIndex((p) => p.id === (practiceOffPlayId || (currentPlay && currentPlay.id))));
-				const ni = (idx + step + OFF_PLAYS.length) % OFF_PLAYS.length;
-				if (OFF_PLAYS[ni].id !== (practiceOffPlayId || (currentPlay && currentPlay.id))) {
-					practiceOffPlayIdPrev = practiceOffPlayId || (currentPlay && currentPlay.id) || null;
-				}
-				practiceOffPlayId = OFF_PLAYS[ni].id;
-				practiceFlipped = false;
-				const sel = $("practiceOffPlay");
-				if (sel) sel.value = practiceOffPlayId;
-				try { placeEntitiesForNewPlay(); } catch (err) { console.error(err); }
-				setPlayCall(OFF_PLAYS[ni].name + (practiceDefAudibleArm || practiceAudibleArm ? "  (menu)" : " — press A to snap"));
-				renderPracticePlayList();
-				if (typeof refreshPracticePreviews === "function") refreshPracticePreviews();
-			}
-			function cycleDefense(step) {
-				practiceFocusSide = "def";
-				const idx = Math.max(0, DEF_SCHEMES.findIndex((s) => s.id === (practiceDefSchemeId || (currentScheme && currentScheme.id))));
-				const ni = (idx + step + DEF_SCHEMES.length) % DEF_SCHEMES.length;
-				if (DEF_SCHEMES[ni].id !== (practiceDefSchemeId || (currentScheme && currentScheme.id))) {
-					practiceDefSchemeIdPrev = practiceDefSchemeId || (currentScheme && currentScheme.id) || null;
-				}
-				practiceDefSchemeId = DEF_SCHEMES[ni].id;
-				const sel = $("practiceDefScheme");
-				if (sel) sel.value = practiceDefSchemeId;
-				try { placeEntitiesForNewPlay(); } catch (err) { console.error(err); }
-				setPlayCall((currentPlay ? currentPlay.name : "Play") + " · vs " + DEF_SCHEMES[ni].name + (practiceDefAudibleArm ? "  (B menu — LS↕)" : " — press A to snap"));
-				renderPracticeDefList();
-				if (typeof refreshPracticePreviews === "function") refreshPracticePreviews();
-			}
-
-
-			function pickFocusedByIndex(n) {
-				// n is 1-8
-				const i = n - 1;
-				if (practiceFocusSide === "def") {
-					if (!DEF_SCHEMES[i]) return;
-					if (DEF_SCHEMES[i].id !== (practiceDefSchemeId || (currentScheme && currentScheme.id))) {
-						practiceDefSchemeIdPrev = practiceDefSchemeId || (currentScheme && currentScheme.id) || null;
-					}
-					practiceDefSchemeId = DEF_SCHEMES[i].id;
-					const sel = $("practiceDefScheme");
-					if (sel) sel.value = practiceDefSchemeId;
-					try { placeEntitiesForNewPlay(); } catch (err) { console.error(err); }
-					setPlayCall((currentPlay ? currentPlay.name : "Play") + " · vs " + DEF_SCHEMES[i].name + " — press A to snap");
-					renderPracticeDefList();
-				} else {
-					if (!OFF_PLAYS[i]) return;
-					if (OFF_PLAYS[i].id !== (practiceOffPlayId || (currentPlay && currentPlay.id))) {
-						practiceOffPlayIdPrev = practiceOffPlayId || (currentPlay && currentPlay.id) || null;
-					}
-					practiceOffPlayId = OFF_PLAYS[i].id;
-					practiceFlipped = false;
-					const sel = $("practiceOffPlay");
-					if (sel) sel.value = practiceOffPlayId;
-					try { placeEntitiesForNewPlay(); } catch (err) { console.error(err); }
-					setPlayCall(OFF_PLAYS[i].name + " — press A to snap");
-					renderPracticePlayList();
-				}
-				if (typeof refreshPracticePreviews === "function") refreshPracticePreviews();
-			}
-			let numPick = 0;
-			for (let n = 1; n <= 8; n++) {
-				if (keys.has("Digit" + n) || keys.has("Numpad" + n)) { numPick = n; break; }
-			}
-			if (numPick && !practiceNumLatch) {
-				pickFocusedByIndex(numPick);
-				practiceNumLatch = true;
-			} else if (!numPick) practiceNumLatch = false;
-
-			// ← / → switch between offense & defense playbooks
-			const bookLeft = !!(inp._dpadLeft || keys.has("ArrowLeft"));
-			const bookRight = !!(inp._dpadRight || keys.has("ArrowRight"));
-			if ((bookLeft || bookRight) && !practiceBookLatch) {
-				practiceFocusSide = bookLeft ? "off" : "def";
-				practiceBookLatch = true;
-				if (typeof refreshPracticePreviews === "function") refreshPracticePreviews();
-				if (typeof updateAudibleHint === "function") updateAudibleHint();
-			} else if (!bookLeft && !bookRight) practiceBookLatch = false;
-
-			// Left stick / ↑↓ follow focused preview (not while LT/RT are flipping)
-			if (!inp.ctrlL && !inp.ctrlR && stickUp(sy)) {
-				if (practiceStickLatch === 0) {
-					const step = sy > 0 ? -1 : 1;
-					if (practiceFocusSide === "def" || practiceDefAudibleArm) cycleDefense(step);
-					else cycleOffense(step);
-					practiceStickLatch = sy > 0 ? 1 : -1;
-				}
-			} else if (!stickUp(sy) || inp.ctrlL || inp.ctrlR) practiceStickLatch = 0;
-
-			// Right stick cycles defense — ignore while LT/RT held (trigger axes can look like RS)
-			if (!practiceAudibleArm && !inp.ctrlL && !inp.ctrlR && stickUp(rsy)) {
-				if (practiceDefStickLatch === 0) {
-					cycleDefense(rsy > 0 ? -1 : 1);
-					practiceDefStickLatch = rsy > 0 ? 1 : -1;
-				}
-			} else if (!stickUp(rsy) || inp.ctrlL || inp.ctrlR) practiceDefStickLatch = 0;
-
-			// Optional hotkeys (no A/B): Y/LB/RB/LT/D-pad while a menu is open
-			if (practiceAudibleArm) {
-				for (const m of getAudibleMap()) {
-					if (m.match(inp)) {
-						practiceOffPlayIdPrev = practiceOffPlayId || (currentPlay && currentPlay.id) || null;
-						practiceOffPlayId = m.play.id;
-						practiceFlipped = false;
-						practiceAudibleArm = false;
-						const sel = $("practiceOffPlay");
-						if (sel) sel.value = practiceOffPlayId;
-						try { placeEntitiesForNewPlay(); } catch (err) { console.error(err); }
-						setPlayCall(m.play.name + " — Y cancel · A snap");
-						updateAudibleHint();
-						if (typeof refreshPracticePreviews === "function") refreshPracticePreviews();
-						confirmEdge = true;
-						return;
-					}
-				}
-			}
-			if (practiceDefAudibleArm) {
-				for (const m of getDefAudibleMap()) {
-					if (m.match(inp)) {
-						practiceDefSchemeIdPrev = practiceDefSchemeId || (currentScheme && currentScheme.id) || null;
-						practiceDefSchemeId = m.scheme.id;
-						practiceDefAudibleArm = false;
-						const sel = $("practiceDefScheme");
-						if (sel) sel.value = practiceDefSchemeId;
-						try { placeEntitiesForNewPlay(); } catch (err) { console.error(err); }
-						setPlayCall((currentPlay ? currentPlay.name : "Play") + " · vs " + m.scheme.name + " — Y cancel · A snap");
-						updateAudibleHint();
-						if (typeof refreshPracticePreviews === "function") refreshPracticePreviews();
-						confirmEdge = true;
-						return;
-					}
-				}
-			}
-
-			if (inp.ctrlR && !practiceFlipEdge) {
-				practiceFlipped = !practiceFlipped;
-				try { placeEntitiesForNewPlay(); } catch (err) { console.error(err); }
-				setPlayCall((currentPlay ? currentPlay.name : "Practice") + (practiceFlipped ? " ⇄" : "") + " — press A to snap");
-			}
-			practiceFlipEdge = !!inp.ctrlR;
-			// LT flips defensive alignment / jobs horizontally
-			if (inp.ctrlL && !practiceDefFlipEdge) {
-				practiceDefFlipped = !practiceDefFlipped;
-				try { placeEntitiesForNewPlay(); } catch (err) { console.error(err); }
-				setPlayCall((currentPlay ? currentPlay.name : "Play") + (currentScheme ? " · vs " + currentScheme.name : "") + (practiceDefFlipped ? " (D⇄)" : "") + " — press A to snap");
-				if (typeof refreshPracticePreviews === "function") refreshPracticePreviews();
-			}
-			practiceDefFlipEdge = !!inp.ctrlL;
-
-			// Y cancels last audible and restores previous O or D call
-			const yPressed = !!(inp.truck || inp.hurdle);
-			if (yPressed && !practiceYCancelEdge && !practiceAudibleArm && !practiceDefAudibleArm) {
-				let restored = false;
-				if (practiceFocusSide === "def" && practiceDefSchemeIdPrev) {
-					const tmp = practiceDefSchemeId;
-					practiceDefSchemeId = practiceDefSchemeIdPrev;
-					practiceDefSchemeIdPrev = tmp;
-					restored = true;
-				} else if (practiceOffPlayIdPrev) {
-					const tmp = practiceOffPlayId;
-					practiceOffPlayId = practiceOffPlayIdPrev;
-					practiceOffPlayIdPrev = tmp;
-					restored = true;
-				} else if (practiceDefSchemeIdPrev) {
-					const tmp = practiceDefSchemeId;
-					practiceDefSchemeId = practiceDefSchemeIdPrev;
-					practiceDefSchemeIdPrev = tmp;
-					restored = true;
-				}
-				if (restored) {
-					try { placeEntitiesForNewPlay(); } catch (err) { console.error(err); }
-					const on = currentPlay ? currentPlay.name : "Play";
-					const dn = currentScheme ? currentScheme.name : "";
-					setPlayCall(on + (dn ? " · vs " + dn : "") + " — audible cancelled · A snap");
-					if (typeof refreshPracticePreviews === "function") refreshPracticePreviews();
-					updateAudibleHint();
-				}
-			}
-			practiceYCancelEdge = yPressed;
-
-			// A snaps the ball (closes any open menu first).
-			if (inp.confirm && !confirmEdge) {
-				practiceAudibleArm = false;
-				practiceDefAudibleArm = false;
-				practiceAwaitSnap = false;
-				playActive = true;
-				const defName = currentScheme && currentScheme.name ? currentScheme.name : "";
-				setPlayCall((currentPlay ? currentPlay.name : "Play") + (defName ? " · vs " + defName : ""));
-				updateAudibleHint();
-				if (typeof refreshPracticePreviews === "function") refreshPracticePreviews();
-			}
-			confirmEdge = inp.confirm;
-			return;
-		}
-		practiceAudibleArm = false;
-		practiceFlipEdge = false;
 		if (inp.pausePress && !pauseEdge && !sessionOver) setPaused(!paused);
 		pauseEdge = inp.pausePress;
 		if (paused) {
@@ -4940,33 +3025,15 @@ function remaining(group) {
 					expireGame();
 					return;
 				}
+				playActive = true;
 				pauseTimer = 0;
 				tackleAnim = null;
-				if (gameMode === "practice") {
-					const fixed = clamp(practiceStartYard, 1, 99);
-					ballYard = fixed;
-					playStartYard = fixed;
-					driveStartYard = fixed;
-					ballX = (hashLeft() + hashRight()) / 2;
-				} else if (nextPlayOnSnap) {
-					playStartYard = ballYard;
-				} else {
-					playStartYard = ballYard;
-				}
+				playStartYard = ballYard;
 				try {
 					placeEntitiesForNewPlay();
 					currentPlay && currentPlay.name;
 				} catch (err) {
 					console.error(err);
-				}
-				if (nextPlayOnSnap || gameMode === "practice") {
-					playActive = false;
-					practiceAwaitSnap = true;
-					setPlayCall((currentPlay ? currentPlay.name : "Practice") + " — press A to snap");
-					updateBallOn();
-				} else {
-					playActive = true;
-					practiceAwaitSnap = false;
 				}
 			}
 			return;
@@ -5302,9 +3369,7 @@ function remaining(group) {
 					if (d.y < rb.y - 1.6) return;
 					const nearPath = Math.abs(d.x - rb.x) < 5.8 || Math.abs(d.x - b.x) < 3.4;
 					if (!nearPath) return;
-					// OL prefer DTs on the line; slight bias so DTs actually get blocked
-					const groupBias = (b.group === "OL" && d.group === "DT") ? 0.72 : 1;
-					const dd = (dist(d, b) * .4 + dist(d, rb) * .6) * groupBias;
+					const dd = dist(d, b) * .4 + dist(d, rb) * .6;
 					if (dd < nd) {
 						nd = dd;
 						best = d;
@@ -5408,12 +3473,10 @@ function remaining(group) {
 			const fatigue = playAge < 4.5 ? 1 : Math.max(.55, 1 - (playAge - 4.5) * .1);
 			bspd *= fatigue;
 			if (style === "wallL" || style === "wallR") bspd *= 1.12;
-			if (style === "zoneR" || style === "zoneL") bspd *= 1.08;
-			if (b.blockMode === "pull" && b.pullPhase < 2) bspd *= 1.18 * (b.pullBoost || 1);
+			if (b.blockMode === "pull" && b.pullPhase < 2) bspd *= 1.18;
 			if (!tgt) bspd *= 1.06;
-			const step = Math.min(bspd * dt, 0.55);
-			b.x += Math.cos(ang) * step;
-			b.y += Math.sin(ang) * step;
+			b.x += Math.cos(ang) * bspd * dt;
+			b.y += Math.sin(ang) * bspd * dt;
 			turnToward(b, ang, dt, 10);
 			const backLimit = behindLos ? Math.min(playStartYard - 8, rb.y - 2) : playStartYard - 6;
 			b.y = clamp(b.y, backLimit, Math.min(104.8, Math.max(rb.y + 10, playStartYard + 12)));
@@ -5444,18 +3507,11 @@ function remaining(group) {
 					if (d.engageT <= 0) {
 						const holding2 = rb && dist(d, rb) + .25 < dist(b, rb);
 						const farPlay = rb && dist(d, rb) > 8.5;
-						const isDt = d.group === "DT";
-						const olOnDt = isDt && (b.group === "OL" || b.group === "TE" || b.group === "FB");
-						// DTs used to slip off blocks constantly — keep them engaged more often
-						let slipP = (d._pushYards || 0) > .65 || d.y > 95.5 || rb && d.y > rb.y + 2.4 || playAge > 1.35 || idleCarrierT > .28 ? .94 : .62;
-						if (olOnDt) slipP = (d._pushYards || 0) > 1.35 || d.y > 95.5 || playAge > 2.4 ? .55 : .22;
-						// breakBlock > 1 → shed more; < 1 → stay engaged longer
-						slipP = clamp(slipP * (0.55 + 0.45 * breakBlock), 0.08, 0.98);
-						if (b._userCtrl > 0) slipP *= 0.35; // user-steered blockers hold much better
+						const slipP = (d._pushYards || 0) > .65 || d.y > 95.5 || rb && d.y > rb.y + 2.4 || playAge > 1.35 || idleCarrierT > .28 ? .94 : .62;
 						if (holding2 || farPlay || idleCarrierT > .4 || Math.random() < slipP) {
 							d.engageT = 0;
 							d.state = "recover";
-							d.recoverT = holding2 ? .08 : (olOnDt ? .22 : .14) + Math.random() * .12;
+							d.recoverT = holding2 ? .08 : .14 + Math.random() * .12;
 							d.low = false;
 							const ang = rb ? Math.atan2(rb.y - d.y, rb.x - d.x) : -Math.PI / 2;
 							d.vx = Math.cos(ang) * (8 + Math.random() * 3);
@@ -5463,43 +3519,29 @@ function remaining(group) {
 							return;
 						}
 						const fatigue = playAge < 1.6 ? 1 : Math.max(.28, 1 - (playAge - 1.6) * .32);
-						// Longer engage window vs DT so push can accumulate
-						d.engageT = ((olOnDt || b.driveBlock ? .38 : .14) + Math.random() * (olOnDt || b.driveBlock ? .28 : .12)) * fatigue * (b.sturdyBlock ? 1.35 : 1) / Math.max(0.45, breakBlock);
-						if (b._userCtrl > 0) d.engageT *= 1.65;
-						// Prefer sustained blocks over pancakes; rare short pancake only
-						if (b.y <= d.y + .55 && Math.random() < (d.group === "DT" ? (b.group === "OL" ? .11 : .08) : (b.group === "FB" ? .1 : .07))) {
+						d.engageT = (.14 + Math.random() * .12) * fatigue;
+						if (b.y <= d.y + .55 && Math.random() < (b.group === "FB" ? .28 : .20)) {
 							d.state = "whiff";
-							d.whiffT = 0.55 + Math.random() * .25;
+							d.whiffT = 1.35 + Math.random() * .45;
 							d.low = true;
-							d.spinT = .35 + Math.random() * .2;
-							d.vx = (Math.sign(d.x - b.x) || 1) * (1.1 + Math.random() * 0.9);
-							d.vy = 1.2 + Math.random() * 1.0; // ~1–2 yd, not 20
+							d.spinT = .7 + Math.random() * .35;
+							d.vx = (Math.sign(d.x - b.x) || 1) * (2.4 + Math.random() * 1.6);
+							d.vy = 4.2 + Math.random() * 2.2;
 							d.engageT = 0;
 							return;
 						}
 					}
-					d.slowed = Math.max(d.slowed, d.group === "DT" ? .62 : .42);
+					d.slowed = Math.max(d.slowed, .42);
 					const hole = rb ? rb.x : snapX();
 					const side = Math.sign(d.x - hole) || Math.sign(d.x - b.x) || 1;
 					const overlap = Math.max(.04, gap - dd + .1);
-					let pushScale = d.group === "DT" ? 1.65 : 1;
-					if (b.driveBlock) pushScale *= 1.45;
-					if (b._userCtrl > 0) pushScale *= 1.55;
-					// River / sturdy: hold the point, less lateral skating
-					if (b.sturdyBlock) {
-						pushScale *= 0.55;
-						d.slowed = Math.max(d.slowed, 0.78);
-					}
-					d.x += side * Math.min(b.sturdyBlock ? .22 : .48, (.09 + overlap * .55) * pushScale);
-					let dyPush = Math.min(b.sturdyBlock ? .28 : .58, (.12 + overlap * .7) * pushScale);
-					if (b.driveBlock && !b.sturdyBlock) dyPush *= 1.35;
+					d.x += side * Math.min(.2, .07 + overlap * .42);
+					let dyPush = Math.min(.28, .1 + overlap * .55);
 					if (d.y > 94 && !inGoal()) dyPush *= .12;
 					if (inGoal()) dyPush *= 1.15;
 					if (rb && d.y > rb.y + 3.2) dyPush *= .18;
 					d.y += dyPush;
 					d.y = Math.min(d.y, 104.6);
-					// Engaged DTs lose lag so they don't feel frozen while blocked
-					if (d.group === "DT") d.dtLag = false;
 					if (rb && (d.y > rb.y + 6 || dist(d, rb) > 9)) {
 						d.engageT = 0;
 						d.state = "recover";
@@ -5510,7 +3552,7 @@ function remaining(group) {
 					}
 					b.x -= side * .028;
 					b.y += .05;
-					d._pushYards = (d._pushYards || 0) + overlap * (d.group === "DT" ? 1.25 : 1);
+					d._pushYards = (d._pushYards || 0) + overlap;
 				}
 			});
 		});
@@ -5524,7 +3566,6 @@ function remaining(group) {
 				n.y += Math.sin(ang) * push * dt * 8;
 			}
 		}
-		blockers.forEach((b) => { if (b._userCtrl > 0) b._userCtrl = Math.max(0, b._userCtrl - dt * 0.85); });
 		separate(blockers, playStartYard >= 92 || rb && rb.y >= 95 ? 2.85 : 2.65);
 		separate(defenders, 2.35);
 		yieldToCarrier();
@@ -5547,18 +3588,15 @@ function remaining(group) {
 					d.spinT -= dt;
 					d.facing += 18 * dt;
 				}
-				// Hard cap slide distance while pancaked / missing
-				d.vx = clamp(d.vx, -5.5, 5.5);
-				d.vy = clamp(d.vy, -2.5, 4.0);
 				d.x += d.vx * dt;
 				d.y += d.vy * dt;
 				d.low = true;
 				d.state = "whiff";
 				if (d.whiffT <= 0) {
 					d.state = "recover";
-					d.recoverT = .4;
-					d.vx *= .15;
-					d.vy *= .15;
+					d.recoverT = .55;
+					d.vx *= .2;
+					d.vy *= .2;
 				}
 				d.x = clamp(d.x, fieldLeft() + .8, fieldRight() - .8);
 				return;
@@ -5590,19 +3628,12 @@ function remaining(group) {
 			const distToRb = dist(d, rb);
 			const trail = rb.y - d.y;
 			const zoneBehind = d.jobY != null && rb.y > d.jobY + 1.15;
-			const dancing = Math.abs(rb.vx) > 9 && playAge > 8; // don't drop assignments just because the play is long
-			// Moving zones (drop / spy): center tracks defender; fixed zones keep original jobX/Y
-			if (d.zoneFollow) {
-				d.jobX = d.x;
-				d.jobY = d.y;
-			}
-			const zoneJob = d.job === "deep" || d.job === "drop" || d.job === "flat" || d.job === "curl" || d.job === "hook" || d.job === "robber" || d.job === "contain" || d.job === "spy";
+			const dancing = playAge > 3.2 || Math.abs(rb.vx) > 6;
+			const zoneJob = d.job === "deep" || d.job === "drop" || d.job === "flat" || d.job === "curl" || d.job === "hook" || d.job === "robber" || d.job === "contain";
 			const pastZone = d.jobY != null && rb.y > d.jobY + 2.4;
 			const atLevel = zoneJob && d.jobY != null && !pastZone && rb.y > playStartYard - 1 && rb.y > d.jobY - 8;
-			const keepDeep = (d.job === "deep" || d.job === "robber" || d.isSafety) && !pastZone && distToRb > 5.5;
-			const rbBehindLos = rb.y < playStartYard - 0.35;
-			// Close in the backfield, but not with full chase-down sprint intensity
-			d.sprintOn = !rbBehindLos && (distToRb < 8.6 && trail < 3.4 || distToRb < 4.2);
+			const keepDeep = (d.job === "deep" || d.job === "robber") && !dancing && !pastZone && rb.y - playStartYard < 12 && distToRb > 6 && playAge < 4;
+			d.sprintOn = distToRb < 8.6 && trail < 3.4 || distToRb < 4.2;
 			if (d.slowed > 0) {
 				d.speed = d.baseSpeed * .55 * defMult() * playSpeed;
 				d.slowed -= dt;
@@ -5613,13 +3644,7 @@ function remaining(group) {
 				d.speed = d.baseSpeed * defMult() * playSpeed * lag;
 			}
 			if (d.sprintOn) d.speed *= SPRINT_MULT;
-			// Behind LOS: still pursue, but dial back closing speed so RB can burst back to the line
-			if (rbBehindLos) {
-				const depth = playStartYard - rb.y; // yards behind LOS
-				const closeMult = clamp(0.78 - Math.min(0.18, depth * 0.025), 0.58, 0.82);
-				d.speed *= closeMult;
-			}
-			if (d.engageT > 0) d.speed *= (d.group === "DT" ? .18 : .32);
+			if (d.engageT > 0) d.speed *= .32;
 			if (d.lagT > 0) d.speed *= .45;
 			if (trail > 2.2 && distToRb > 3.6) d.speed *= .94;
 			if (distToRb < 2.9) d.state = "commit";
@@ -5634,7 +3659,7 @@ function remaining(group) {
 			let ty = d.y;
 			const wrong = d.misfireT > 0 && distToRb > 7 ? blockers[d.misfireIdx] : null;
 			const keepContain = d.job === "contain" && !pastZone && distToRb > 4 && Math.abs(rb.x - d.x) < 10;
-			const holdZone = atLevel || (zoneJob && !pastZone && (distToRb > 4.2 || rbBehindLos));
+			const holdZone = atLevel || (zoneJob && !pastZone && playAge < 3.4 && distToRb > 4.5);
 			if (d.stutter && playAge < .5) {
 				tx = d.stutterX;
 				ty = d.stutterY;
@@ -5653,11 +3678,7 @@ function remaining(group) {
 				const side = d.x < (fieldLeft() + fieldRight()) / 2 ? -1 : 1;
 				tx = rb.x * .55 + (side < 0 ? fieldLeft() + 2.4 : fieldRight() - 2.4) * .45;
 				ty = Math.max(rb.y - .2, playStartYard);
-			} else if (d.blitzDelay && playAge < d.blitzDelay) {
-				// Delayed blitz: hold / soft drift until delay elapses
-				tx = d.x + (d.jobX - d.x) * 0.08;
-				ty = d.y + 0.15;
-			} else if (!runKnown && playAge < (.7 + (d.blitzDelay || 0)) && shownJob === "blitz") {
+			} else if (!runKnown && playAge < .7 && shownJob === "blitz") {
 				tx = d.jobX;
 				ty = d.jobY;
 			} else if (shownJob === "man" && playAge < 1.05 && distToRb > 5) {
@@ -5935,30 +3956,16 @@ function remaining(group) {
 					const flen = Math.hypot(fx, fy) || 1;
 					fx /= flen;
 					fy /= flen;
-					// Chasedown / tackle from behind → more YAC stumble forward
-					const fromBehind = d.y < rb.y - 0.35 || (rb.vy > 2 && fy > 0.25);
-					let yacBoost = fromBehind ? (2.8 + Math.random() * 3.4) : (0.4 + Math.random() * 1.1);
-					yacBoost *= clamp(breakTackle, 0.4, 2.2);
-					// High breakTackle: chance to slip the wrap and keep running
-					if (breakTackle > 1.05 && Math.random() < clamp((breakTackle - 1) * 0.35, 0, 0.55)) {
-						d.slowed = Math.max(d.slowed, 0.55);
-						d.recoverT = 0.2 + Math.random() * 0.15;
-						d.state = "recover";
-						rb.y += 0.35 * breakTackle;
-						continue;
-					}
-					const forward = fromBehind ? Math.max(0.55, fy) : fy;
-					const flen2 = Math.hypot(fx, forward) || 1;
 					tackleAnim = {
 						mode: "tackle",
-						timer: fromBehind ? 0.62 : 0.48,
-						dur: fromBehind ? 0.62 : 0.48,
+						timer: .48,
+						dur: .48,
 						ox: rb.x,
 						oy: rb.y,
-						fx: fx / flen2,
-						fy: forward / flen2,
-						dist: 1.4 + yacBoost,
-						yards: yg + Math.round(fromBehind ? yacBoost * 0.85 : yacBoost * 0.35),
+						fx,
+						fy,
+						dist: 1.4 + Math.random() * .8,
+						yards: yg,
 						defender: d
 					};
 					return;
@@ -5980,61 +3987,6 @@ function remaining(group) {
 		if (rb && rb.y >= 100 && handoffDone && !scoreSeq) {
 			scoreTouchdown();
 			return;
-		}
-
-		// Runner path trail
-
-		// Mesh exchange: QB → RB (handoff or pitch)
-		if (playActive && !handoffDone && rb) {
-			handoffT += dt;
-			const style = currentPlay ? currentPlay.blockStyle : "";
-			const isPitch = /wall|sweep|wedge|swing|pull/.test(style) || (currentPlay && /sweep|wedge|swing|pitch/i.test(currentPlay.name || ""));
-			const tossDur = isPitch ? 0.42 : 0.28;
-			if (handoffPhase === "pre") {
-				if (qb) {
-					qb.hasBall = true;
-					rb.hasBall = false;
-					// QB opens toward RB
-					const ang = Math.atan2(rb.y - qb.y, rb.x - qb.x);
-					qb.facing = ang;
-				}
-				if (handoffT > 0.08) {
-					handoffPhase = "toss";
-					handoffT = 0;
-					if (qb) qb.hasBall = false;
-					handoffBall = { x: qb ? qb.x : rb.x, y: qb ? qb.y : playStartYard };
-				}
-			} else if (handoffPhase === "toss") {
-				const t = Math.min(1, handoffT / tossDur);
-				const sx = qb ? qb.x : (handoffBall ? handoffBall.x : rb.x);
-				const sy = qb ? qb.y : playStartYard;
-				// Pitch arcs slightly behind LOS; handoff is tighter
-				const arc = isPitch ? Math.sin(t * Math.PI) * 1.4 : Math.sin(t * Math.PI) * 0.35;
-				handoffBall = {
-					x: sx + (rb.x - sx) * t,
-					y: sy + (rb.y - sy) * t - arc
-				};
-				if (t >= 1) {
-					handoffDone = true;
-					handoffPhase = "done";
-					handoffBall = null;
-					rb.hasBall = true;
-					if (qb) qb.hasBall = false;
-				}
-			}
-		}
-		if (showRunnerTrail && rb && !paused && (playActive || scoreSeq) && (handoffDone || dive || activeMove === "dive" || scoreSeq)) {
-			_trailAcc += dt;
-			const last = runnerTrail.length ? runnerTrail[runnerTrail.length - 1] : null;
-			const moved = !last || Math.hypot(rb.x - last.x, rb.y - last.y) > 0.15;
-			const nearGoal = rb.y >= 96 || (dive && dive.pylon) || activeMove === "dive";
-			const minT = nearGoal || dive || activeMove === "dive" ? 0.016 : 0.04;
-			if ((moved || nearGoal) && _trailAcc > minT) {
-				const spd = Math.hypot(rb.vx || 0, rb.vy || 0);
-				runnerTrail.push({ x: rb.x, y: Math.min(100, rb.y), spd });
-				_trailAcc = 0;
-				if (runnerTrail.length > 600) runnerTrail.shift();
-			}
 		}
 		updateCamera();
 	}
@@ -6394,7 +4346,7 @@ function remaining(group) {
 		][sector] || { hx: 0, hy: 0 };
 		const mx = sx + pose.hx * r + visor.hx * r * .55;
 		const my = sy + pose.hy * r + visor.hy * r * .42 + r * .08;
-		ctx.strokeStyle = p.facemask || p.numColor || "#c5c8cc";
+		ctx.strokeStyle = "#c5c8cc";
 		ctx.lineWidth = Math.max(1.1, r * .07);
 		ctx.lineCap = "round";
 		ctx.beginPath();
@@ -6412,7 +4364,7 @@ function remaining(group) {
 		ctx.rotate(pose.rot * .65);
 		ctx.globalAlpha = .35 + pose.ns * .65;
 		ctx.fillStyle = p.numColor;
-		ctx.font = "bold " + Math.max(8, r * 0.7) + "px IBM Plex Sans, sans-serif";
+		ctx.font = "bold " + Math.max(8, r * .8 * pose.ns) + "px IBM Plex Sans, sans-serif";
 		ctx.textAlign = "center";
 		ctx.textBaseline = "middle";
 		ctx.fillText(String(p.number), 0, 0);
@@ -6454,7 +4406,6 @@ function remaining(group) {
 	function stripeFill(yd) {
 		const stripe = Math.floor((yd + 1000) / 5) % 2 === 0;
 		if (surface === "grass") return stripe ? "#5d8f4a" : "#4e7d3e";
-		if (surface === "astroturf") return stripe ? "#2f9a4a" : "#278a42";
 		return stripe ? "#1a4a2c" : "#143d24";
 	}
 	function drawDiamondEndzone(yGoal, yBack, uni) {
@@ -6476,7 +4427,7 @@ function remaining(group) {
 			ctx.lineTo(btm.sx, btm.sy);
 			ctx.lineTo(L.sx, L.sy);
 			ctx.closePath();
-			ctx.fillStyle = i % 2 === 0 ? (uni.endPrimary || uni.jersey) : (uni.endSecondary || uni.helmet);
+			ctx.fillStyle = i % 2 === 0 ? uni.jersey : uni.helmet;
 			ctx.globalAlpha = .62;
 			ctx.fill();
 			ctx.globalAlpha = .85;
@@ -6578,8 +4529,7 @@ function remaining(group) {
 		if (ezTextMode === "off") return;
 		let label = ezTextMode === "custom" ? String(ezCustomText || "").trim() : "ELEVATION EDGE";
 		if (!label) return;
-		// Allow letters, numbers, spaces, punctuation, symbols, emoji — no forced case
-		label = Array.from(label).slice(0, 48).join("");
+		label = label.slice(0, 22).toUpperCase();
 		const fl = fieldLeft(), fr = fieldRight();
 		const midY = yGoal + (yBack - yGoal) * .52;
 		const mid = project((fl + fr) / 2, midY);
@@ -6621,7 +4571,7 @@ function remaining(group) {
 		ctx.save();
 		ctx.translate(midP.sx, midP.sy);
 		ctx.rotate(ang + (logoFlip === 1 ? Math.PI / 2 : logoFlip === 2 ? -Math.PI / 2 : 0));
-		ctx.fillStyle = uni.logoFill || uni.helmet;
+		ctx.fillStyle = uni.helmet;
 		ctx.globalAlpha = .4;
 		ctx.beginPath();
 		ctx.moveTo(-radX * 1.3, radY * .7);
@@ -6634,11 +4584,11 @@ function remaining(group) {
 		ctx.globalAlpha = .75;
 		ctx.beginPath();
 		ctx.ellipse(0, 0, radX, radY * .85, 0, 0, Math.PI * 2);
-		ctx.strokeStyle = uni.logoMark || uni.jersey;
+		ctx.strokeStyle = uni.jersey;
 		ctx.lineWidth = Math.max(2.5, radY * .08);
 		ctx.stroke();
 		ctx.globalAlpha = .92;
-		ctx.fillStyle = uni.logoMark || uni.jersey;
+		ctx.fillStyle = uni.jersey;
 		ctx.font = "bold " + Math.max(20, radY * .85) + "px Barlow Condensed, sans-serif";
 		ctx.textAlign = "center";
 		ctx.textBaseline = "middle";
@@ -6664,7 +4614,15 @@ function remaining(group) {
 				[ax + 1.6, ay + 8.2]
 			]
 		};
-			if (id === "blastR") return {
+		if (id === "blastL") return {
+			type: "curve",
+			pts: [
+				[ax, ay],
+				[ax - 3.6, ay + 3.4],
+				[ax - 2.1, ay + 9]
+			]
+		};
+		if (id === "blastR") return {
 			type: "curve",
 			pts: [
 				[ax, ay],
@@ -6688,27 +4646,9 @@ function remaining(group) {
 				[ax + 8.4, ay + 7.3]
 			]
 		};
-					if (id === "blastL") return {
-			type: "poly",
-			pts: [
-				[ax, ay],
-				[ax + 2.8, ay + 0.9],
-				[ax - 2.5, ay + 2.4],
-				[ax - 7.5, ay + 4.8],
-				[ax - 11.5, ay + 7.5],
-				[ax - 13.5, ay + 11.0]
-			]
-		};
 		if (id === "diveL") return {
 			type: "poly",
-			pts: [
-				[ax, ay],
-				[ax - 2.6, ay + 3.4],
-				[ax + 2.8, ay + 6.6],
-				[ax - 2.9, ay + 9.8],
-				[ax + 2.6, ay + 12.8],
-				[ax - 1.4, ay + 15.5]
-			]
+			pts: [[ax, ay], [ax - 1.2, ay + 7.2]]
 		};
 		if (id === "diveR") return {
 			type: "poly",
@@ -6787,60 +4727,6 @@ function remaining(group) {
 			ctx.fill();
 		}
 		ctx.restore();
-	}
-
-	function speedTrailColor(spd) {
-		// Smooth blue→cyan→green→yellow→orange→red (more stops + wider speed range)
-		const t = Math.max(0, Math.min(1, (spd - 1.5) / 14));
-		const stops = [
-			[35, 70, 210],
-			[30, 140, 220],
-			[40, 190, 140],
-			[80, 210, 60],
-			[200, 220, 45],
-			[240, 170, 35],
-			[235, 100, 30],
-			[210, 35, 35]
-		];
-		const x = t * (stops.length - 1);
-		const i = Math.floor(x);
-		const f = x - i;
-		const a = stops[i], b = stops[Math.min(i + 1, stops.length - 1)];
-		// smoothstep for less banding
-		const s = f * f * (3 - 2 * f);
-		return "rgb(" + Math.round(a[0] + (b[0] - a[0]) * s) + "," + Math.round(a[1] + (b[1] - a[1]) * s) + "," + Math.round(a[2] + (b[2] - a[2]) * s) + ")";
-	}
-	function strokeTrailWorld(pts) {
-		if (!pts || pts.length < 2) return;
-		ctx.save();
-		ctx.lineCap = "round";
-		ctx.lineJoin = "round";
-		ctx.strokeStyle = "rgba(120, 12, 18, 0.88)";
-		ctx.lineWidth = 2.6;
-		ctx.beginPath();
-		const p0 = project(pts[0].x, pts[0].y);
-		ctx.moveTo(p0.sx, p0.sy);
-		for (let i = 1; i < pts.length; i++) {
-			const p = project(pts[i].x, pts[i].y);
-			ctx.lineTo(p.sx, p.sy);
-		}
-		ctx.stroke();
-		ctx.restore();
-	}
-
-	function drawHandoffBall() {
-		if (!handoffBall || handoffDone) return;
-		const p = project(handoffBall.x, handoffBall.y);
-		ctx.save();
-		ctx.fillStyle = "#c45a1a";
-		ctx.beginPath();
-		ctx.ellipse(p.sx, p.sy, 5.2, 3.4, -0.4, 0, Math.PI * 2);
-		ctx.fill();
-		ctx.restore();
-	}
-	function drawRunnerTrail() {
-		if (!showRunnerTrail || !runnerTrail || runnerTrail.length < 2) return;
-		strokeTrailWorld(runnerTrail);
 	}
 	function drawRouteArrow() {
 		if (!currentPlay) return;
@@ -6922,23 +4808,7 @@ function remaining(group) {
 				t.fillStyle = hash2(i, 17) > .5 ? "#6fa85a" : "#3d6a32";
 				t.fillRect(x, y, 1.8, 3.4);
 			}
-		} else if (surface === "astroturf") {
-			// Old carpet turf: bright green + tight weave, almost no crumb rubber
-			t.fillStyle = "#2b9348";
-			t.fillRect(0, 0, 48, 48);
-			t.strokeStyle = "rgba(18, 70, 32, 0.55)";
-			t.lineWidth = 1;
-			for (let x = 0; x <= 48; x += 3) {
-				t.beginPath(); t.moveTo(x + 0.5, 0); t.lineTo(x + 0.5, 48); t.stroke();
-			}
-			t.strokeStyle = "rgba(12, 55, 26, 0.4)";
-			for (let y = 0; y <= 48; y += 3) {
-				t.beginPath(); t.moveTo(0, y + 0.5); t.lineTo(48, y + 0.5); t.stroke();
-			}
-			t.fillStyle = "rgba(180, 230, 160, 0.18)";
-			t.fillRect(0, 0, 48, 48);
 		} else {
-			// Field turf: dark modern turf + crumb-rubber speckle
 			t.fillStyle = "#163d24";
 			t.fillRect(0, 0, 48, 48);
 			t.fillStyle = "#0a0a0a";
@@ -6981,10 +4851,8 @@ function remaining(group) {
 	function artAlpha(along) {
 		if (peekHeld || peekToggle) return .92;
 		if (preSnapTimer > 0) return Math.min(1, preSnapTimer / .25) * .95;
-		// Practice: hold play art much longer so assignments stay readable
-		const practice = gameMode === "practice";
-		const hold = (practice ? 3.6 : 1.0) + clamp(along, 0, 1) * (practice ? 0.8 : 0.28);
-		const fadeDur = practice ? 2.2 : 0.58;
+		const hold = 1.0 + clamp(along, 0, 1) * .28;
+		const fadeDur = 0.58;
 		const t = playAge - hold;
 		if (t <= 0) return .88;
 		return Math.max(0, .88 * (1 - t / fadeDur));
@@ -6992,14 +4860,13 @@ function remaining(group) {
 	function zoneAlpha() {
 		if (peekHeld || peekToggle) return .9;
 		if (preSnapTimer > 0) return Math.min(1, preSnapTimer / .25) * .95;
-		const practice = gameMode === "practice";
-		const hold = practice ? 4.2 : 2.05;
-		const fadeDur = practice ? 2.4 : 0.75;
+		const hold = 2.05;
+		const fadeDur = 0.75;
 		const t = playAge - hold;
 		if (t <= 0) return .72;
 		return Math.max(0, .72 * (1 - t / fadeDur));
 	}
-	function drawAssignmentArrow(x0, y0, x1, y1, color, a0, a1, noHead) {
+	function drawAssignmentArrow(x0, y0, x1, y1, color, a0, a1) {
 		if (a0 == null) a0 = .9;
 		if (a1 == null) a1 = a0;
 		if (a0 <= .02 && a1 <= .02) return;
@@ -7022,8 +4889,7 @@ function remaining(group) {
 			ctx.lineTo(pb.sx, pb.sy);
 			ctx.stroke();
 		}
-		// Arrowheads only for attack paths (blitz/man). Zone links are plain lines to zone center.
-		if (!noHead && a1 > .05) {
+		if (a1 > .05) {
 			const a = project(x0, y0);
 			const b = project(x1, y1);
 			const ang = Math.atan2(b.sy - a.sy, b.sx - a.sx);
@@ -7093,438 +4959,41 @@ function remaining(group) {
 		ctx.stroke();
 		ctx.restore();
 	}
-	
-	function getDefAudibleMap() {
-		const schemes = DEF_SCHEMES.slice();
-		return AUDIBLE_BUTTONS.map((b, i) => ({
-			...b,
-			scheme: schemes[i] || null
-		})).filter((x) => x.scheme);
-	}
-	function getAudibleMap() {
-		const plays = OFF_PLAYS.slice();
-		return AUDIBLE_BUTTONS.map((b, i) => ({
-			...b,
-			play: plays[i] || null
-		})).filter((x) => x.play);
-	}
-	function updateAudibleHint() {
-		const el = $("audibleHint");
-		if (!el) return;
-		if (!practiceAwaitSnap) {
-			el.classList.add("hidden");
-			return;
-		}
-		if (practiceAudibleArm) {
-			const lines = [
-				"OFFENSE MENU — Left stick ↕ to browse",
-				...getAudibleMap().map((m) => m.label + "  " + m.play.name),
-				"A = confirm · X = close"
-			];
-			el.classList.remove("hidden");
-			el.textContent = lines.join("\n");
-			return;
-		}
-		if (practiceDefAudibleArm) {
-			const lines = [
-				"DEFENSE MENU — Left stick ↕ to browse",
-				...getDefAudibleMap().map((m) => m.label + "  " + m.scheme.name),
-				"A = confirm · B = close"
-			];
-			el.classList.remove("hidden");
-			el.textContent = lines.join("\n");
-			return;
-		}
-		el.classList.remove("hidden");
-		el.textContent = "←→ switch O/D · ↑↓ cycle plays · RT flip O · LT flip D · A snap";
-	}
-	function audibleLabelForPlay(playId) {
-		const map = getAudibleMap();
-		const hit = map.find((m) => m.play && m.play.id === playId);
-		return hit ? hit.label : "";
-	}
-		function stylePrevBlock(side) {
-		const uni = getUni(side);
-		const jer = uni.jersey || "#888";
-		const block = $(side === "def" ? "prevDefBlock" : "prevOffBlock");
-		const banner = $(side === "def" ? "prevDefBanner" : "prevOffBanner");
-		const label = $(side === "def" ? "prevDefLabel" : "prevOffLabel");
-		const btn = $(side === "def" ? "prevDefBtn" : "prevOffBtn");
-		const numEl = $(side === "def" ? "prevDefNum" : "prevOffNum");
-		if (block) block.style.borderColor = jer;
-		if (banner) {
-			banner.style.background = jer;
-			const hex = jer.replace("#", "");
-			let lum = 128;
-			if (hex.length >= 6) {
-				const r = parseInt(hex.slice(0, 2), 16), g = parseInt(hex.slice(2, 4), 16), b = parseInt(hex.slice(4, 6), 16);
-				lum = 0.299 * r + 0.587 * g + 0.114 * b;
-			}
-			banner.style.color = lum > 160 ? "#111" : "#fff";
-		}
-		if (side === "def") {
-			const idx = Math.max(0, DEF_SCHEMES.findIndex((s) => s.id === (practiceDefSchemeId || (currentScheme && currentScheme.id))));
-			const scheme = DEF_SCHEMES[idx] || currentScheme;
-			if (numEl) numEl.textContent = scheme ? String(idx + 1) : "";
-			if (label) label.textContent = scheme ? scheme.name : "Defense";
-			if (btn) {
-				const hit = getDefAudibleMap().find((m) => m.scheme && scheme && m.scheme.id === scheme.id);
-				btn.textContent = hit ? hit.label : "";
-				btn.style.display = hit ? "" : "none";
-			}
-		} else {
-			const id = practiceOffPlayId || (currentPlay && currentPlay.id) || "";
-			const idx = Math.max(0, OFF_PLAYS.findIndex((p) => p.id === id));
-			const play = OFF_PLAYS[idx] || currentPlay;
-			if (numEl) numEl.textContent = play ? String(idx + 1) : "";
-			if (label) label.textContent = play ? play.name + (practiceFlipped ? " ⇄" : "") : "Offense";
-			if (btn) {
-				let lab = play ? audibleLabelForPlay(play.id) : "";
-				if (!lab && play) {
-					const base = String(play.id).replace(/[LR]$/, "");
-					const hit = getAudibleMap().find((m) => m.play.id.replace(/[LR]$/, "") === base);
-					lab = hit ? hit.label : "";
-				}
-				btn.textContent = lab || "";
-				btn.style.display = lab ? "" : "none";
-			}
-		}
-	}
-function drawMiniPreview(canvas, kind) {
-		if (!canvas) return;
-		const c = canvas.getContext("2d");
-		if (!c) return;
-		const W = canvas.width, H = canvas.height;
-		c.clearRect(0, 0, W, H);
-		c.fillStyle = "#0a1210";
-		c.fillRect(0, 0, W, H);
-		const pad = 12;
-		const snap = typeof snapX === "function" ? snapX() : FIELD_WIDTH / 2;
-		const span = Math.min(FIELD_WIDTH, 30);
-		const x0 = snap - span / 2;
-		const losY = H * 0.58;
-		const toPX = (wx) => pad + ((wx - x0) / span) * (W - pad * 2);
-		const toPY = (wy) => losY - (wy - playStartYard) * 3.4;
-		// LOS
-		c.strokeStyle = "rgba(255,255,255,0.4)";
-		c.lineWidth = 1.2;
-		c.setLineDash([4, 3]);
-		c.beginPath();
-		c.moveTo(pad, losY);
-		c.lineTo(W - pad, losY);
-		c.stroke();
-		c.setLineDash([]);
-		function dot(wx, wy, color, r) {
-			const x = toPX(wx), y = toPY(wy);
-			if (y < 2 || y > H - 2) return;
-			c.fillStyle = color;
-			c.beginPath();
-			c.arc(x, y, r || 3.4, 0, Math.PI * 2);
-			c.fill();
-			c.strokeStyle = "rgba(0,0,0,0.35)";
-			c.lineWidth = 1;
-			c.stroke();
-		}
-		function arrow(x0w, y0w, x1w, y1w, color) {
-			const a = { x: toPX(x0w), y: toPY(y0w) };
-			const b = { x: toPX(x1w), y: toPY(y1w) };
-			c.strokeStyle = color;
-			c.lineWidth = 1.5;
-			c.beginPath();
-			c.moveTo(a.x, a.y);
-			c.lineTo(b.x, b.y);
-			c.stroke();
-			const ang = Math.atan2(b.y - a.y, b.x - a.x);
-			c.beginPath();
-			c.moveTo(b.x, b.y);
-			c.lineTo(b.x - 5 * Math.cos(ang - 0.4), b.y - 5 * Math.sin(ang - 0.4));
-			c.lineTo(b.x - 5 * Math.cos(ang + 0.4), b.y - 5 * Math.sin(ang + 0.4));
-			c.closePath();
-			c.fillStyle = color;
-			c.fill();
-		}
-		function zoneEllipse(wx, wy, rx, ry, color, follow) {
-			const x = toPX(wx), y = toPY(wy);
-			const sx = Math.max(6, rx * (W - pad * 2) / span);
-			const sy = Math.max(5, ry * 3.4);
-			c.save();
-			c.globalAlpha = follow ? 0.22 : 0.16;
-			c.fillStyle = color;
-			c.beginPath();
-			c.ellipse(x, y, sx, sy, 0, 0, Math.PI * 2);
-			c.fill();
-			c.globalAlpha = 0.55;
-			c.strokeStyle = color;
-			c.lineWidth = follow ? 1.6 : 1.1;
-			c.setLineDash(follow ? [3, 2] : []);
-			c.stroke();
-			c.setLineDash([]);
-			c.restore();
-		}
-		if (kind === "def") {
-			// Priority draw: deep zones → linebackers → DTs → blitz arrows
-			const order = [...defenders].sort((a, b) => {
-				const rank = (d) => d.job === "deep" || d.job === "robber" ? 0 : d.job === "drop" || d.job === "hook" || d.job === "spy" ? 1 : d.group === "DT" ? 3 : 2;
-				return rank(a) - rank(b);
-			});
-			order.forEach((d) => {
-				const col = d.job === "blitz" ? "#ef4444" : d.job === "deep" || d.job === "robber" ? "#a78bfa" : d.job === "drop" || d.job === "spy" ? "#facc15" : d.job === "flat" || d.job === "contain" || d.job === "curl" ? "#38bdf8" : d.job === "hook" ? "#ddd6fe" : "#e2e8f0";
-				const tx = d.jobX != null ? d.jobX : d.x;
-				const ty = d.jobY != null ? d.jobY : d.y + 2;
-				const zoneish = d.job === "deep" || d.job === "drop" || d.job === "flat" || d.job === "curl" || d.job === "hook" || d.job === "robber" || d.job === "contain" || d.job === "spy";
-				if (zoneish) {
-					zoneEllipse(tx, ty, d.zoneRx || 4, d.zoneRy || 2.4, col, !!d.zoneFollow);
-					// plain connector to zone center (no arrowhead)
-					const a = { x: toPX(d.x), y: toPY(d.y) }, b = { x: toPX(tx), y: toPY(ty) };
-					c.strokeStyle = col;
-					c.lineWidth = 1.3;
-					c.beginPath();
-					c.moveTo(a.x, a.y);
-					c.lineTo(b.x, b.y);
-					c.stroke();
-				} else if (d.job === "blitz" || d.job === "man") {
-					arrow(d.x, d.y, tx, ty, col);
-				}
-				dot(d.x, d.y, col, d.group === "DT" ? 4.2 : 3.3);
-			});
-		} else {
-			// Offense priority: OL → TE → FB → QB → RB path
-			const groups = ["OL", "TE", "FB", "QB"];
-			groups.forEach((g) => {
-				blockers.filter((b) => b.group === g).forEach((b) => {
-					const col = g === "OL" ? "#94a3b8" : g === "FB" ? "#fbbf24" : g === "TE" ? "#34d399" : "#cbd5e1";
-					dot(b.x, b.y, col, 3.3);
-					// Match on-field art: grey stroke + perpendicular T-cap (not yellow arrows)
-					function miniBlockT(x0, y0, x1, y1) {
-						const a = { x: toPX(x0), y: toPY(y0) };
-						const bpt = { x: toPX(x1), y: toPY(y1) };
-						c.strokeStyle = "rgba(210,214,208,0.92)";
-						c.lineWidth = 1.6;
-						c.lineCap = "round";
-						c.beginPath();
-						c.moveTo(a.x, a.y);
-						c.lineTo(bpt.x, bpt.y);
-						c.stroke();
-						const ang = Math.atan2(bpt.y - a.y, bpt.x - a.x);
-						const cap = 5;
-						c.beginPath();
-						c.moveTo(bpt.x + Math.cos(ang + Math.PI / 2) * cap, bpt.y + Math.sin(ang + Math.PI / 2) * cap);
-						c.lineTo(bpt.x + Math.cos(ang - Math.PI / 2) * cap, bpt.y + Math.sin(ang - Math.PI / 2) * cap);
-						c.stroke();
-					}
-					function aimShort(tx, ty, maxDist) {
-						const dx = tx - b.x, dy = ty - b.y;
-						const len = Math.hypot(dx, dy) || 1;
-						const s = Math.min(1, maxDist / len);
-						return [b.x + dx * s, b.y + dy * s];
-					}
-					if (b.blockMode === "pull" && b.pullVia) {
-						const p = aimShort(b.pullVia.x2 || b.pullVia.x, b.pullVia.y2 || b.pullVia.y, 5.5);
-						miniBlockT(b.x, b.y, p[0], p[1]);
-					} else if (b.blockTarget || b.gapAimX != null) {
-						const tx = b.blockTarget ? b.blockTarget.x : b.gapAimX;
-						const ty = b.blockTarget ? b.blockTarget.y : (b.gapAimY != null ? b.gapAimY : playStartYard + 4.5);
-						// Climb / next-level blocks draw longer so they read clearly vs base blocks
-						const maxD = b.blockMode === "climb" ? 6.2 : b.blockMode === "reach" ? 3.8 : 2.6;
-						const p = aimShort(tx, ty, maxD);
-						miniBlockT(b.x, b.y, p[0], p[1]);
-					}
-				});
-			});
-			if (rb) {
-				dot(rb.x, rb.y, "#fb4f14", 4.5);
-				if (currentPlay && currentPlay.steps && currentPlay.steps.length) {
-					let px = rb.x, py = rb.y;
-					currentPlay.steps.forEach((s) => {
-						const nx = px + (s.dx || 0) * 9;
-						const ny = py + (s.dy || 0) * 7;
-						arrow(px, py, nx, ny, "#fb4f14");
-						px = nx; py = ny;
-					});
-				} else if (currentPlay && currentPlay.arrow) {
-					const a = currentPlay.arrow;
-					let px = rb.x, py = rb.y;
-					a.forEach((dx) => {
-						const nx = px + dx * 6;
-						const ny = py + 5;
-						arrow(px, py, nx, ny, "#fb4f14");
-						px = nx; py = ny;
-					});
-				}
-			}
-		}
-	}
-
-
-	function renderPracticeDefList() {
-		const list = $("practiceDefList");
-		if (!list) return;
-		const cur = practiceDefSchemeId || (currentScheme && currentScheme.id);
-		const btnMap = getDefAudibleMap();
-		list.innerHTML = "";
-		DEF_SCHEMES.forEach((s, i) => {
-			const row = document.createElement("div");
-			row.className = "play-item" + (s.id === cur ? " selected" : "");
-			row.dataset.id = s.id;
-			const num = document.createElement("span");
-			num.className = "play-num";
-			num.textContent = String(i + 1);
-			const name = document.createElement("span");
-			name.className = "play-name";
-			name.textContent = s.name;
-			const btn = document.createElement("span");
-			btn.className = "play-btn";
-			const hit = btnMap.find((m) => m.scheme && m.scheme.id === s.id);
-			btn.textContent = hit ? hit.label : "";
-			row.appendChild(num);
-			row.appendChild(name);
-			row.appendChild(btn);
-			row.onclick = () => {
-				practiceDefSchemeId = s.id;
-				const sel = $("practiceDefScheme");
-				if (sel) sel.value = s.id;
-				try { placeEntitiesForNewPlay(); } catch (err) { console.error(err); }
-				setPlayCall((currentPlay ? currentPlay.name : "Play") + " · vs " + s.name + " — press A to snap");
-				renderPracticeDefList();
-				refreshPracticePreviews();
-			};
-			list.appendChild(row);
-		});
-	}
-	function renderPracticePlayList() {
-		const list = $("practicePlayList");
-		if (!list) return;
-		const cur = practiceOffPlayId || (currentPlay && currentPlay.id);
-		const btnMap = getAudibleMap();
-		list.innerHTML = "";
-		OFF_PLAYS.forEach((p, i) => {
-			const row = document.createElement("div");
-			row.className = "play-item" + (p.id === cur ? " selected" : "");
-			row.dataset.id = p.id;
-			const num = document.createElement("span");
-			num.className = "play-num";
-			num.textContent = String(i + 1);
-			const name = document.createElement("span");
-			name.className = "play-name";
-			name.textContent = p.name;
-			const btn = document.createElement("span");
-			btn.className = "play-btn";
-			const hit = btnMap.find((m) => m.play && m.play.id === p.id);
-			btn.textContent = hit ? hit.label : "";
-			row.appendChild(num);
-			row.appendChild(name);
-			row.appendChild(btn);
-			row.onclick = () => {
-				practiceOffPlayId = p.id;
-				practiceFlipped = false;
-				const sel = $("practiceOffPlay");
-				if (sel) sel.value = p.id;
-				try { placeEntitiesForNewPlay(); } catch (err) { console.error(err); }
-				setPlayCall(p.name + " — press A to snap");
-				renderPracticePlayList();
-				refreshPracticePreviews();
-			};
-			list.appendChild(row);
-		});
-	}
-
-	function wirePracticePreviewClicks() {
-		const offB = $("prevOffBlock");
-		const defB = $("prevDefBlock");
-		if (offB && !offB._fgaClick) {
-			offB._fgaClick = true;
-			offB.style.cursor = "pointer";
-			offB.title = "Click to focus — then ↑↓ cycles offense plays";
-			offB.addEventListener("click", (e) => {
-				if (e.target.closest(".play-item")) return; // list row handles itself
-				practiceFocusSide = "off";
-				practiceAudibleArm = false;
-				practiceDefAudibleArm = false;
-				if (typeof refreshPracticePreviews === "function") refreshPracticePreviews();
-				if (typeof updateAudibleHint === "function") updateAudibleHint();
-			});
-		}
-		if (defB && !defB._fgaClick) {
-			defB._fgaClick = true;
-			defB.style.cursor = "pointer";
-			defB.title = "Click to focus — then ↑↓ cycles defense schemes";
-			defB.addEventListener("click", (e) => {
-				if (e.target.closest(".play-item")) return;
-				practiceFocusSide = "def";
-				practiceAudibleArm = false;
-				practiceDefAudibleArm = false;
-				if (typeof refreshPracticePreviews === "function") refreshPracticePreviews();
-				if (typeof updateAudibleHint === "function") updateAudibleHint();
-			});
-		}
-	}
-	function refreshPracticePreviews() {
-		const panel = $("practicePreview");
-		if (panel) panel.classList.remove("hidden");
-		const offB = $("prevOffBlock");
-		const defB = $("prevDefBlock");
-		// Closer to field = lower order (field is left of this column)
-		if (offB && defB) {
-			// Offense always left of defense
-			offB.style.order = "0";
-			defB.style.order = "1";
-			offB.classList.toggle("prev-focused", practiceFocusSide === "off");
-			defB.classList.toggle("prev-focused", practiceFocusSide === "def");
-		}
-		stylePrevBlock("def");
-		stylePrevBlock("off");
-		drawMiniPreview($("prevDefCanvas"), "def");
-		drawMiniPreview($("prevOffCanvas"), "off");
-		renderPracticePlayList();
-		renderPracticeDefList();
-		updateAudibleHint();
-		wirePracticePreviewClicks();
-	}
-
 	function drawPlayArt() {
 		const holdPeek = peekHeld || peekToggle;
 		const artOn = playArtMode !== "off";
 		const wantOff = artOn && (playArtMode === "on" || playArtMode === "offense");
 		const wantDef = artOn && (playArtMode === "on" || playArtMode === "defense") || holdPeek;
 		const returning = !!(fumbleSeq && (fumbleSeq.phase === "return" || fumbleSeq.defender && fumbleSeq.phase !== "loose") || scoreSeq && scoreSeq.who === "def");
-		const showOff = wantOff && !!currentPlay && (preSnapTimer > 0 || playAge < 6.2 || holdPeek || practiceAwaitSnap);
-		const showDef = !returning && wantDef && (holdPeek || revealDefThisPlay || preSnapTimer > .2 || playAge < 6.4 || practiceAwaitSnap);
+		const showOff = wantOff && !!currentPlay && (preSnapTimer > 0 || playAge < 6.2 || holdPeek);
+		const showDef = !returning && wantDef && (holdPeek || revealDefThisPlay || preSnapTimer > .2 || playAge < 6.4);
 		if (!showOff && !showDef) return;
 		const aOrigin = artAlpha(0);
 		const aDest = artAlpha(1);
 		if (showOff && currentPlay && (aOrigin > .02 || aDest > .02 || holdPeek)) blockers.forEach((b) => {
 			const segs = [];
-			// Shorten art paths so "next level" blocks don't draw stadium-long arrows
-			function shortAim(tx, ty, maxDist) {
-				maxDist = maxDist == null ? 3.2 : maxDist;
-				const dx = tx - b.x, dy = ty - b.y;
-				const len = Math.hypot(dx, dy) || 1;
-				const s = Math.min(1, maxDist / len);
-				return [b.x + dx * s, b.y + dy * s];
-			}
 			if (b.blockMode === "pull" && b.pullVia) {
-				const p1 = shortAim(b.pullVia.x, b.pullVia.y, 2.4);
-				segs.push(p1);
-				const p2 = shortAim(b.pullVia.x2, b.pullVia.y2, 3.6);
-				segs.push(p2);
+				segs.push([b.pullVia.x, b.pullVia.y]);
+				segs.push([b.pullVia.x2, b.pullVia.y2]);
+				if (b.blockTarget) segs.push([b.blockTarget.x, b.blockTarget.y]);
+				else segs.push([b.pullVia.x2 + playSideSign() * 2.2, playStartYard + 4.5]);
 			} else if (b.blockTarget) {
 				const t = b.blockTarget;
-				const aim = shortAim(t.x + (b.driveSide || 1) * 0.35, t.y, b.blockMode === "climb" ? 3.4 : 2.8);
-				segs.push(aim);
-			} else if (b.gapAimX != null) {
-				segs.push(shortAim(b.gapAimX, b.gapAimY != null ? b.gapAimY : playStartYard + 4.5, 3.2));
-			} else segs.push(shortAim(b.x + (b.driveSide || 0) * 1.2, playStartYard + Math.min(3.2, b.levelY || 2.5), 2.6));
+				const midY = (b.y + t.y) / 2;
+				segs.push([b.x, midY]);
+				segs.push([t.x + (b.driveSide || 1) * .4, t.y]);
+			} else segs.push([b.x + (b.driveSide || 0) * 1.2, playStartYard + (b.levelY || 3.5)]);
 			drawBlockT(b.x, b.y, segs, aOrigin, aDest);
 		});
 		if (showDef && (aOrigin > .02 || aDest > .02 || holdPeek)) {
 			defenders.forEach((d) => {
-				const col = d.job === "blitz" ? "#ef4444" : d.job === "contain" ? "#38bdf8" : d.job === "curl" ? "#67e8f9" : d.job === "hook" || d.job === "robber" ? "#c4b5fd" : d.job === "deep" ? "#a78bfa" : d.job === "drop" ? "#facc15" : d.job === "flat" ? "#7dd3fc" : "#f8fafc";
+				const col = d.job === "blitz" ? "#ef4444" : d.job === "contain" ? "#38bdf8" : d.job === "curl" ? "#67e8f9" : d.job === "hook" || d.job === "robber" ? "#c4b5fd" : d.job === "deep" || d.job === "drop" ? "#a78bfa" : d.job === "flat" ? "#7dd3fc" : "#f8fafc";
 				const fl = fieldLeft(), fr = fieldRight();
 				const tx = clamp(d.jobX != null ? d.jobX : d.x, fl + 2.6, fr - 2.6);
 				const ty = d.jobY != null ? d.jobY : d.y + 3;
-				if (d.job === "deep" || d.job === "drop" || d.job === "flat" || d.job === "curl" || d.job === "hook" || d.job === "robber" || d.job === "contain" || d.job === "spy") {
+				if (d.job === "deep" || d.job === "drop" || d.job === "flat" || d.job === "curl" || d.job === "hook" || d.job === "robber") {
 					drawZoneCloud(tx, ty, d.zoneRx || 4, d.zoneRy || 2.4, col, zoneAlpha() * .3);
-					drawAssignmentArrow(d.x, d.y, tx, ty, col, aOrigin * .9, aDest * .55, true);
+					drawAssignmentArrow(d.x, d.y, tx, ty, col, aOrigin * .9, aDest * .55);
 				} else if (d.job === "blitz" && (d.artCurve || d.stutter)) {
 					const inward = tx > (fl + fr) / 2 ? -1.35 : 1.35;
 					const midX = clamp(d.stutter ? d.stutterX : (d.x + tx) / 2 + inward, fl + 3.2, fr - 3.2);
@@ -7599,49 +5068,25 @@ function drawMiniPreview(canvas, kind) {
 			ctx.lineTo(b.sx, b.sy);
 			ctx.stroke();
 		}
-		// Runner path trail up to this frame
-		if (frame.trail && frame.trail.length >= 2) {
-			ctx.lineCap = "round";
-			ctx.lineJoin = "round";
-			ctx.strokeStyle = "rgba(120, 12, 18, 0.9)";
-			ctx.lineWidth = 2.4;
-			ctx.beginPath();
-			const t0 = map(frame.trail[0].x, frame.trail[0].y);
-			ctx.moveTo(t0.sx, t0.sy);
-			for (let i = 1; i < frame.trail.length; i++) {
-				const t = map(frame.trail[i].x, frame.trail[i].y);
-				ctx.lineTo(t.sx, t.sy);
-			}
-			ctx.stroke();
-		}
-		const uniOff = getUni("off");
-		const uniDef = getUni("def");
-		const defJer = (uniDef && uniDef.jersey) || "#e8ece6";
-		const offJer = (uniOff && uniOff.jersey) || "#fbbf24";
 		(frame.defenders || []).forEach((d) => {
 			const p = map(d.x, d.y);
-			ctx.fillStyle = d.color || defJer;
+			ctx.fillStyle = "#e8ece6";
 			ctx.beginPath();
 			ctx.arc(p.sx, p.sy, 4, 0, Math.PI * 2);
 			ctx.fill();
 		});
 		(frame.blockers || []).forEach((b) => {
 			const p = map(b.x, b.y);
-			ctx.fillStyle = b.color || offJer;
+			ctx.fillStyle = "#fbbf24";
 			ctx.beginPath();
 			ctx.arc(p.sx, p.sy, 4, 0, Math.PI * 2);
 			ctx.fill();
 		});
 		if (frame.rb) {
 			const p = map(frame.rb.x, frame.rb.y);
-			ctx.fillStyle = frame.rb.color || offJer || "#fb4f14";
-			ctx.beginPath();
-			ctx.arc(p.sx, p.sy, 5.4, 0, Math.PI * 2);
-			ctx.fill();
-			// ball marker
 			ctx.fillStyle = "#fb4f14";
 			ctx.beginPath();
-			ctx.arc(p.sx, p.sy - 3.2, 2.2, 0, Math.PI * 2);
+			ctx.arc(p.sx, p.sy, 5.4, 0, Math.PI * 2);
 			ctx.fill();
 		}
 		ctx.restore();
@@ -7749,19 +5194,9 @@ function drawMiniPreview(canvas, kind) {
 			drawMountainEndzoneWorld(0, -10, uni.endPrimary, uni.endSecondary);
 			drawMountainEndzoneWorld(100, 110, uni.endPrimary, uni.endSecondary);
 			for (let yd = 0; yd < 100; yd += 5) {
-				fillBand(yd, yd + 5, stripeFill(yd));
-			}
-			const patIso = getTurfPattern();
-			if (patIso) {
-				ctx.save();
-				ctx.globalAlpha = surface === "astroturf" ? .42 : surface === "grass" ? .16 : .55;
-				const a = project(fl, 0), b = project(fr, 0), c = project(fr, 100), d = project(fl, 100);
-				ctx.beginPath();
-				ctx.moveTo(a.sx, a.sy); ctx.lineTo(b.sx, b.sy); ctx.lineTo(c.sx, c.sy); ctx.lineTo(d.sx, d.sy);
-				ctx.closePath();
-				ctx.fillStyle = patIso;
-				ctx.fill();
-				ctx.restore();
+				const stripe = yd / 5 % 2 === 0;
+				const g = surface === "grass" ? stripe ? "#5d8f4a" : "#4e7d3e" : stripe ? "#1a4a2c" : "#143d24";
+				fillBand(yd, yd + 5, g);
 			}
 		}
 		strokeWorld(fl, -10, fr, -10, "rgba(255,255,255,0.45)", 2);
@@ -7849,12 +5284,6 @@ function drawMiniPreview(canvas, kind) {
 		strokeWorld(fr, 0, fr, 100, "rgba(255,255,255,0.4)", 2.5);
 		strokeWorld(fl, 20, fl, 80, "rgba(255,255,255,0.92)", Math.max(5, SCALE_X * .28));
 		strokeWorld(fr, 20, fr, 80, "rgba(255,255,255,0.92)", Math.max(5, SCALE_X * .28));
-		drawHandoffBall();
-		drawRunnerTrail();
-
-		if (fullReplay && fullReplay.frames[fullReplay.i] && fullReplay.frames[fullReplay.i].trail) {
-			strokeTrailWorld(fullReplay.frames[fullReplay.i].trail);
-		}
 		drawRouteArrow();
 		drawPlayArt();
 		if (qb && qb.active && !blockers.includes(qb)) drawPlayer(qb, false);
@@ -8023,66 +5452,6 @@ function drawMiniPreview(canvas, kind) {
 	window.addEventListener("keyup", onKeyUp);
 	window.addEventListener("blur", onBlur);
 	document.addEventListener("visibilitychange", onVisibility);
-	
-		const trailEl = $("runnerTrailToggle");
-		if (trailEl) {
-			showRunnerTrail = !!trailEl.checked;
-			trailEl.addEventListener("change", () => { showRunnerTrail = !!trailEl.checked; });
-		}
-		const speedTrailEl = $("speedTrailToggle");
-		if (speedTrailEl) {
-			speedTrail = !!speedTrailEl.checked;
-			speedTrailEl.addEventListener("change", () => { speedTrail = !!speedTrailEl.checked; });
-		}
-		const saveClipBtn = $("saveClipBtn");
-		if (saveClipBtn) saveClipBtn.addEventListener("click", () => saveLastPlayClip());
-		renderSavedClips();
-		const nextPlayEl = $("nextPlaySelect");
-		if (nextPlayEl) {
-			nextPlayOnSnap = nextPlayEl.value === "snap";
-			nextPlayEl.addEventListener("change", () => {
-				nextPlayOnSnap = nextPlayEl.value === "snap";
-			});
-		}
-		const syncStartUI = () => { syncStartYardFromUI(); };
-		$("startYard50")?.addEventListener("change", syncStartUI);
-		$("startYard50")?.addEventListener("input", syncStartUI);
-		$("startYardMinus")?.addEventListener("click", () => nudgeStartYard(-1));
-		$("startYardPlus")?.addEventListener("click", () => nudgeStartYard(1));
-		$("startSideTri")?.addEventListener("click", () => {
-			startSide = startSide === "opp" ? "own" : "opp";
-			const yd = parseInt($("startYard50")?.value, 10);
-			if (yd === 50) $("startYard50").value = "45";
-			syncStartYardFromUI();
-		});
-		function setPostTdMode(mode) {
-			postTdMode = mode;
-			document.querySelectorAll(".los-mode").forEach((b) => {
-				b.classList.toggle("on", b.getAttribute("data-mode") === mode);
-			});
-			const row = $("incrementRow");
-			if (row) row.classList.toggle("hidden", mode !== "increasing" && mode !== "decreasing");
-			const inc = $("incrementInput");
-			if (inc) tdIncrement = Number.isFinite(parseInt(inc.value, 10)) ? parseInt(inc.value, 10) : 5;
-		}
-		document.querySelectorAll(".los-mode").forEach((b) => {
-			b.addEventListener("click", () => setPostTdMode(b.getAttribute("data-mode")));
-		});
-		$("incrementInput")?.addEventListener("change", () => {
-			tdIncrement = Number.isFinite(parseInt($("incrementInput").value, 10)) ? parseInt($("incrementInput").value, 10) : 5;
-		});
-		setPostTdMode("random");
-		syncStartYardFromUI();
-		const onPracLos = () => applyPracticeLosNow();
-		$("practiceSideSelect")?.addEventListener("change", onPracLos);
-		$("practiceYard50")?.addEventListener("change", onPracLos);
-		// debounce-ish input: apply on change only to avoid restage every keystroke mid-type
-		$("practiceYard50")?.addEventListener("input", () => {
-			const v = parseInt($("practiceYard50").value, 10);
-			if (Number.isFinite(v) && v >= 1 && v <= 50) onPracLos();
-		});
-		syncPracticeYardFromUI();
-		updateConfigPanelForMode();
 	window.addEventListener("gamepadconnected", onPadConnect);
 	window.addEventListener("gamepaddisconnected", onPadDisconnect);
 	window.addEventListener("pointerdown", wakePad);
@@ -8090,42 +5459,17 @@ function drawMiniPreview(canvas, kind) {
 	canvas.addEventListener("pointermove", onPointerMove);
 	canvas.addEventListener("pointerup", onPointerUp);
 	canvas.addEventListener("pointercancel", onPointerUp);
-	function rebuildAfterPersonnelChange() {
-		refreshPersonnelUI();
-		// Practice: immediately restage players + play art for the new roster
-		if (gameMode === "practice") {
-			const fixed = clamp(practiceStartYard, 1, 99);
-			ballYard = fixed;
-			playStartYard = fixed;
-			driveStartYard = fixed;
-			ballX = (hashLeft() + hashRight()) / 2;
-			practiceAwaitSnap = true;
-			practiceAudibleArm = false;
-			practiceDefAudibleArm = false;
-			playActive = false;
-			try {
-				placeEntitiesForNewPlay();
-			} catch (err) {
-				console.error(err);
-			}
-			const offName = currentPlay ? currentPlay.name : "Practice";
-			const defName = currentScheme ? currentScheme.name : "";
-			setPlayCall(offName + (defName ? " · vs " + defName : "") + " — press A to snap");
-			updateBallOn();
-			if (typeof refreshPracticePreviews === "function") refreshPracticePreviews();
-		}
-	}
 	function bindCount(idMinus, idPlus, getter, setter, lo, hi, group) {
 		const minus = $(idMinus), plus = $(idPlus);
 		if (minus) minus.onclick = () => {
 			setter(clamp(getter() - 1, lo, hi));
 			if (group) adjustNumbersForGroup(group, group === "QB" ? Math.max(1, getter()) : getter());
-			rebuildAfterPersonnelChange();
+			refreshPersonnelUI();
 		};
 		if (plus) plus.onclick = () => {
 			setter(clamp(getter() + 1, lo, hi));
 			if (group) adjustNumbersForGroup(group, group === "QB" ? Math.max(1, getter()) : getter());
-			rebuildAfterPersonnelChange();
+			refreshPersonnelUI();
 		};
 	}
 	bindCount("olMinus", "olPlus", () => numOL, (v) => { numOL = v; }, 0, 5, "OL");
@@ -8133,7 +5477,7 @@ function drawMiniPreview(canvas, kind) {
 	bindCount("fbMinus", "fbPlus", () => numFB, (v) => { numFB = v; }, 0, 2, "FB");
 	bindCount("qbMinus", "qbPlus", () => numQB, (v) => { numQB = v; }, 0, 1, "QB");
 	bindCount("dtMinus", "dtPlus", () => numDT, (v) => { numDT = v; }, 0, 4, "DT");
-	bindCount("lbMinus", "lbPlus", () => numLBs, (v) => { numLBs = v; }, 0, 4, "LB");
+	bindCount("lbMinus", "lbPlus", () => numLBs, (v) => { numLBs = v; }, 0, 5, "LB");
 	bindCount("dbMinus", "dbPlus", () => numDBs, (v) => { numDBs = v; }, 0, 6, "DB");
 	$("widthSelect").onchange = (e) => {
 		FIELD_WIDTH = parseInt(e.target.value, 10) || 50;
@@ -8147,106 +5491,19 @@ function drawMiniPreview(canvas, kind) {
 		turfPattern = null;
 		turfPatternKey = "";
 	};
-	const minSel = $("minSelect");
-	if (minSel) minSel.onchange = (e) => {
-		gameSeconds = parseInt(e.target.value, 10) || 120;
+	$("minSelect").onchange = (e) => {
+		gameSeconds = parseInt(e.target.value, 10) || 180;
 	};
-	const offUniSel = $("offUniform");
-	if (offUniSel) offUniSel.onchange = (e) => {
-		selectOffUni(parseInt(e.target.value, 10));
+	$("offUniform").onchange = (e) => {
+		offUni = parseInt(e.target.value, 10);
+		if (defUni === offUni) defUni = randChoice(UNIFORMS.filter((u) => u.id !== offUni)).id;
+		rebuildUniformSelects();
+		syncAbbrFromOffense();
 		paintRoster();
 	};
-	const defUniSel = $("defUniform");
-	if (defUniSel) defUniSel.onchange = (e) => {
-		selectDefUni(parseInt(e.target.value, 10));
+	$("defUniform").onchange = (e) => {
+		defUni = parseInt(e.target.value, 10);
 		paintRoster();
-	};
-	function populatePracticeSelects() {
-		const op = $("practiceOffPlay");
-		const ds = $("practiceDefScheme");
-		if (op) {
-			op.innerHTML = "";
-			OFF_PLAYS.forEach((p) => {
-				const o = document.createElement("option");
-			o.value = p.id;
-			o.textContent = p.name;
-				if (practiceOffPlayId ? p.id === practiceOffPlayId : false) o.selected = true;
-				op.appendChild(o);
-			});
-			if (!practiceOffPlayId && OFF_PLAYS[0]) practiceOffPlayId = OFF_PLAYS[0].id;
-		}
-		if (ds) {
-			ds.innerHTML = "";
-			DEF_SCHEMES.forEach((s) => {
-				const o = document.createElement("option");
-			o.value = s.id;
-			o.textContent = s.name;
-				if (practiceDefSchemeId ? s.id === practiceDefSchemeId : false) o.selected = true;
-				ds.appendChild(o);
-			});
-			if (!practiceDefSchemeId && DEF_SCHEMES[0]) practiceDefSchemeId = DEF_SCHEMES[0].id;
-		}
-	}
-	function randomizeCamCorner() {
-		camCorner = Math.random() < 0.5 ? "sw" : "nw";
-		const cornerEl = $("camCornerSelect");
-		if (cornerEl) cornerEl.value = camCorner;
-	}
-	function resetSessionClock() {
-		const sel = $("minSelect");
-		if (sel && !sel.value) sel.value = "120";
-		gameSeconds = parseInt($("minSelect")?.value || "120", 10) || 120;
-		clock = gameSeconds;
-		const clockEl = $("clock");
-		if (clockEl) clockEl.textContent = formatClock(clock);
-	}
-	function setGameMode(mode) {
-		gameMode = mode === "practice" ? "practice" : "game";
-		const pc = $("practiceControls");
-		if (pc) pc.classList.remove("hidden");
-		updateConfigPanelForMode();
-		const np = $("nextPlaySelect");
-		if (np) {
-			np.value = "snap";
-			nextPlayOnSnap = true;
-		}
-		populatePracticeSelects();
-		practiceAwaitSnap = true;
-		practiceFlipped = false;
-		practiceAudibleArm = false;
-		resetSessionClock();
-		randomizeCamCorner();
-		cameraMode = "high";
-		const camSel = $("cameraSelect");
-		if (camSel) camSel.value = "high";
-		if (gameMode === "practice") {
-			applyPracticeLosNow();
-		} else {
-			syncStartYardFromUI();
-			playActive = false;
-			practiceAwaitSnap = true;
-		}
-		if (typeof refreshPracticePreviews === "function") refreshPracticePreviews();
-	}
-	const modeEl = $("modeSelect");
-	if (modeEl) {
-		setGameMode(modeEl.value);
-		modeEl.onchange = () => setGameMode(modeEl.value);
-	}
-	const pop = $("practiceOffPlay");
-	if (pop) pop.onchange = (e) => {
-		practiceOffPlayId = e.target.value;
-		practiceFlipped = false;
-		if (!playActive) {
-			try { placeEntitiesForNewPlay(); } catch (err) { console.error(err); }
-		}
-	};
-	const pds = $("practiceDefScheme");
-	if (pds) pds.onchange = (e) => {
-		practiceDefSchemeId = e.target.value;
-		if (!playActive) {
-			try { placeEntitiesForNewPlay(); } catch (err) { console.error(err); }
-		}
 	};
 	const offStrEl = $("offStrSlider");
 	const offStrLab = $("offStrLabel");
@@ -8270,28 +5527,15 @@ function drawMiniPreview(canvas, kind) {
 	}
 	const spdEl = $("speedSlider");
 	if (spdEl) {
-		playSpeed = parseFloat(spdEl.value) || 1.2;
+		playSpeed = parseFloat(spdEl.value) || 1.25;
 		const lab = $("speedLabel");
 		const syncSpd = () => {
-			playSpeed = parseFloat(spdEl.value) || 1.2;
+			playSpeed = parseFloat(spdEl.value) || 1.25;
 			if (lab) lab.textContent = playSpeed.toFixed(2) + "×";
 		};
 		syncSpd();
 		spdEl.oninput = syncSpd;
 	}
-	function wireStrengthSlider(id, labId, getter, setter) {
-		const el = $(id);
-		const lab = $(labId);
-		if (!el) return;
-		setter(parseFloat(el.value) || 1);
-		if (lab) lab.textContent = getter().toFixed(2) + "×";
-		el.oninput = () => {
-			setter(parseFloat(el.value) || 1);
-			if (lab) lab.textContent = getter().toFixed(2) + "×";
-		};
-	}
-	wireStrengthSlider("breakBlockSlider", "breakBlockLabel", () => breakBlock, (v) => { breakBlock = v; });
-	wireStrengthSlider("breakTackleSlider", "breakTackleLabel", () => breakTackle, (v) => { breakTackle = v; });
 	const fumCheck = $("fumblesCheck");
 	const fumLab = $("fumblesLabel");
 	if (fumCheck) {
@@ -8390,24 +5634,6 @@ function drawMiniPreview(canvas, kind) {
 			replayMode = repSel.value || "pip";
 		};
 	}
-	const modeSel = $("modeSelect");
-	if (modeSel) {
-		gameMode = modeSel.value || "practice";
-		modeSel.addEventListener("change", () => {
-			gameMode = modeSel.value || "practice";
-			const np = $("nextPlaySelect");
-			if (np) {
-				// defaults: practice → on snap, game → automatic
-				np.value = "snap";
-				nextPlayOnSnap = true;
-			}
-			const pc = $("practiceControls");
-			if (pc) pc.classList.remove("hidden");
-			if (typeof refreshPracticePreviews === "function") refreshPracticePreviews();
-		});
-		const pc0 = $("practiceControls");
-		if (pc0) pc0.classList.remove("hidden");
-	}
 	const artSel = $("playArtSelect");
 	if (artSel) {
 		playArtMode = artSel.value || "on";
@@ -8421,8 +5647,7 @@ function drawMiniPreview(canvas, kind) {
 	};
 	const replayBtn = $("replayBtn");
 	if (replayBtn) replayBtn.onclick = () => startFullReplay();
-	const teamAbbrEl = $("teamAbbr");
-	if (teamAbbrEl) teamAbbrEl.addEventListener("input", () => {
+	$("teamAbbr").addEventListener("input", () => {
 		const v = getTeamAbbr();
 		const ni = $("nameInput");
 		if (ni) ni.value = v;

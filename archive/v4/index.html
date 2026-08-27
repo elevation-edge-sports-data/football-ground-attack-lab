@@ -15,7 +15,7 @@
   <main class="lab-main">
     <header class="lab-header">
       <div>
-        <p class="lab-eyebrow">Elevation Edge · v5</p>
+        <p class="lab-eyebrow">Elevation Edge · v4</p>
         <h1>Football Ground Attack Lab</h1>
       </div>
             <nav class="lab-versions" aria-label="Version archive">
@@ -24,15 +24,14 @@
         <a href="archive/v1.html" target="_blank" rel="noreferrer">v1</a>
         <a href="archive/v2.html" target="_blank" rel="noreferrer">v2</a>
         <a href="archive/v3/index.html" target="_blank" rel="noreferrer">v3</a>
-        <a href="archive/v4/index.html" target="_blank" rel="noreferrer">v4</a>
-        <a href="index.html" aria-current="page">v5</a>
+        <a href="index.html" aria-current="page">v4</a>
         <a href="https://github.com/elevation-edge-sports-data/football-ground-attack-lab" target="_blank" rel="noreferrer">GitHub</a>
       </nav>
     </header>
 
     <div id="hud" class="lab-hud">
       <div>Score: <span id="score">0</span></div>
-      <div>Clock: <span id="clock">2:00</span></div>
+      <div>Clock: <span id="clock">3:00</span></div>
       <div class="lab-muted">Yards: <span id="totalYards">0</span></div>
       <div class="lab-muted">TDs: <span id="tdCount">0</span></div>
       <div class="lab-muted">Ball on: <span id="ballOn">OPP 20</span></div>
@@ -42,68 +41,8 @@
       <button type="button" id="restartBtn">Restart</button>
     </div>
 
-    <div id="topStrip" class="top-strip">
-      <div id="uniformBanner" class="uni-banner" aria-label="Uniform selection">
-        <div class="uni-side">
-          <span class="uni-label">OFF</span>
-          <div id="offUniRow" class="uni-row" role="listbox" aria-label="Offense kit"></div>
-        </div>
-        <div class="uni-side">
-          <span class="uni-label">DEF</span>
-          <div id="defUniRow" class="uni-row" role="listbox" aria-label="Defense kit"></div>
-        </div>
-      </div>
-      <div class="personnel-strip">
-        <div class="lab-panel personnel-panel" id="offPersonnel">
-          <div class="lab-panel-title">Offense</div>
-          <div class="lab-row"><span>OL</span><span class="lab-pm"><button type="button" id="olMinus">−</button><span id="olVal">5</span><button type="button" id="olPlus">+</button></span></div>
-          <div class="lab-row"><span>TE</span><span class="lab-pm"><button type="button" id="teMinus">−</button><span id="teVal">3</span><button type="button" id="tePlus">+</button></span></div>
-          <div class="lab-row"><span>FB</span><span class="lab-pm"><button type="button" id="fbMinus">−</button><span id="fbVal">1</span><button type="button" id="fbPlus">+</button></span></div>
-          <div class="lab-row"><span>QB</span><span class="lab-pm"><button type="button" id="qbMinus">−</button><span id="qbVal">1</span><button type="button" id="qbPlus">+</button></span></div>
-        </div>
-        <div class="lab-panel personnel-panel" id="defPersonnel">
-          <div class="lab-panel-title">Defense</div>
-          <div class="lab-row"><span>DT</span><span class="lab-pm"><button type="button" id="dtMinus">−</button><span id="dtVal">3</span><button type="button" id="dtPlus">+</button></span></div>
-          <div class="lab-row"><span>LB</span><span class="lab-pm"><button type="button" id="lbMinus">−</button><span id="lbVal">2</span><button type="button" id="lbPlus">+</button></span></div>
-          <div class="lab-row"><span>DB</span><span class="lab-pm"><button type="button" id="dbMinus">−</button><span id="dbVal">6</span><button type="button" id="dbPlus">+</button></span></div>
-        </div>
-      </div>
-    </div>
-
     <div id="mainWrap" class="lab-wrap">
       <aside id="sideControls" class="lab-aside">
-        
-
-        <div class="lab-panel">
-          <div class="lab-panel-title">Mode</div>
-          <label class="lab-row">
-            Mode
-            <select id="modeSelect">
-              <option value="game" selected>Game</option>
-              <option value="practice">Practice</option>
-            </select>
-          </label>
-          <label class="lab-row">
-            Next play
-            <select id="nextPlaySelect">
-              <option value="auto">Automatic</option>
-              <option value="snap" selected>On snap (A)</option>
-            </select>
-          </label>
-          <div id="practiceControls" class="hidden">
-            <label class="lab-row">Offense play
-              <select id="practiceOffPlay"></select>
-            </label>
-            <label class="lab-row">Defense scheme
-              <select id="practiceDefScheme"></select>
-            </label>
-            <div class="lab-muted" style="font-size:11px;margin-top:4px;line-height:1.35">
-              Practice: LS↕ / click preview · RT flip offense · LT flip defense · A snap · X/B menus
-            </div>
-          </div>
-        </div>
-
-        
         <div class="lab-panel">
           <div class="lab-panel-title">Gameplay</div>
           <label class="lab-row">
@@ -111,36 +50,26 @@
             <select id="minSelect">
               <option value="60">1:00</option>
               <option value="100">1:40</option>
-              <option value="120" selected>2:00</option>
-              <option value="180">3:00</option>
+              <option value="120">2:00</option>
+              <option value="180" selected>3:00</option>
               <option value="240">4:00</option>
               <option value="300">5:00</option>
             </select>
           </label>
           <label class="lab-row">
             Speed
-            <input id="speedSlider" type="range" min="0.5" max="2" step="0.05" value="1.20" />
-            <span id="speedLabel">1.20×</span>
+            <input id="speedSlider" type="range" min="0.5" max="2" step="0.05" value="1.25" />
+            <span id="speedLabel">1.25×</span>
           </label>
           <label class="lab-row">
             Offense
-            <input id="offStrSlider" type="range" min="0.5" max="2" step="0.05" value="1.00" />
-            <span id="offStrLabel">1.00×</span>
+            <input id="offStrSlider" type="range" min="0.70" max="1.40" step="0.05" value="0.90" />
+            <span id="offStrLabel">0.90×</span>
           </label>
           <label class="lab-row">
             Defense
-            <input id="defStrSlider" type="range" min="0.5" max="2" step="0.05" value="1.00" />
-            <span id="defStrLabel">1.00×</span>
-          </label>
-          <label class="lab-row">
-            Break block
-            <input id="breakBlockSlider" type="range" min="0.5" max="2" step="0.05" value="1.00" />
-            <span id="breakBlockLabel">1.00×</span>
-          </label>
-          <label class="lab-row">
-            Break tackle
-            <input id="breakTackleSlider" type="range" min="0.5" max="2" step="0.05" value="1.00" />
-            <span id="breakTackleLabel">1.00×</span>
+            <input id="defStrSlider" type="range" min="0.70" max="1.40" step="0.05" value="1.15" />
+            <span id="defStrLabel">1.15×</span>
           </label>
           <label class="lab-row">
             Fumbles
@@ -178,10 +107,8 @@
               <option value="off">Off</option>
             </select>
           </label>
-          <button type="button" id="saveClipBtn" class="lab-btn">Save last play</button>
-          <div id="savedClipsList" class="clip-list"></div>
           <label class="lab-row">
-            Play diagram
+            Play art
             <select id="playArtSelect">
               <option value="on" selected>On</option>
               <option value="offense">Offense</option>
@@ -189,7 +116,6 @@
               <option value="off">Off</option>
             </select>
           </label>
-          <label class="lab-row"><input type="checkbox" id="runnerTrailToggle" checked /> Runner path trail</label>
         </div>
 
         <div class="lab-panel">
@@ -203,13 +129,31 @@
               <option value="v4" selected>Advanced (v4)</option>
             </select>
           </label>
-          <label class="lab-row" title="Off: Left stick = run, D-pad = special moves. On: swap those roles.">
-            Swap stick / D-pad
+          <label class="lab-row">
+            Move layout
             <span style="display:flex;align-items:center;gap:4px">
               <input id="swapStickDpadCheck" type="checkbox" />
-              <span id="swapStickDpadLabel">Off (stick runs)</span>
+              <span id="swapStickDpadLabel">Stick (std)</span>
             </span>
           </label>
+        </div>
+
+        <div class="lab-panel">
+          <div class="lab-panel-title">Formation</div>
+          <div class="lab-row"><span>OL</span><span class="lab-pm"><button type="button" id="olMinus">−</button><span id="olVal">4</span><button type="button" id="olPlus">+</button></span></div>
+          <div class="lab-row"><span>TE</span><span class="lab-pm"><button type="button" id="teMinus">−</button><span id="teVal">0</span><button type="button" id="tePlus">+</button></span></div>
+          <div class="lab-row"><span>FB</span><span class="lab-pm"><button type="button" id="fbMinus">−</button><span id="fbVal">1</span><button type="button" id="fbPlus">+</button></span></div>
+          <div class="lab-row"><span>QB</span><span class="lab-pm"><button type="button" id="qbMinus">−</button><span id="qbVal">0</span><button type="button" id="qbPlus">+</button></span></div>
+          <div class="lab-row"><span>DT</span><span class="lab-pm"><button type="button" id="dtMinus">−</button><span id="dtVal">0</span><button type="button" id="dtPlus">+</button></span></div>
+          <div class="lab-row"><span>LB</span><span class="lab-pm"><button type="button" id="lbMinus">−</button><span id="lbVal">2</span><button type="button" id="lbPlus">+</button></span></div>
+          <div class="lab-row"><span>DB</span><span class="lab-pm"><button type="button" id="dbMinus">−</button><span id="dbVal">3</span><button type="button" id="dbPlus">+</button></span></div>
+        </div>
+
+        <div class="lab-panel">
+          <div class="lab-panel-title">Teams</div>
+          <label class="lab-row">Off <select id="offUniform"></select></label>
+          <label class="lab-row">Def <select id="defUniform"></select></label>
+          <label class="lab-row">Abbr <input id="teamAbbr" maxlength="3" value="DEN" /></label>
         </div>
 
         <div class="lab-panel">
@@ -242,7 +186,7 @@
           </label>
           <label class="lab-row" id="ezTextCustomRow" style="display:none">
             Custom
-            <input id="ezTextCustom" maxlength="64" value="ELEVATION EDGE" style="width:12rem;letter-spacing:0.02em" />
+            <input id="ezTextCustom" maxlength="22" value="ELEVATION EDGE" style="width:9rem;letter-spacing:0.04em" />
           </label>
           <label class="lab-row">
             Midfield logo
@@ -254,55 +198,22 @@
         </div>
 
         <details class="lab-panel" id="configPanel" open>
-          <summary class="lab-panel-title" id="configPanelTitle" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;list-style:none">
+          <summary class="lab-panel-title" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;list-style:none">
             Game Config <span aria-hidden>▾</span>
           </summary>
-          <!-- Game-mode only: opening LOS + post-TD rules -->
-          <div id="gameConfigBody">
-            <label class="lab-row">
-              Start
-              <span class="los-ctrl">
-                <button type="button" id="startYardMinus" class="los-step">−</button>
-                <input type="number" id="startYard50" value="50" min="1" max="50" />
-                <button type="button" id="startYardPlus" class="los-step">+</button>
-                <button type="button" id="startSideTri" class="los-tri mid" title="50">◆</button>
-              </span>
-            </label>
-            <input type="hidden" id="startYardInput" value="50" />
-            <input type="hidden" id="startSideSelect" value="own" />
-            <div class="lab-row los-post-row">
-              After TD
-              <span class="los-modes">
-                <button type="button" class="los-mode on" data-mode="random">Random</button>
-                <button type="button" class="los-mode" data-mode="fixed">Fixed</button>
-                <button type="button" class="los-mode" data-mode="increasing">Increasing</button>
-                <button type="button" class="los-mode" data-mode="decreasing">Decreasing</button>
-              </span>
-            </div>
-            <label class="lab-row hidden" id="incrementRow">
-              By
-              <input type="number" id="incrementInput" value="5" min="1" max="50" />
-            </label>
+          <label class="lab-row">Start yd <input type="number" id="startYardInput" value="40" min="1" max="99" /></label>
+          <div class="lab-row">
+            <label><input type="radio" name="postTdMode" value="increment" checked /> Inc</label>
+            <input type="number" id="incrementInput" value="5" />
           </div>
-          <!-- Practice-mode only: adjustable LOS each snap -->
-          <div id="practiceConfigBody" class="hidden">
-            <label class="lab-row">
-              Line of scrimmage
-              <select id="practiceSideSelect">
-                <option value="own">OWN</option>
-                <option value="opp" selected>OPP</option>
-              </select>
-              <input type="number" id="practiceYard50" value="30" min="1" max="50" />
-            </label>
-            <div class="lab-muted" style="font-size:11px;line-height:1.35;margin-top:4px">
-              Practice LOS applies every snap. Change it anytime — field restages immediately.
-            </div>
+          <div class="lab-row">
+            <label><input type="radio" name="postTdMode" value="random" /> Rand</label>
+            <input type="number" id="randMin" value="20" min="1" max="99" /> –
+            <input type="number" id="randMax" value="80" min="1" max="99" />
           </div>
         </details>
       </aside>
 
-
-      <div id="fieldRow" class="field-row">
       <div id="canvasWrap">
         <canvas id="game" width="900" height="780" tabindex="0"></canvas>
         <div id="pauseBanner" class="hidden">
@@ -319,29 +230,6 @@
           <span class="burst">Burst</span>
         </div>
       </div>
-
-      <aside id="practicePreview" class="practice-preview" aria-label="Practice play previews">
-        <div class="prev-block" id="prevDefBlock">
-          <div class="prev-banner" id="prevDefBanner">
-            <span class="prev-num" id="prevDefNum"></span>
-            <span id="prevDefLabel">Defense</span>
-            <span class="prev-btn-icon" id="prevDefBtn"></span>
-          </div>
-          <canvas id="prevDefCanvas" width="220" height="160"></canvas>
-          <div id="practiceDefList" class="practice-play-list" aria-label="Defense schemes"></div>
-        </div>
-        <div class="prev-block" id="prevOffBlock">
-          <div class="prev-banner" id="prevOffBanner">
-            <span class="prev-num" id="prevOffNum"></span>
-            <span id="prevOffLabel">Offense</span>
-            <span class="prev-btn-icon" id="prevOffBtn"></span>
-          </div>
-          <canvas id="prevOffCanvas" width="220" height="160"></canvas>
-          <div id="practicePlayList" class="practice-play-list" aria-label="Offense plays"></div>
-        </div>
-        <div id="audibleHint" class="prev-audible hidden"></div>
-      </aside>
-      </div><!-- fieldRow -->
     </div>
 
     <div class="lab-foot">
