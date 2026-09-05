@@ -1,35 +1,41 @@
 # Football Ground Attack Lab
 
-Customizable running-back lab on a single HTML5 canvas. Version 5.
+Customizable running-back lab on a single HTML5 canvas. **Version 6.**
 
 **[Play](https://elevation-edge-sports-data.github.io/football-ground-attack-lab/)**
 
-Under active development.
+![v6](screenshot.png)
+
+Earlier versions (v0, v2, v3):
+
+![v0, v2, and v3](screenshot-combo.png)
 
 Not affiliated with, endorsed by, or licensed by any league or team.
 
 ## Features
 
-1. Authored **offense playbook** (8): Blast, Pitch, Sweep, Swing, River, Zig Zag, Wedge, Counter
-2. Authored **defense playbook** (8): Chaos Contain, Overload Blitz, Safety Strike, Cloud Zone, Grizzly, House Blitz, Squirrel Storm, Spin Cycle
+1. Authored **offense playbook** (6): Blast, Pitch, Sweep, River, Zig Zag, Wedge
+2. Authored **defense playbook** (6): Quarters, Overload, Prevent / Cloud, Bear, Fire Zone, Walk-Up
 3. Side playbook panel: numbered lists, controller labels, miniature assignment diagrams
 4. Pre-snap field diagrams; offense and defense assigned independently
-5. **Game** and **Practice** modes (Game is default). Same play-calling tools in both
+5. **Game** and **Practice** modes (Practice is default). Same play-calling tools in both
 6. Snap on **A** by default; optional automatic next play
 7. After the snap, a short handoff or pitch from QB to runner when a QB is on the field
 8. Optional runner path trail; trail in instant replay
 9. Save last play (up to 10 clips)
 10. Cameras (angled 2D, overhead, high, zoom, wide), PiP or split replay
-11. Optional fumbles; celebrate; speed burst in the clear; TD camera zoom
+11. Optional fumbles; celebrate (off on Classic); speed burst in the clear; TD camera zoom
 12. Personnel counts for OL, TE, FB, QB, DT, LB, DB
 13. Speed, offense, defense, break-block, and break-tackle sliders
 14. Variable field width; Natural Grass, Field Turf, or Astro Turf
-15. Uniform banner (10 kits). Matching kits are not allowed
+15. Uniform banner (8 kits). Matching kits are not allowed. Kits are unlabeled colors
 16. Game Config: own/opponent start on a 50-yard scale; after a score = Random, Fixed, Increasing, or Decreasing
 17. Diamond or mountain endzones, custom endzone text, midfield Elevation Edge logo
-18. Goal posts, pylons, ball spotted on the hashes
-19. Keyboard and Xbox controls; v1–v4 control profiles (Advanced / v4 default)
+18. Goal posts, pylons, stadium, ball spotted on the hashes
+19. Keyboard and Xbox controls; Basic (v1), Expanded (v2), Wings (v3), Independent (v4), Classic (v6 default)
 20. D-pad is eight extra moves (hurdle, dead-leg, shake, and diagonals)
+21. Fatigue toggle: off keeps speed burst at full power. On, the meter waits 3 seconds of continuous use before it depletes
+22. Practice 6×6 book: no clock; line of scrimmage stays on the Practice control; O-flip / D-flip latch
 
 ## Play calling (pre-snap)
 
@@ -45,26 +51,31 @@ Click a playbook preview to focus it, or use the menu keys below.
 | Flip defense | Z | LT |
 | Browse list | W / S or ↑ ↓ | Left stick |
 | Focus offense / defense | ← / → | — |
-| Pick play 1–8 | **1–8** | — |
-| Audible pick (menu open) | Q E · I J K L · G · P | LB RB · D-pad · Select · Start |
+| Pick play 1–6 | **1–6** | — |
+| Audible pick (menu open) | Q E · I J K L | LB RB · D-pad |
 
-During the play, Z/X or LT/RT steer a latched teammate (v4 profile).
+During the play, Z/X or LT/RT independently select the nearest teammates to the left and right (Wings / Independent / Classic).
 
 ## Runner controls
 
-| Action | Key | Xbox |
+Default profile is **Classic (v6)**.
+
+| Action | Key | Xbox (Classic) |
 |---|---|---|
 | Move | WASD / Arrows | Left stick |
 | Speed burst | Space | A |
 | Spin | F | B |
 | Dive | C | X |
-| Truck | V / Y | Y (v4 profile) |
+| Truck | V / Y | Y |
 | Juke | Q / E | LB / RB |
-| Steer teammate | Z / X | LT / RT (live play) |
-| Celebrate | G | Select |
-| Peek defense | H | Select / peek |
+| Steer teammates | Z / X | LT / RT (live play) |
+| Stiff left | J (with I) | View / Select |
+| Stiff right | L (with I) | Menu / Start |
+| Peek defense | H | — |
 | Replay | R | — |
 | Pause | P | Click right stick |
+
+No celebrate button on Classic (v6). Fumbles stay off while Classic is selected.
 
 The D-pad is eight extra moves. The same eight are on the keyboard: I J K L are up, left, down, right; hold two keys for a diagonal.
 
@@ -83,28 +94,37 @@ A resumes pause. B restarts from pause.
 
 Microsoft Edge is recommended for an Xbox controller.
 
+### Profiles
+
+- **Basic (v1)** — D-pad steers the runner. LT / RT stiff. Start pauses.
+- **Expanded (v2)** — D-pad is the eight extra moves. LT / RT stiff. Click RS to pause.
+- **Wings (v3)** — LT and RT independently select the nearest teammates to the left and right. One stick directs the ball carrier and those teammates together. Y hurdles. D-pad up-left / up-right stiff.
+- **Independent (v4)** — T-9 compatible. Independently steer ball carrier and teammates using left and right sticks.
+- **Classic (v6)** — Built on Independent (v4). Select / View stiff left, Start / Menu stiff right. No celebrate, so fumbles stay off.
+
 ## Modes
 
 **Game** — session clock, score, yards, TDs. After a score, the next line of scrimmage follows Game Config (Random / Fixed / Increasing / Decreasing). Playbook and audibles are available.
 
-**Practice** — same playbook tools. Practice Config sets the yard. Every new play starts from that yard (gains and scores do not move the ball).
+**Practice** — 6 offense × 6 defense. No clock. Practice Config sets the yard; every new play starts from that yard (gains and scores do not move the ball). Flip latches on both books.
 
 ## Defaults
 
-- Mode: Game
+- Mode: Practice
 - Next play: on snap (A)
 - Start: midfield
-- After a score: Random (own 20–opponent 20, 5-yard lines)
+- After a score (Game): Random (own 20–opponent 20, 5-yard lines)
 - Speed 1.20× · Offense 1.00× · Defense 1.00×
 - Break block 1.00× · Break tackle 1.00×
-- Fumbles on
+- Fatigue on (3 s grace, then the burst meter depletes)
+- Fumbles off (Classic has no celebrate)
 - Runner path trail on
 - Camera: high angle (facing re-rolls on mode switch)
 - Replay: PiP
 - Offense and defense start on different kits
-- Clock: 2:00
+- Clock: 2:00 (Game only)
 - Field width: 50 yards
-- Control profile: Advanced (v4)
+- Control profile: Classic (v6)
 
 ## Tech
 

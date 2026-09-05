@@ -1,21 +1,28 @@
 "use strict";
 /**
- * Football Ground Attack Lab v6 engine
- * Practice lab: 6×6 books, latched flip, no clock, stable LOS, film-sheet routes.
+ * Football Ground Attack Lab v5 engine
+ * Port of v2 canvas sim + v3 cameras, replay, dual-trigger control, play art.
  */
+
+/**
+* Football Ground Attack Lab v5 engine
+* Port of v2 canvas sim + v3 cameras, replay, dual-trigger control, play art.
+*/
 /**
 * Football Ground Attack Lab — Default feel pass
 * Port of the v1 canvas sim + locked v2 mapping / AI / truck / burst / fumble.
 */
 const UNIFORMS = [
-	{ id: 0, helmet: "#002244", jersey: "#FB4F14", pants: "#002244", number: "#FFFFFF", facemask: "#FFFFFF", endPrimary: "#002244", endSecondary: "#FB4F14", logoFill: "#002244", logoMark: "#FB4F14" },
-	{ id: 1, helmet: "#E31837", jersey: "#FFFFFF", pants: "#E31837", number: "#E31837", facemask: "#FFFFFF", endPrimary: "#E31837", endSecondary: "#FFB81C", logoFill: "#E31837", logoMark: "#FFB81C" },
-	{ id: 2, helmet: "#FFFFFF", jersey: "#00338D", pants: "#FFFFFF", number: "#FFFFFF", facemask: "#00338D", endPrimary: "#00338D", endSecondary: "#FFFFFF", logoFill: "#00338D", logoMark: "#FFFFFF" },
-	{ id: 3, helmet: "#101820", jersey: "#006778", pants: "#101820", number: "#D7A22A", facemask: "#D7A22A", endPrimary: "#006778", endSecondary: "#D7A22A", logoFill: "#006778", logoMark: "#D7A22A" },
-	{ id: 4, helmet: "#A5ACAF", jersey: "#000000", pants: "#A5ACAF", number: "#FFFFFF", facemask: "#000000", endPrimary: "#000000", endSecondary: "#A5ACAF", logoFill: "#000000", logoMark: "#A5ACAF" },
-	{ id: 5, helmet: "#B3995D", jersey: "#AA0000", pants: "#B3995D", number: "#FFFFFF", facemask: "#FFFFFF", endPrimary: "#AA0000", endSecondary: "#B3995D", logoFill: "#AA0000", logoMark: "#B3995D" },
-	{ id: 6, helmet: "#4F2683", jersey: "#FFC62F", pants: "#4F2683", number: "#4F2683", facemask: "#FFC62F", endPrimary: "#4F2683", endSecondary: "#FFC62F", logoFill: "#4F2683", logoMark: "#FFC62F" },
-	{ id: 7, helmet: "#FFB612", jersey: "#203731", pants: "#FFB612", number: "#FFFFFF", facemask: "#203731", endPrimary: "#203731", endSecondary: "#FFB612", logoFill: "#203731", logoMark: "#FFB612" }
+	{ id: 0, abbr: "DEN", name: "Broncos", helmet: "#002244", jersey: "#FB4F14", pants: "#002244", number: "#FFFFFF", facemask: "#FFFFFF", endPrimary: "#002244", endSecondary: "#FB4F14", logoFill: "#002244", logoMark: "#FB4F14" },
+	{ id: 1, abbr: "KC", name: "Chiefs", helmet: "#E31837", jersey: "#FFFFFF", pants: "#E31837", number: "#E31837", facemask: "#FFFFFF", endPrimary: "#E31837", endSecondary: "#FFB81C", logoFill: "#E31837", logoMark: "#FFB81C" },
+	{ id: 2, abbr: "BUF", name: "Bills", helmet: "#FFFFFF", jersey: "#00338D", pants: "#00338D", number: "#FFFFFF", facemask: "#00338D", endPrimary: "#00338D", endSecondary: "#FFFFFF", logoFill: "#00338D", logoMark: "#FFFFFF" },
+	{ id: 3, abbr: "PIT", name: "Steelers", helmet: "#101820", jersey: "#101820", pants: "#FFB612", number: "#FFB612", facemask: "#FFB612", endPrimary: "#101820", endSecondary: "#FFB612", logoFill: "#101820", logoMark: "#FFB612" },
+	{ id: 4, abbr: "JAX", name: "Jaguars", helmet: "#101820", jersey: "#006778", pants: "#101820", number: "#D7A22A", facemask: "#D7A22A", endPrimary: "#006778", endSecondary: "#D7A22A", logoFill: "#006778", logoMark: "#D7A22A" },
+	{ id: 5, abbr: "NE", name: "Patriots", helmet: "#A5ACAF", jersey: "#FFFFFF", pants: "#002244", number: "#C60C30", facemask: "#C60C30", endPrimary: "#002244", endSecondary: "#C60C30", logoFill: "#002244", logoMark: "#C60C30" },
+	{ id: 6, abbr: "LV", name: "Raiders", helmet: "#A5ACAF", jersey: "#000000", pants: "#A5ACAF", number: "#FFFFFF", facemask: "#000000", endPrimary: "#000000", endSecondary: "#A5ACAF", logoFill: "#000000", logoMark: "#A5ACAF" },
+	{ id: 7, abbr: "SF", name: "49ers", helmet: "#B3995D", jersey: "#AA0000", pants: "#B3995D", number: "#FFFFFF", facemask: "#FFFFFF", endPrimary: "#AA0000", endSecondary: "#B3995D", logoFill: "#AA0000", logoMark: "#B3995D" },
+	{ id: 8, abbr: "MIN", name: "Vikings", helmet: "#4F2683", jersey: "#FFFFFF", pants: "#4F2683", number: "#4F2683", facemask: "#FFC62F", endPrimary: "#4F2683", endSecondary: "#FFC62F", logoFill: "#4F2683", logoMark: "#FFC62F" },
+	{ id: 9, abbr: "GB", name: "Packers", helmet: "#FFB612", jersey: "#203731", pants: "#FFB612", number: "#FFFFFF", facemask: "#203731", endPrimary: "#203731", endSecondary: "#FFB612", logoFill: "#203731", logoMark: "#FFB612" }
 ];
 const NUM_POOLS = {
 	QB: [10, 18, 8],
@@ -109,6 +116,22 @@ const OFF_PLAYS = [
 		}]
 	},
 	{
+		id: "swingR",
+		name: "Swing",
+		arrow: [.55, .35],
+		blockStyle: "swingR",
+		lockFirst: false,
+		steps: [{
+			dx: .25,
+			dy: .4,
+			t: .16
+		}, {
+			dx: .55,
+			dy: .75,
+			t: .22
+		}]
+	},
+	{
 		id: "river",
 		name: "River",
 		arrow: [-.4, .55, -.25, .7],
@@ -161,7 +184,7 @@ const OFF_PLAYS = [
 		}]
 	},
 	{
-		id: "wedgeL",
+		id: "blastL",
 		name: "Wedge",
 		arrow: [.4, -1.35],
 		blockStyle: "wedgeL",
@@ -184,7 +207,22 @@ const OFF_PLAYS = [
 			t: .18
 		}]
 	},
-	];
+	{
+		id: "counterL",
+		name: "Counter",
+		arrow: [.7, -1.1],
+		blockStyle: "pullL",
+		lockFirst: true,
+		steps: [{
+			dx: .55,
+			dy: .2,
+			t: .2
+		}, {
+			dx: -.85,
+			dy: .7,
+			t: .22
+		}]
+	}];
 const AUDIBLE_BUTTONS = [
 	// A snap · B defense menu · Y cancel · LT/RT flip — not pick slots
 	{ id: "LB", label: "LB", match: (inp) => inp.jukeL },
@@ -192,144 +230,68 @@ const AUDIBLE_BUTTONS = [
 	{ id: "UP", label: "↑", match: (inp) => inp._dpadUp },
 	{ id: "DN", label: "↓", match: (inp) => inp._dpadDn },
 	{ id: "LEFT", label: "←", match: (inp) => inp._dpadLeft },
-	{ id: "RIGHT", label: "→", match: (inp) => inp._dpadRight }
+	{ id: "RIGHT", label: "→", match: (inp) => inp._dpadRight },
+	{ id: "SELECT", label: "Select", match: (inp) => inp.celebrate },
+	{ id: "START", label: "Start", match: (inp) => inp.pausePress }
 ];
 const DEF_SCHEMES = [
 	{
 		id: "cover4Quarters",
-		name: "Quarters",
+		name: "Chaos Contain",
 		depthLB: 5.5,
 		depthDB: 12,
 		cluster: "spread"
 	},
 	{
 		id: "overloadBlitz",
-		name: "Overload",
+		name: "Overload Blitz",
 		depthLB: 4.4,
 		depthDB: 9.2,
 		cluster: "left"
 	},
 	{
+		id: "stormBlitz",
+		name: "Safety Strike",
+		depthLB: 4.2,
+		depthDB: 9.5,
+		cluster: "middle"
+	},
+	{
 		id: "prevent",
-		name: "Prevent / Cloud",
+		name: "Cloud Zone",
 		depthLB: 6.8,
 		depthDB: 13.5,
 		cluster: "spread"
 	},
 	{
 		id: "tight",
-		name: "Bear",
+		name: "Grizzly",
 		depthLB: 4.2,
 		depthDB: 8,
 		cluster: "middle"
 	},
 	{
 		id: "wide",
-		name: "Fire Zone",
+		name: "House Blitz",
 		depthLB: 5.2,
 		depthDB: 9.5,
 		cluster: "wide"
 	},
 	{
 		id: "goalLine",
-		name: "Walk-Up",
+		name: "Squirrel Storm",
 		depthLB: 3.6,
 		depthDB: 6.2,
 		cluster: "middle"
+	},
+	{
+		id: "base",
+		name: "Spin Cycle",
+		depthLB: 5,
+		depthDB: 9,
+		cluster: "spread"
 	}
 ];
-
-const ROUTE_TEMPLATES = {
-	ozR: [{ dx: .55, dy: .65, t: .18 }, { dx: .7, dy: .85, t: .26 }],
-	ozL: [{ dx: -.55, dy: .65, t: .18 }, { dx: -.7, dy: .85, t: .26 }],
-	blastR: [{ dx: .35, dy: .55, t: .16 }, { dx: .4, dy: .9, t: .22 }],
-	blastL: [{ dx: -.35, dy: .55, t: .16 }, { dx: -.4, dy: .9, t: .22 }],
-	arrowR: [{ dx: .85, dy: .45, t: .16 }, { dx: .5, dy: .8, t: .2 }],
-	arrowL: [{ dx: -.85, dy: .45, t: .16 }, { dx: -.5, dy: .8, t: .2 }],
-	needleL: [{ dx: -.55, dy: .85, t: .2 }],
-	needleR: [{ dx: .55, dy: .85, t: .2 }],
-	sweepL: [{ dx: -.9, dy: .5, t: .22 }, { dx: -.7, dy: .75, t: .2 }],
-	sweepR: [{ dx: .9, dy: .5, t: .22 }, { dx: .7, dy: .75, t: .2 }],
-	stretchR: [{ dx: .75, dy: .35, t: .16 }, { dx: .85, dy: .7, t: .24 }],
-	stretchL: [{ dx: -.75, dy: .35, t: .16 }, { dx: -.85, dy: .7, t: .24 }],
-	counterR: [{ dx: -.4, dy: .2, t: .14 }, { dx: .85, dy: .7, t: .22 }],
-	counterL: [{ dx: .4, dy: .2, t: .14 }, { dx: -.85, dy: .7, t: .22 }],
-	floodR: [{ dx: .5, dy: .6, t: .16 }, { dx: .35, dy: .9, t: .22 }],
-	floodL: [{ dx: -.5, dy: .6, t: .16 }, { dx: -.35, dy: .9, t: .22 }],
-	diveL: [{ dx: -.22, dy: .95, t: .28 }],
-	leadL: [{ dx: -.55, dy: .7, t: .2 }, { dx: -.4, dy: .85, t: .22 }],
-	plungeL: [{ dx: -.12, dy: .3, t: .12 }, { dx: -.5, dy: .95, t: .3 }],
-	delayMid: [{ dx: .04, dy: .12, t: .22 }, { dx: .08, dy: .75, t: .24 }],
-	pressL: [{ dx: -.9, dy: .32, t: .16 }, { dx: -.15, dy: .8, t: .22 }],
-	shortL: [{ dx: -.4, dy: .72, t: .16 }],
-	shortCounterR: [{ dx: -.3, dy: .18, t: .12 }, { dx: .7, dy: .65, t: .18 }],
-	flatArrowL: [{ dx: -.7, dy: .25, t: .16 }, { dx: -.55, dy: .5, t: .16 }],
-	// 1.1.A clip trails, truncated 10 yd past the LOS, world units (sx=8.4, sy=6.6).
-	bounceR: [{ dx: .84, dy: .91, t: .18 }, { dx: .92, dy: 1.36, t: .22 }],
-	cutbackR: [{ dx: -.83, dy: .94, t: .16 }, { dx: .55, dy: 1.34, t: .22 }]
-};
-function cloneSteps(steps) {
-	return (steps || []).map((st) => ({ ...st }));
-}
-function stepsToArrow(steps) {
-	return (steps || []).map((st) => st.dx || 0);
-}
-// Keeper film sheet. Dropped cells omit the facing so stock / mirrored art stays.
-const ROUTE_BOOK = {
-	blast: {
-		overloadBlitz: { stock: { primary: "ozR" }, flipped: { primary: "diveL" } },
-		prevent: { stock: { primary: "arrowR", secondary: "needleL" }, flipped: { primary: "blastL", secondary: "blastR" } },
-		wide: { stock: { primary: "ozR", secondary: "blastL" }, flipped: { primary: "leadL" } },
-		goalLine: { stock: { primary: "ozR", secondary: "sweepL" }, flipped: { primary: "plungeL" } },
-		cover4Quarters: { stock: { primary: "bounceR", secondary: "cutbackR" }, flipped: { primary: "blastL" } }
-	},
-	pitch: {
-		cover4Quarters: { stock: { primary: "arrowL" } },
-		overloadBlitz: { stock: { primary: "leadL" } },
-		prevent: { stock: { primary: "arrowL", secondary: "stretchR" } }
-	},
-	sweep: {
-		prevent: { flipped: { primary: "ozL", secondary: "ozR" } },
-		wide: { flipped: { primary: "stretchR" } }
-	},
-	river: {
-		cover4Quarters: { stock: { primary: "counterR" } },
-		overloadBlitz: { stock: { primary: "stretchR", secondary: "flatArrowL" } },
-		prevent: { stock: { primary: "blastR", secondary: "arrowL" }, flipped: { primary: "arrowL", secondary: "arrowR" } },
-		wide: { stock: { primary: "arrowR", secondary: "ozR" }, flipped: { primary: "counterR" } },
-		tight: { flipped: { primary: "stretchR" } }
-	},
-	zigzag: {
-		cover4Quarters: { stock: { primary: "pressL" }, flipped: { primary: "pressL" } },
-		overloadBlitz: { stock: { primary: "sweepR" } },
-		prevent: { stock: { primary: "floodR", secondary: "arrowR" }, flipped: { primary: "delayMid" } },
-		wide: { stock: { primary: "counterR" }, flipped: { primary: "arrowL", secondary: "blastR" } },
-		tight: { flipped: { primary: "sweepR" } }
-	},
-	wedge: {
-		cover4Quarters: { stock: { primary: "counterL" } },
-		prevent: { stock: { primary: "floodL", secondary: "blastL" }, flipped: { primary: "blastL" } },
-		tight: { stock: { primary: "sweepL" } },
-		goalLine: { stock: { primary: "sweepL", secondary: "counterL" } }
-	}
-};
-function playBookKey(play) {
-	if (!play) return "";
-	const id = String(play.baseId || play.id || "");
-	if (id === "blastR" || (play.name === "Blast" && !String(play.blockStyle || "").startsWith("wedge"))) return "blast";
-	if (id === "sweepL" || play.name === "Pitch") return "pitch";
-	if (id === "sweepR" || play.name === "Sweep") return "sweep";
-	if (id.startsWith("river") || play.name === "River") return "river";
-	if (id.startsWith("dive") || play.name === "Zig Zag") return "zigzag";
-	if (id.startsWith("wedge") || play.name === "Wedge" || String(play.blockStyle || "").startsWith("wedge")) return "wedge";
-	return "";
-}
-function cellFacing(play, oFlip, dFlip) {
-	const key = playBookKey(play);
-	if (key === "river" || key === "wedge") return dFlip ? "flipped" : "stock";
-	return oFlip ? "flipped" : "stock";
-}
-
 const CAMERAS = {
 	iso: {
 		id: "iso",
@@ -388,7 +350,6 @@ const CAMERAS = {
 	}
 };
 const SPRINT_MULT = 1.38;
-const SPRINT_GRACE = 3;
 const STORAGE_KEY = "fga_lab_top5_v5";
 const DPAD_DIAG_WIN = .04;
 function clamp(v, lo, hi) {
@@ -490,7 +451,7 @@ function startGame(canvas) {
 	let defStrength = 1.0;
 	let breakBlock = 1.0;   // defense ability to shed blocks (>1 sheds more)
 	let breakTackle = 1.0;  // RB ability to break tackles (>1 more YAC / fewer wraps)
-	let fumblesOn = false;
+	let fumblesOn = true;
 	let userStartYard = 50; // game-mode opening LOS (50)
 	let practiceStartYard = 70; // practice LOS (OPP 30), fully adjustable
 	let postTdMode = "random";
@@ -505,25 +466,14 @@ function startGame(canvas) {
 	let sprintCharge = 1;
 	let sprintHoldT = 0;
 	let sprintExhausted = false;
-	let fatigueOn = true;
 	let camZoom = 1;
 	let breakaway = false;
 	let tdZoom = false;
 	let cameraMode = "high";
 	let camCorner = Math.random() < .5 ? "sw" : "nw";
 	let playArtMode = "on";
-	let padProfile = "v6";
-	const PROFILE_LABELS = {
-		basic: "Basic (v1)",
-		classic: "Expanded (v2)",
-		v3: "Wings (v3)",
-		v4: "Independent (v4)",
-		v6: "Classic (v6)"
-	};
-	function profileLabel(id) {
-		return PROFILE_LABELS[id] || id;
-	}
-	let gameMode = "practice"; // "game" | "practice"
+	let padProfile = "v4";
+	let gameMode = "game"; // "game" | "practice"
 	let nextPlayOnSnap = true; // practice default: wait for A
 	let practiceOffPlayId = null;
 	let practiceDefSchemeId = null;
@@ -585,7 +535,7 @@ function startGame(canvas) {
 	let blockers = [];
 	let defenders = [];
 	let offUni = 0;
-	let defUni = 4;
+	let defUni = 6; // LV
 	const assignedNums = {
 		QB: [],
 		TE: [],
@@ -869,18 +819,11 @@ function startGame(canvas) {
 		blockers.forEach((b) => paint(b, "off"));
 		defenders.forEach((d) => paint(d, "def"));
 	}
-	function hashHalf() {
-		// NFL hashes are 18'6" apart (~6.17 yd). Keep a true split even on a 50-yd-wide field.
-		return Math.min(3.1, FIELD_WIDTH * 0.12);
-	}
 	function hashLeft() {
-		return (fieldLeft() + fieldRight()) / 2 - hashHalf();
+		return fieldLeft() + FIELD_WIDTH * .26;
 	}
 	function hashRight() {
-		return (fieldLeft() + fieldRight()) / 2 + hashHalf();
-	}
-	function capCoverageY(y) {
-		return Math.min(108.5, y);
+		return fieldLeft() + FIELD_WIDTH * .74;
 	}
 	function clampToHash(x) {
 		return clamp(x, hashLeft(), hashRight());
@@ -996,42 +939,21 @@ function startGame(canvas) {
 			id: flipId(play.id),
 			name: flipName(play.name),
 			arrow: (play.arrow || []).map((a) => -a),
-			blockStyle: ({ wallL: "wallR", wallR: "wallL", pullL: "pullR", pullR: "pullL", zoneL: "zoneR", zoneR: "zoneL", swingL: "swingR", swingR: "swingL", river: "river", wedgeL: "wedgeR", wedgeR: "wedgeL", zigzag: "zigzag" })[play.blockStyle] || play.blockStyle,
-			steps: (play.steps || []).map((s) => ({ ...s, dx: -s.dx })),
-			altSteps: (play.altSteps || []).map((s) => ({ ...s, dx: -s.dx })),
-			baseId: play.baseId || play.id
+			blockStyle: ({ wallL: "wallR", wallR: "wallL", pullL: "pullR", pullR: "pullL", zoneL: "zoneR", zoneR: "zoneL", swingL: "swingR", swingR: "swingL", river: "river" })[play.blockStyle] || play.blockStyle,
+			steps: (play.steps || []).map((s) => ({ ...s, dx: -s.dx }))
 		};
-	}
-	function applyKeeperRoutes(play) {
-		if (!play) return play;
-		play.baseId = play.baseId || play.id;
-		play.altSteps = null;
-		const key = playBookKey(play);
-		const schemeId = (currentScheme && currentScheme.id) || practiceDefSchemeId || "";
-		const facing = cellFacing(play, practiceFlipped, practiceDefFlipped);
-		const cell = ROUTE_BOOK[key] && ROUTE_BOOK[key][schemeId] && ROUTE_BOOK[key][schemeId][facing];
-		if (!cell || !cell.primary) return play;
-		const prim = ROUTE_TEMPLATES[cell.primary];
-		if (!prim) return play;
-		play.steps = cloneSteps(prim);
-		play.arrow = stepsToArrow(prim);
-		if (cell.secondary && ROUTE_TEMPLATES[cell.secondary]) {
-			play.altSteps = cloneSteps(ROUTE_TEMPLATES[cell.secondary]);
-		}
-		return play;
 	}
 	function choosePlay() {
 		let pool = OFF_PLAYS;
-		if (gameMode === "practice" && practiceOffPlayId) {
+		if (playStartYard >= 95 || ballYard >= 95) pool = OFF_PLAYS.filter((p) => !p.id.startsWith("counter"));
+		if (practiceOffPlayId) {
 			const found = OFF_PLAYS.find((p) => p.id === practiceOffPlayId) || pool[0];
-			currentPlay = practiceFlipped ? mirrorPlay(found) : { ...found, steps: (found.steps || []).map((st) => ({ ...st })), baseId: found.id };
+			currentPlay = practiceFlipped ? mirrorPlay(found) : { ...found, steps: (found.steps || []).map((s) => ({ ...s })) };
 		} else {
 			currentPlay = randChoice(pool);
-			currentPlay = { ...currentPlay, steps: (currentPlay.steps || []).map((st) => ({ ...st })), baseId: currentPlay.id };
 		}
-		applyKeeperRoutes(currentPlay);
 		preSnapTimer = 0;
-		scriptSteps = (currentPlay.steps || []).map((st) => ({ ...st }));
+		scriptSteps = (currentPlay.steps || []).map((s) => ({ ...s }));
 		scriptIndex = 0;
 		scriptTimer = 0;
 		scriptLocked = !!currentPlay.lockFirst;
@@ -1040,12 +962,16 @@ function startGame(canvas) {
 		if (typeof refreshPracticePreviews === "function") refreshPracticePreviews();
 	}
 	function chooseScheme() {
-		if (gameMode === "practice" && practiceDefSchemeId) {
+		if (practiceDefSchemeId) {
 			currentScheme = DEF_SCHEMES.find((s) => s.id === practiceDefSchemeId) || DEF_SCHEMES[0];
 			return;
 		}
-		const pool = DEF_SCHEMES.slice();
-		const weights = pool.map((s) => s.id === "prevent" || s.id === "cover4Quarters" ? 2 : 1);
+		if (playStartYard >= 95 || ballYard >= 95) {
+			currentScheme = DEF_SCHEMES.find((s) => s.id === "goalLine") || DEF_SCHEMES[0];
+			return;
+		}
+		const pool = DEF_SCHEMES.filter((s) => s.id !== "goalLine");
+		const weights = pool.map((s) => s.id === "soft" || s.id === "base" || s.id === "wide" ? 2 : 1);
 		let total = weights.reduce((a, b) => a + b, 0);
 		let r = Math.random() * total;
 		let acc = 0;
@@ -1059,16 +985,9 @@ function startGame(canvas) {
 		}
 	}
 	function placeEntitiesForNewPlay() {
-		if (gameMode === "practice") {
-			const fixed = clamp(syncPracticeYardFromUI(), 1, 99);
-			practiceStartYard = fixed;
-			ballYard = fixed;
-			playStartYard = fixed;
-			driveStartYard = fixed;
-		}
 		revealDefThisPlay = true;
-		chooseScheme();
 		choosePlay();
+		chooseScheme();
 		if (currentPlay) {
 			const defName = currentScheme && currentScheme.name ? currentScheme.name : "";
 			setPlayCall(currentPlay.name + (revealDefThisPlay && defName ? " · vs " + defName : ""));
@@ -1185,19 +1104,9 @@ function startGame(canvas) {
 			d.y = clampDefAlignY(d.y);
 			if (d.jobY != null) d.jobY = Math.min(d.jobY, EZ_BACK);
 			if (d.stutterY != null) d.stutterY = Math.min(d.stutterY, EZ_BACK);
-			// Near the goal line, coverage landmarks used to pin at y=99 while bodies
-			// aligned in the EZ — on snap they teleported back to the goal line.
-			if (d.jobY != null && d.job !== "blitz" && d.job !== "man" && d.jobY < d.y - 0.45) {
-				d.jobY = d.y;
-			}
-			if (playStartYard >= 82 && (d.job === "deep" || d.job === "robber" || d.isSafety)) {
-				d.zoneRy = Math.min(d.zoneRy || 3.4, Math.max(1.4, EZ_BACK - d.y));
-			}
 		});
 		if (practiceDefFlipped) mirrorDefenseHorizontal();
-		applyCellDefenseTweaks();
 		assignBlockJobs();
-		applyCellBlockTweaks();
 		playAge = 0;
 		idleCarrierT = 0;
 		replayBuf.length;
@@ -1213,154 +1122,8 @@ function startGame(canvas) {
 		if (typeof refreshPracticePreviews === "function") refreshPracticePreviews();
 	}
 	function playSideSign() {
-		const id = currentPlay ? currentPlay.id : "";
-		const st = currentPlay ? currentPlay.blockStyle : "";
-		if (id.endsWith("L") || st === "wallL" || st === "pullL" || st === "zoneL" || st === "wedgeL" || st === "swingL") return -1;
-		if (id.endsWith("R") || st === "wallR" || st === "pullR" || st === "zoneR" || st === "wedgeR" || st === "swingR") return 1;
+		if ((currentPlay ? currentPlay.id : "").endsWith("L") || currentPlay && currentPlay.blockStyle === "wallL" || currentPlay && currentPlay.blockStyle === "pullL") return -1;
 		return 1;
-	}
-	function cellPlayKey() { return playBookKey(currentPlay); }
-	function cellSchemeId() { return (currentScheme && currentScheme.id) || practiceDefSchemeId || ""; }
-	function isStockFacing() { return cellFacing(currentPlay, practiceFlipped, practiceDefFlipped) === "stock"; }
-	function isFlippedFacing() { return cellFacing(currentPlay, practiceFlipped, practiceDefFlipped) === "flipped"; }
-	function applyCellBlockTweaks() {
-		const key = cellPlayKey();
-		const sch = cellSchemeId();
-		const snap = snapX();
-		const fbs = blockers.filter((b) => b.group === "FB");
-		const defs = [...defenders].sort((a, b) => a.x - b.x);
-		function leadFb(sideSign) {
-			fbs.forEach((b, i) => {
-				b.blockMode = "climb";
-				b.driveSide = sideSign;
-				b.driveBlock = true;
-				const pack = sideSign < 0 ? defs.slice(0, 3) : defs.slice(-3);
-				b.blockTarget = pack[Math.min(i, Math.max(0, pack.length - 1))] || pack[0] || null;
-				b.gapAimX = snap + sideSign * (8.2 + i * 1.1);
-				b.gapAimY = playStartYard + 5.4 + i * 0.5;
-				b.levelY = 5.5 + i * 0.4;
-			});
-		}
-		function retargetLeftmost(n) {
-			const left = defs.slice(0, n);
-			const pullers = blockers.filter((b) => b.blockMode === "pull" || b.blockMode === "climb");
-			pullers.forEach((b, i) => {
-				if (left[i]) b.blockTarget = left[i];
-				b.driveSide = -1;
-				b.gapAimX = (left[i] ? left[i].x : snap - 8) - 0.4;
-				b.gapAimY = playStartYard + 4.8 + i * 0.4;
-			});
-			if (!pullers.length) leadFb(-1);
-		}
-		// Pitch vs Overload, stock: FB lead play-side / left
-		if (key === "pitch" && sch === "overloadBlitz" && isStockFacing()) leadFb(-1);
-		// Blast vs Fire Zone, O-flipped: FB lead left
-		if (key === "blast" && sch === "wide" && practiceFlipped) leadFb(-1);
-		// Sweep vs Bear, flipped: retarget 2–3 leftmost defenders
-		if (key === "sweep" && sch === "tight" && practiceFlipped) retargetLeftmost(3);
-	}
-	function applyCellDefenseTweaks() {
-		const key = cellPlayKey();
-		const sch = cellSchemeId();
-		const snap = snapX();
-		const mid = (fieldLeft() + fieldRight()) / 2;
-		function stiffen() {
-			defenders.forEach((d) => {
-				d.readT = Math.min(d.readT || 0, 0.12);
-				d.reactT = Math.min(d.reactT || 0, 0.08);
-				d.fakeBlitz = false;
-				d.blitzDelay = Math.min(d.blitzDelay || 0, 0.08);
-				if (d.job !== "deep") {
-					d.y = Math.max(playStartYard + 2.2, Math.min(d.y, playStartYard + (d.group === "DT" ? 3.4 : d.group === "LB" ? 5.2 : 8.5)));
-					if (d.jobY != null && d.job !== "deep") d.jobY = Math.min(d.jobY, playStartYard + (d.job === "blitz" ? -0.15 : 7.2));
-				}
-				if (d.job === "blitz" || d.job === "man") d.aggressor = true;
-				d.baseSpeed = (d.baseSpeed || d.speed || 8.4) * 1.06;
-				d.speed = d.baseSpeed;
-			});
-		}
-		function unskewOverload() {
-			defenders.forEach((d) => {
-				const pull = (d.x - mid) * 0.28;
-				d.x -= pull;
-				if (d.jobX != null) d.jobX -= (d.jobX - mid) * 0.22;
-			});
-		}
-		function holdFireZoneSafety() {
-			defenders.filter((d) => d.group === "DB" && (d.job === "deep" || d.isSafety)).forEach((d) => {
-				d.artCurve = false;
-				d.stutter = false;
-				d.fakeBlitz = false;
-				d.zoneFollow = false;
-				d.readT = Math.max(d.readT || 0, 0.35);
-				d.job = "deep";
-				d.jobX = d.x;
-				d.jobY = Math.max(d.y, playStartYard + 12);
-			});
-		}
-		function stabilizeQuarters() {
-			const fl = fieldLeft();
-			const fr = fieldRight();
-			const mid = (fl + fr) / 2;
-			const W = fr - fl;
-			const snap = snapX();
-			const stations = [0.14, 0.38, 0.62, 0.86];
-			defenders.filter((d) => d.group === "DB").sort((a, b) => a.x - b.x).forEach((d, i) => {
-				d.x = fl + W * stations[Math.min(i, stations.length - 1)];
-				d.artCurve = false;
-				d.stutter = false;
-				if (d.job === "deep") {
-					d.y = playStartYard + 11.5;
-					d.jobX = d.x;
-					d.jobY = playStartYard + 14.2;
-				} else {
-					d.y = clamp(d.y, playStartYard + 3.6, playStartYard + 7.4);
-					if (d.jobX != null) d.jobX = d.x;
-				}
-			});
-			defenders.filter((d) => d.group === "LB").sort((a, b) => a.x - b.x).forEach((d, i, arr) => {
-				const t = arr.length <= 1 ? 0 : (i / (arr.length - 1) - 0.5);
-				d.x = mid + t * W * 0.28;
-				d.y = playStartYard + 5.1;
-				d.artCurve = false;
-			});
-			defenders.filter((d) => d.group === "DT").sort((a, b) => a.x - b.x).forEach((d, i, arr) => {
-				d.x = snap + (i - (arr.length - 1) / 2) * 2.35;
-				d.y = playStartYard + 2.55;
-			});
-		}
-		function tightenOverloadForZigzag() {
-			const snap = snapX();
-			const fl = fieldLeft();
-			const fr = fieldRight();
-			const mid = (fl + fr) / 2;
-			const capY = playStartYard + 11;
-			defenders.forEach((d) => {
-				d.x = mid + (d.x - mid) * 0.52;
-				d.x = clamp(d.x, snap - 13, snap + 11);
-				d.y = Math.min(d.y, capY);
-				if (d.jobY != null) d.jobY = Math.min(d.jobY, capY);
-				if (d.stutterY != null) d.stutterY = Math.min(d.stutterY, playStartYard + 2.6);
-				d.artCurve = false;
-			});
-			defenders.filter((d) => d.job === "blitz").forEach((d) => {
-				d.y = clamp(d.y, playStartYard + 2.2, playStartYard + 5.2);
-				d.jobY = playStartYard - 0.2;
-				d.stutter = false;
-			});
-			defenders.filter((d) => d.job === "deep").forEach((d) => {
-				d.y = playStartYard + 9.6;
-				d.jobY = playStartYard + 10.5;
-			});
-		}
-		// Walk-Up / Bear cells that were standing/lazy
-		if (sch === "tight" && key === "wedge" && isStockFacing()) stiffen();
-		if (sch === "goalLine" && key === "wedge" && isStockFacing()) stiffen();
-		if (sch === "tight" && key === "river" && practiceDefFlipped) stiffen();
-		if (sch === "overloadBlitz" && key === "wedge" && practiceDefFlipped) unskewOverload();
-		if (sch === "wide" && key === "zigzag" && practiceFlipped) holdFireZoneSafety();
-		if (sch === "cover4Quarters" && key === "zigzag" && isFlippedFacing()) stabilizeQuarters();
-		if (sch === "overloadBlitz" && key === "zigzag" && isFlippedFacing()) tightenOverloadForZigzag();
 	}
 	function assignBlockJobs() {
 		const snap = snapX();
@@ -1723,70 +1486,6 @@ function startGame(canvas) {
 			});
 			return;
 		}
-
-		if (style === "wedgeR") {
-			const used = new Set();
-			function takeDef(preferX, maxD) {
-				let best = null, bd = maxD;
-				for (const d of defs) {
-					if (used.has(d)) continue;
-					const dd = Math.hypot(d.x - preferX, (d.y - playStartYard) * 0.55);
-					if (dd < bd) { bd = dd; best = d; }
-				}
-				if (best) used.add(best);
-				return best;
-			}
-			const line = [...ols, ...tes].sort((a, b) => a.x - b.x);
-			const hinge = line[line.length - 1] || null;
-			blockers.forEach((b) => {
-				b.blockTarget = null; b.blockMode = "man"; b.pullPhase = 0; b.pullVia = null;
-				b.driveSide = 1; b.levelY = 3; b.driveBlock = true; b.sturdyBlock = true; b._userCtrl = 0;
-			});
-			line.forEach((b, i) => {
-				const rank = i;
-				if (hinge && b === hinge) {
-					b.blockMode = "reach";
-					b.driveBlock = true;
-					b.sturdyBlock = true;
-					b.gapAimX = b.x + 1.2;
-					b.gapAimY = playStartYard + 4.5;
-					b.blockTarget = takeDef(b.x + 1.5, 16);
-					b.levelY = 4;
-					return;
-				}
-				b.blockMode = "pull";
-				b.pullPhase = 0;
-				b.pullBoost = 1 + rank * 0.06;
-				const midX = snap + 2.8 + rank * 0.55;
-				const midY = playStartYard - (1.1 + rank * 0.65);
-				const endX = snap + (6.5 + rank * 1.55);
-				const endY = playStartYard + 2.4 + rank * 0.95;
-				b.pullVia = { x: midX, y: midY, x2: endX, y2: endY };
-				b.pullBoost = 1.08 + rank * 0.08;
-				b.blockTarget = takeDef(endX, 22);
-				b.gapAimX = endX;
-				b.gapAimY = endY + 1.2;
-				b.levelY = 3 + rank * 0.9;
-				b.driveBlock = true;
-			});
-			fbs.forEach((b, i) => {
-				b.blockMode = "pull";
-				b.pullPhase = 0;
-				b.pullBoost = 1.2;
-				b.pullVia = {
-					x: snap + 1.2, y: playStartYard - 2.6,
-					x2: snap + (10 + i * 1.2), y2: playStartYard + 5.8 + i
-				};
-				b.blockTarget = takeDef(snap + 11, 24);
-				b.levelY = 6 + i;
-				b.driveBlock = true;
-			});
-			qbs.forEach((b) => {
-				b.blockMode = "man";
-				b.blockTarget = takeDef(snap - 2, 12);
-			});
-			return;
-		}
 		// Zig Zag: blockers form staggered lane matching runner path L-R-L-R-L
 		if (style === "zigzag") {
 			const used = new Set();
@@ -1800,14 +1499,13 @@ function startGame(canvas) {
 				if (best) used.add(best);
 				return best;
 			}
-			const zSign = playSideSign();
-			// Path waypoints follow flipped play id / playSideSign()
+			// Path waypoints (match art / steps) relative to snap + LOS
 			const zigs = [
-				{ x: snap + zSign * -2.4, y: playStartYard + 3.2, side: -1 * zSign },
-				{ x: snap + zSign * 2.6, y: playStartYard + 6.4, side: 1 * zSign },
-				{ x: snap + zSign * -2.7, y: playStartYard + 9.5, side: -1 * zSign },
-				{ x: snap + zSign * 2.4, y: playStartYard + 12.4, side: 1 * zSign },
-				{ x: snap + zSign * -1.4, y: playStartYard + 15.0, side: -1 * zSign }
+				{ x: snap - 2.4, y: playStartYard + 3.2, side: -1 },
+				{ x: snap + 2.6, y: playStartYard + 6.4, side: 1 },
+				{ x: snap - 2.7, y: playStartYard + 9.5, side: -1 },
+				{ x: snap + 2.4, y: playStartYard + 12.4, side: 1 },
+				{ x: snap - 1.4, y: playStartYard + 15.0, side: -1 }
 			];
 			blockers.forEach((b) => {
 				b.blockTarget = null; b.blockMode = "man"; b.pullPhase = 0; b.pullVia = null;
@@ -2010,17 +1708,17 @@ function startGame(canvas) {
 		}
 		// Next two DBs → deep halves
 		if (freeDbs[1]) {
-			claimZone(freeDbs[1], "deep", fl + W * 0.32, capCoverageY(playStartYard + 15), W * 0.2, 5.0, false);
+			claimZone(freeDbs[1], "deep", fl + W * 0.32, Math.min(99, playStartYard + 15), W * 0.2, 5.0, false);
 		}
 		if (freeDbs[2]) {
-			claimZone(freeDbs[2], "deep", fr - W * 0.32, capCoverageY(playStartYard + 15), W * 0.2, 5.0, false);
+			claimZone(freeDbs[2], "deep", fr - W * 0.32, Math.min(99, playStartYard + 15), W * 0.2, 5.0, false);
 		}
 		// Remaining DB slots / leftover defenders: drop + curl flat right
 		const rest = defenders.filter((d) => !used.has(d)).sort((a, b) => a.x - b.x);
 		const zoneTail = [
 			{ job: "drop", x: mid + W * 0.04, y: playStartYard + 8.0, rx: W * 0.11, ry: 2.5, follow: true },
 			{ job: "curl", x: fr - W * 0.16, y: playStartYard + 4.4, rx: W * 0.13, ry: 1.9, follow: false },
-			{ job: "deep", x: mid, y: capCoverageY(playStartYard + 14.5), rx: W * 0.18, ry: 4.5, follow: false },
+			{ job: "deep", x: mid, y: Math.min(99, playStartYard + 14.5), rx: W * 0.18, ry: 4.5, follow: false },
 			{ job: "flat", x: fr - W * 0.22, y: playStartYard + 3.6, rx: W * 0.12, ry: 1.5, follow: false }
 		];
 		rest.forEach((d, i) => {
@@ -2171,7 +1869,7 @@ function startGame(canvas) {
 		if (leftCov[0]) claimZone(leftCov[0], "flat", fl + W * 0.18, playStartYard + 4.0, W * 0.12, 1.6, false);
 		if (rightCov[0]) claimZone(rightCov[0], "flat", fr - W * 0.18, playStartYard + 4.0, W * 0.12, 1.6, false);
 		const rest = defenders.filter((d) => !used.has(d));
-		if (rest[0]) claimZone(rest[0], "deep", mid, capCoverageY(playStartYard + 14), W * 0.2, 4.8, false);
+		if (rest[0]) claimZone(rest[0], "deep", mid, Math.min(99, playStartYard + 14), W * 0.2, 4.8, false);
 		rest.slice(1).forEach((d, i) => {
 			const side = d.x < mid ? -1 : 1;
 			claimZone(d, "drop", mid + side * W * 0.1, playStartYard + 8, W * 0.1, 2.4, true);
@@ -2405,7 +2103,7 @@ function startGame(canvas) {
 		const dbs = defenders.filter((d) => d.group === "DB").sort((a, b) => a.x - b.x);
 		const nonDb = defenders.filter((d) => d.group !== "DB").sort((a, b) => a.x - b.x);
 
-		const deepY = capCoverageY(playStartYard + 16.5);
+		const deepY = Math.min(99, playStartYard + 16.5);
 		const quarters = [
 			{ id: "q1", job: "deep", x: fl + W * 0.125, y: deepY, rx: W * 0.15, ry: 5.4 },
 			{ id: "q2", job: "deep", x: fl + W * 0.375, y: deepY + 0.4, rx: W * 0.15, ry: 5.6 },
@@ -2543,7 +2241,7 @@ function startGame(canvas) {
 
 	function assignCover4QuartersJobs(fl, fr, mid, _rnd) {
 		const W = fr - fl;
-		const deepY = capCoverageY(playStartYard + 15.5);
+		const deepY = Math.min(99, playStartYard + 15.5);
 		const quarters = [
 			{ id: "q1", job: "deep", x: fl + W * 0.125, y: deepY, rx: W * 0.16, ry: 5.2 },
 			{ id: "q2", job: "deep", x: fl + W * 0.375, y: deepY, rx: W * 0.16, ry: 5.2 },
@@ -2916,7 +2614,7 @@ function remaining(group) {
 			else if (r < .62) d.job = "flat";
 			else d.job = "contain";
 			if (d.job === "contain") zoneFor(d, "contain", side < 0 ? fl + FIELD_WIDTH * .16 : fr - FIELD_WIDTH * .16, playStartYard + 5 + _rnd() * 2, 2.4, 2.8);
-			else if (d.job === "deep") zoneFor(d, "deep", side < 0 ? fl + FIELD_WIDTH * .24 : fr - FIELD_WIDTH * .24, capCoverageY(playStartYard + 12 + _rnd() * 4), 6.4, 5);
+			else if (d.job === "deep") zoneFor(d, "deep", side < 0 ? fl + FIELD_WIDTH * .24 : fr - FIELD_WIDTH * .24, Math.min(99, playStartYard + 12 + _rnd() * 4), 6.4, 5);
 			else if (d.job === "flat") zoneFor(d, "flat", side < 0 ? fl + FIELD_WIDTH * .2 : fr - FIELD_WIDTH * .2, playStartYard + 3.2 + _rnd(), 5.4, 1.32);
 			else if (d.job === "man") {
 				const sorted = [...blockers].sort((a, b) => a.x - b.x);
@@ -2942,7 +2640,7 @@ function remaining(group) {
 		const shells = ["cover2", "cover3", "cover4", "tampa2", "cover6", "palms"];
 		const shell = shells[Math.floor(_rnd() * shells.length)];
 		function deepAt(d, x, y, rx, ry, job) {
-			zoneFor(d, job || "deep", x, capCoverageY(y), rx, ry);
+			zoneFor(d, job || "deep", x, Math.min(99, y), rx, ry);
 			if (job === "deep" || job === "robber") d.isSafety = true;
 		}
 		const poolDb = [...safeties, ...corners.filter((c) => c.job !== "contain")];
@@ -3036,7 +2734,7 @@ function remaining(group) {
 						const side = i === 0 ? -1 : 1;
 						d.job = "deep";
 						d.jobX = midX + side * FIELD_WIDTH * 0.18;
-						d.jobY = capCoverageY(playStartYard + 12 + _rnd() * 4);
+						d.jobY = Math.min(99, playStartYard + 12 + _rnd() * 4);
 						d.zoneRx = 6.4;
 						d.zoneRy = 5.2;
 						d.isSafety = true;
@@ -3051,7 +2749,7 @@ function remaining(group) {
 					const pick = cands[0] || defenders[0];
 					pick.job = "deep";
 					pick.jobX = midX + (_rnd() - .5) * 2.2;
-					pick.jobY = capCoverageY(playStartYard + 11 + _rnd() * 3);
+					pick.jobY = Math.min(99, playStartYard + 11 + _rnd() * 3);
 					pick.zoneRx = 7.2;
 					pick.zoneRy = 5.5;
 					pick.isSafety = pick.group === "DB";
@@ -3082,7 +2780,7 @@ function remaining(group) {
 				if (countJob("deep") + countJob("robber") >= wantDeep) return;
 				const side = i % 2 === 0 ? -1 : 1;
 				const depth = countJob("deep") === 0 ? 13.5 : 18;
-				zoneFor(d, "deep", mid + side * FIELD_WIDTH * .14, capCoverageY(playStartYard + depth), 6.6, 5);
+				zoneFor(d, "deep", mid + side * FIELD_WIDTH * .14, Math.min(99, playStartYard + depth), 6.6, 5);
 				d.isSafety = true;
 			});
 		}
@@ -3150,15 +2848,12 @@ function remaining(group) {
 			y: y * scale
 		};
 	}
-	function padTeammate() {
-		return padProfile === "v3" || padProfile === "v4" || padProfile === "v6";
-	}
 	function classifyDpad(b) {
 		const n = (b.u ? 1 : 0) + (b.d ? 1 : 0) + (b.l ? 1 : 0) + (b.r ? 1 : 0);
 		if (n === 0 || n >= 3) return null;
 		if (b.u && b.d) return null;
 		if (b.l && b.r) return null;
-		if (padProfile === "v4" || padProfile === "v6") {
+		if (padProfile === "v4") {
 			if (b.u && b.l) return inGoal() ? "hurdleL" : "stiffL";
 			if (b.u && b.r) return inGoal() ? "hurdleR" : "stiffR";
 			if (b.d && b.l) return "deadlegL";
@@ -3223,7 +2918,7 @@ function remaining(group) {
 			if (keys.has("Space")) sprint = true;
 			if (keys.has("KeyF")) spin = true;
 			if (keys.has("KeyC")) dive = true;
-			if (padProfile === "v4" || padProfile === "v6") {
+			if (padProfile === "v4") {
 				if (keys.has("KeyV") || keys.has("KeyY")) truck = true;
 			} else if (padProfile === "v3") {
 				if (keys.has("KeyV") || keys.has("KeyY")) hurdle = true;
@@ -3232,7 +2927,7 @@ function remaining(group) {
 			if (keys.has("KeyE")) jukeR = true;
 			if (keys.has("KeyH")) peek = true;
 			if (keys.has("KeyR")) replayPress = true;
-			if (padTeammate()) {
+			if (padProfile === "v3" || padProfile === "v4") {
 				if (keys.has("KeyZ")) ctrlL = true;
 				if (keys.has("KeyX")) ctrlR = true;
 				if (keys.has("Comma") || keys.has("KeyN")) dpadMove = dpadMove || "shakeL";
@@ -3241,7 +2936,7 @@ function remaining(group) {
 				if (keys.has("KeyZ")) stiffL = true;
 				if (keys.has("KeyX")) stiffR = true;
 			}
-			if (keys.has("KeyG") && padProfile !== "v6") celebrate = true;
+			if (keys.has("KeyG")) celebrate = true;
 			if (keys.has("KeyP") || keys.has("Escape")) pausePress = true;
 			if (keys.has("Enter")) confirm = true;
 		}
@@ -3381,7 +3076,7 @@ function remaining(group) {
 			const rt = isT3
 				? (gp.buttons[9] && gp.buttons[9].value || 0)
 				: (gp.buttons[7] && gp.buttons[7].value || 0);
-			if (padTeammate()) {
+			if (padProfile === "v3" || padProfile === "v4") {
 				ctrlL = ctrlL || lt > .52;
 				ctrlR = ctrlR || rt > .52;
 			}
@@ -3400,7 +3095,7 @@ function remaining(group) {
 					dx = dpadDigital.x;
 					dy = dpadDigital.y;
 					autoRun = false;
-				} else if (padTeammate() && (ctrlL || ctrlR)) autoRun = true;
+				} else if ((padProfile === "v3" || padProfile === "v4") && (ctrlL || ctrlR)) autoRun = true;
 				else autoRun = false;
 				// Classify left stick into special moves (same thresholds as right-stick extras)
 				if (!ctrlR) {
@@ -3418,9 +3113,9 @@ function remaining(group) {
 					dy = st.y;
 					autoRun = false;
 					// Blocker steer comes from right stick when triggers held (see main loop)
-				} else if (padTeammate() && (ctrlL || ctrlR)) autoRun = true;
+				} else if ((padProfile === "v3" || padProfile === "v4") && (ctrlL || ctrlR)) autoRun = true;
 				else autoRun = false;
-				// v4/v6: right stick only steers teammates (LT/RT). v3: RS specials still available.
+				// v4: right stick only steers teammates (LT/RT). v3: RS specials still available.
 				if (padProfile === "v3" && !ctrlR) {
 					if (rst.x < -.55) dpadMove = dpadMove || "shakeL";
 					if (rst.x > .55) dpadMove = dpadMove || "shakeR";
@@ -3432,26 +3127,24 @@ function remaining(group) {
 			if (btn(1)) spin = true;
 			if (btn(2)) dive = true;
 			if (btn(3)) {
-				if (padProfile === "v3") hurdle = true;
+				if (padProfile === "v4") truck = true;
+				else if (padProfile === "v3") hurdle = true;
 				else truck = true;
 			}
 			if (btn(4)) jukeL = true;
 			if (btn(5)) jukeR = true;
-			if (padProfile === "v6") {
-				if (btn(8)) stiffL = true;
-				if (btn(9)) stiffR = true;
-			} else if (padProfile !== "v3") {
+			if (padProfile !== "v3") {
 				if (btn(6) || gp.axes[2] !== void 0 && gp.axes[2] > .4) stiffL = true;
 				if (btn(7) || gp.axes[5] !== void 0 && gp.axes[5] > .4) stiffR = true;
 			}
-			if (btn(8) && padProfile !== "v6") celebrate = true;
+			if (btn(8)) celebrate = true;
 			if (padProfile === "basic") {
 				if (btn(9)) pausePress = true;
 			} else if (btn(11)) pausePress = true;
-			if (btn(9) && padProfile !== "basic" && padProfile !== "v6") peek = true;
+			if (btn(9) && padProfile !== "basic") peek = true;
 			const aNow = btn(0);
 			const sNow = btn(9);
-			if (aNow && !prevA || (sNow && !prevStart && padProfile !== "v6")) confirm = true;
+			if (aNow && !prevA || sNow && !prevStart) confirm = true;
 			prevA = aNow;
 			prevStart = sNow;
 		} else {
@@ -3466,7 +3159,7 @@ function remaining(group) {
 			if (bits.d) dy -= 1;
 			dpadMove = null;
 		}
-		if (padTeammate() && !gp) {
+		if ((padProfile === "v3" || padProfile === "v4") && !gp) {
 			if (ctrlL) {
 				blockLdx = dx;
 				blockLdy = dy;
@@ -4588,19 +4281,17 @@ function remaining(group) {
 			autoStartTimer = null;
 		}
 	}
-	function kitLabel(u) {
-		return "Kit " + ((u && u.id != null ? u.id : 0) + 1);
-	}
 	function syncAbbrFromOffense() {
+		const abbr = UNIFORMS[offUni]?.abbr || "DEN";
 		const el = $("teamAbbr");
-		if (el && !el.value) el.value = "EE";
+		if (el) el.value = abbr;
 		const ni = $("nameInput");
-		if (ni && !ni.value) ni.value = "EE";
+		if (ni) ni.value = abbr;
 	}
 	function getTeamAbbr() {
 		const el = $("teamAbbr");
-		if (!el) return "EE";
-		el.value = (el.value || "EE").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 3) || "EE";
+		if (!el) return "DEN";
+		el.value = (el.value || "DEN").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 3) || "DEN";
 		return el.value;
 	}
 	function rebuildWidthSelect() {
@@ -4627,12 +4318,12 @@ function remaining(group) {
 			UNIFORMS.forEach((u) => {
 				const o1 = document.createElement("option");
 				o1.value = String(u.id);
-				o1.textContent = kitLabel(u);
+				o1.textContent = u.abbr || ("Kit " + u.id);
 				if (u.id === offUni) o1.selected = true;
 				offSel.appendChild(o1);
 				const o2 = document.createElement("option");
 				o2.value = String(u.id);
-				o2.textContent = kitLabel(u);
+				o2.textContent = u.abbr || ("Kit " + u.id);
 				if (u.id === defUni) o2.selected = true;
 				defSel.appendChild(o2);
 			});
@@ -4646,7 +4337,7 @@ function remaining(group) {
 		btn.setAttribute("role", "option");
 		btn.setAttribute("aria-selected", selected ? "true" : "false");
 		btn.dataset.id = String(u.id);
-		btn.setAttribute("aria-label", kitLabel(u));
+		btn.title = u.abbr || ("Kit " + u.id);
 		const helm = document.createElement("div");
 		helm.className = "uni-helmet";
 		helm.style.background = u.helmet;
@@ -4745,8 +4436,7 @@ function remaining(group) {
 		gameSeconds = parseInt($("minSelect")?.value || "120", 10) || 120;
 		clock = gameSeconds;
 		if (defUni === offUni) {
-			const alt = UNIFORMS.find((u) => u.id !== offUni);
-			if (alt) defUni = alt.id;
+			defUni = offUni === 6 ? 0 : 6;
 		}
 		randomizeSurface();
 		rebuildUniformSelects();
@@ -4760,17 +4450,9 @@ function remaining(group) {
 		score = 0;
 		totalYards = 0;
 		tdCount = 0;
-		if (gameMode === "practice") {
-			const fixed = clamp(syncPracticeYardFromUI(), 1, 99);
-			practiceStartYard = fixed;
-			ballYard = fixed;
-			playStartYard = fixed;
-			driveStartYard = fixed;
-		} else {
-			ballYard = userToAbsolute(userStartYard);
-			playStartYard = ballYard;
-			driveStartYard = ballYard;
-		}
+		ballYard = userToAbsolute(userStartYard);
+		playStartYard = ballYard;
+		driveStartYard = ballYard;
 		ballX = (hashLeft() + hashRight()) / 2;
 		sprintCharge = 1;
 		sprintHoldT = 0;
@@ -4808,21 +4490,15 @@ function remaining(group) {
 		if (td) td.textContent = String(tdCount);
 		const clockEl = $("clock");
 		if (clockEl) {
-			if (gameMode === "practice") {
-				clockEl.textContent = "OFF";
-				clockEl.classList.remove("text-red-400", "font-bold", "clock-expired");
-			} else {
-				clockEl.textContent = formatClock(clock);
-				const expired = clock <= 0;
-				const low = clock > 0 && clock <= 10;
-				clockEl.classList.toggle("text-red-400", low || expired);
-				clockEl.classList.toggle("font-bold", low || expired);
-				clockEl.classList.toggle("clock-expired", expired && !sessionOver);
-			}
+			clockEl.textContent = formatClock(clock);
+			const expired = clock <= 0;
+			const low = clock > 0 && clock <= 10;
+			clockEl.classList.toggle("text-red-400", low || expired);
+			clockEl.classList.toggle("font-bold", low || expired);
+			clockEl.classList.toggle("clock-expired", expired && !sessionOver);
 		}
-		document.body.classList.toggle("practice-mode", gameMode === "practice");
 		const ps = $("padStatus");
-		if (ps) ps.textContent = padName ? "Pad · " + profileLabel(padProfile) : "Pad: — · " + profileLabel(padProfile);
+		if (ps) ps.textContent = padName ? "Pad · " + padProfile : "Pad: — · " + padProfile;
 	}
 	function loadScores() {
 		try {
@@ -4852,7 +4528,7 @@ function remaining(group) {
 	function tryAddScore(name, finalScore) {
 		let list = loadScores();
 		list.push({
-			name: (name || "EE").toUpperCase().slice(0, 3),
+			name: (name || "DEN").toUpperCase().slice(0, 3),
 			score: finalScore
 		});
 		list.sort((a, b) => b.score - a.score);
@@ -4868,13 +4544,13 @@ function remaining(group) {
 		const fs = $("finalScore");
 		if (fs) fs.textContent = String(score);
 		const ni = $("nameInput");
-		if (ni) ni.value = $("teamAbbr")?.value || "EE";
+		if (ni) ni.value = UNIFORMS[offUni]?.abbr || "DEN";
 		modalShow("nameModal", true);
 		ni?.focus();
 	}
 	function submitScore() {
 		clearAutoStart();
-		tryAddScore(($("nameInput")?.value || $("teamAbbr")?.value || "EE").toUpperCase().slice(0, 3), score);
+		tryAddScore(($("nameInput")?.value || UNIFORMS[offUni]?.abbr || "DEN").toUpperCase().slice(0, 3), score);
 		modalShow("nameModal", false);
 		if (gamesPlayed >= 5) modalShow("continueModal", true);
 		else fullRestart(true);
@@ -5023,6 +4699,7 @@ function remaining(group) {
 					practiceOffPlayIdPrev = practiceOffPlayId || (currentPlay && currentPlay.id) || null;
 				}
 				practiceOffPlayId = OFF_PLAYS[ni].id;
+				practiceFlipped = false;
 				const sel = $("practiceOffPlay");
 				if (sel) sel.value = practiceOffPlayId;
 				try { placeEntitiesForNewPlay(); } catch (err) { console.error(err); }
@@ -5048,7 +4725,7 @@ function remaining(group) {
 
 
 			function pickFocusedByIndex(n) {
-				// n is 1-6
+				// n is 1-8
 				const i = n - 1;
 				if (practiceFocusSide === "def") {
 					if (!DEF_SCHEMES[i]) return;
@@ -5067,6 +4744,7 @@ function remaining(group) {
 						practiceOffPlayIdPrev = practiceOffPlayId || (currentPlay && currentPlay.id) || null;
 					}
 					practiceOffPlayId = OFF_PLAYS[i].id;
+					practiceFlipped = false;
 					const sel = $("practiceOffPlay");
 					if (sel) sel.value = practiceOffPlayId;
 					try { placeEntitiesForNewPlay(); } catch (err) { console.error(err); }
@@ -5076,7 +4754,7 @@ function remaining(group) {
 				if (typeof refreshPracticePreviews === "function") refreshPracticePreviews();
 			}
 			let numPick = 0;
-			for (let n = 1; n <= 6; n++) {
+			for (let n = 1; n <= 8; n++) {
 				if (keys.has("Digit" + n) || keys.has("Numpad" + n)) { numPick = n; break; }
 			}
 			if (numPick && !practiceNumLatch) {
@@ -5118,6 +4796,7 @@ function remaining(group) {
 					if (m.match(inp)) {
 						practiceOffPlayIdPrev = practiceOffPlayId || (currentPlay && currentPlay.id) || null;
 						practiceOffPlayId = m.play.id;
+						practiceFlipped = false;
 						practiceAudibleArm = false;
 						const sel = $("practiceOffPlay");
 						if (sel) sel.value = practiceOffPlayId;
@@ -5257,7 +4936,7 @@ function remaining(group) {
 		if (!playActive) {
 			pauseTimer -= dt;
 			if (pauseTimer <= 0) {
-				if (clock <= 0 && gameMode !== "practice") {
+				if (clock <= 0) {
 					expireGame();
 					return;
 				}
@@ -5292,7 +4971,7 @@ function remaining(group) {
 			}
 			return;
 		}
-		if (gameMode !== "practice" && clock > 0 && preSnapTimer <= 0) {
+		if (clock > 0 && preSnapTimer <= 0) {
 			clock -= dt;
 			if (clock < 0) clock = 0;
 		}
@@ -5372,25 +5051,16 @@ function remaining(group) {
 		if (rb) {
 			const carrier = rb;
 			let spd = carrier.speed * offMult() * playSpeed;
-			if (!fatigueOn) {
-				sprintCharge = 1;
-				sprintHoldT = 0;
-				sprintExhausted = false;
-				if (inp.sprint) spd *= SPRINT_MULT;
-			} else if (inp.sprint && !sprintExhausted && sprintCharge > .06) {
+			if (inp.sprint && !sprintExhausted && sprintCharge > .06) {
 				const mix = .2 + .8 * sprintCharge;
 				spd *= 1 + (SPRINT_MULT - 1) * mix;
-				sprintHoldT += dt;
-				if (sprintHoldT >= SPRINT_GRACE) {
-					sprintCharge = Math.max(0, sprintCharge - .32 * dt);
-					if (sprintCharge <= .04) sprintExhausted = true;
-				}
+				sprintCharge = Math.max(0, sprintCharge - .32 * dt);
+				if (sprintCharge <= .04) sprintExhausted = true;
 			} else {
-				sprintHoldT = 0;
 				sprintCharge = Math.min(1, sprintCharge + (sprintExhausted ? .12 : .18) * dt);
 				if (sprintExhausted && sprintCharge >= .42) sprintExhausted = false;
 			}
-			if (fatigueOn && sprintExhausted) spd *= .86;
+			if (sprintExhausted) spd *= .86;
 			let clearBoost = 1;
 			breakaway = false;
 			if (handoffDone && !activeMove && defenders.length) {
@@ -5979,7 +5649,6 @@ function remaining(group) {
 				const ry = (d.zoneRy || 3.4) * 1.15;
 				tx = clamp(rb.x, (d.jobX || d.x) - rx, (d.jobX || d.x) + rx);
 				ty = clamp(rb.y + .8, (d.jobY || d.y) - ry, (d.jobY || d.y) + 2.2);
-				if (d.y >= 99 && rb.y < playStartYard + 1.2) ty = Math.max(ty, d.y - 0.4);
 			} else if (keepContain) {
 				const side = d.x < (fieldLeft() + fieldRight()) / 2 ? -1 : 1;
 				tx = rb.x * .55 + (side < 0 ? fieldLeft() + 2.4 : fieldRight() - 2.4) * .45;
@@ -6041,7 +5710,8 @@ function remaining(group) {
 			d.vy = my / Math.max(dt, .001);
 			turnToward(d, ang, dt, 10);
 			d.x = clamp(d.x, fieldLeft() + .8, fieldRight() - .8);
-			d.y = Math.min(d.y, 108.5);
+			if (d.isSafety || d.job === "deep") d.y = Math.min(d.y, 102);
+			else d.y = Math.min(d.y, 104.8);
 		});
 		if (tackleAnim) {
 			tackleAnim.timer -= dt;
@@ -6784,56 +6454,8 @@ function remaining(group) {
 	function stripeFill(yd) {
 		const stripe = Math.floor((yd + 1000) / 5) % 2 === 0;
 		if (surface === "grass") return stripe ? "#5d8f4a" : "#4e7d3e";
-		if (surface === "astroturf") return stripe ? "#32b056" : "#228a42";
-		return stripe ? "#1f5230" : "#143820";
-	}
-	function turfBase() {
-		if (surface === "grass") return "#4a753b";
-		if (surface === "astroturf") return "#278a42";
-		return "#163d24";
-	}
-	function fillWorldQuad(x0, y0, x1, y1, color, alpha) {
-		const a = project(x0, y0), b = project(x1, y0), c = project(x1, y1), d = project(x0, y1);
-		ctx.save();
-		if (alpha != null && alpha < 1) ctx.globalAlpha = alpha;
-		ctx.fillStyle = color;
-		ctx.beginPath();
-		ctx.moveTo(a.sx, a.sy);
-		ctx.lineTo(b.sx, b.sy);
-		ctx.lineTo(c.sx, c.sy);
-		ctx.lineTo(d.sx, d.sy);
-		ctx.closePath();
-		ctx.fill();
-		ctx.restore();
-	}
-	function fillTurfRange(y0, y1) {
-		const lo = Math.min(y0, y1), hi = Math.max(y0, y1);
-		const fl = fieldLeft(), fr = fieldRight();
-		const start = Math.floor(lo / 5) * 5;
-		for (let yd = start; yd < hi; yd += 5) {
-			const a = Math.max(yd, lo), b = Math.min(yd + 5, hi);
-			if (b <= a) continue;
-			fillWorldQuad(fl, a, fr, b, stripeFill(yd), 1);
-		}
-		const pat = getTurfPattern();
-		if (!pat) return;
-		const a = project(fl, lo), b = project(fr, lo), c = project(fr, hi), d = project(fl, hi);
-		ctx.save();
-		ctx.beginPath();
-		ctx.moveTo(a.sx, a.sy);
-		ctx.lineTo(b.sx, b.sy);
-		ctx.lineTo(c.sx, c.sy);
-		ctx.lineTo(d.sx, d.sy);
-		ctx.closePath();
-		ctx.clip();
-		ctx.globalAlpha = surface === "astroturf" ? 0.28 : surface === "grass" ? 0.2 : 0.32;
-		ctx.fillStyle = pat;
-		const minX = Math.min(a.sx, b.sx, c.sx, d.sx);
-		const maxX = Math.max(a.sx, b.sx, c.sx, d.sx);
-		const minY = Math.min(a.sy, b.sy, c.sy, d.sy);
-		const maxY = Math.max(a.sy, b.sy, c.sy, d.sy);
-		ctx.fillRect(minX, minY, maxX - minX, maxY - minY);
-		ctx.restore();
+		if (surface === "astroturf") return stripe ? "#2f9a4a" : "#278a42";
+		return stripe ? "#1a4a2c" : "#143d24";
 	}
 	function drawDiamondEndzone(yGoal, yBack, uni) {
 		const fl = fieldLeft(), fr = fieldRight();
@@ -6855,7 +6477,7 @@ function remaining(group) {
 			ctx.lineTo(L.sx, L.sy);
 			ctx.closePath();
 			ctx.fillStyle = i % 2 === 0 ? (uni.endPrimary || uni.jersey) : (uni.endSecondary || uni.helmet);
-			ctx.globalAlpha = .86;
+			ctx.globalAlpha = .62;
 			ctx.fill();
 			ctx.globalAlpha = .85;
 			ctx.strokeStyle = "rgba(255,255,255,0.5)";
@@ -6865,37 +6487,67 @@ function remaining(group) {
 		ctx.globalAlpha = 1;
 	}
 	function fillEzBackground(yGoal, yBack) {
-		fillTurfRange(yGoal, yBack);
+		const lo = Math.min(yGoal, yBack), hi = Math.max(yGoal, yBack);
+		if (surface === "grass") {
+			const a = project(fieldLeft(), yGoal), b = project(fieldRight(), yGoal), c = project(fieldRight(), yBack), d = project(fieldLeft(), yBack);
+			ctx.fillStyle = "#4e7d3e";
+			ctx.beginPath();
+			ctx.moveTo(a.sx, a.sy);
+			ctx.lineTo(b.sx, b.sy);
+			ctx.lineTo(c.sx, c.sy);
+			ctx.lineTo(d.sx, d.sy);
+			ctx.closePath();
+			ctx.fill();
+			return;
+		}
+		for (let yd = Math.floor(lo / 5) * 5; yd < hi; yd += 5) {
+			const y0 = Math.max(yd, lo), y1 = Math.min(yd + 5, hi);
+			const a = project(fieldLeft(), y0), b = project(fieldRight(), y0), c = project(fieldRight(), y1), d = project(fieldLeft(), y1);
+			ctx.fillStyle = stripeFill(yd);
+			ctx.beginPath();
+			ctx.moveTo(a.sx, a.sy);
+			ctx.lineTo(b.sx, b.sy);
+			ctx.lineTo(c.sx, c.sy);
+			ctx.lineTo(d.sx, d.sy);
+			ctx.closePath();
+			ctx.fill();
+		}
 	}
 	function drawMountainEndzoneWorld(yGoal, yBack, primary, secondary) {
 		const uni = getUni(fieldArtSide);
-		fillEzBackground(yGoal, yBack);
 		if (ezArtMode === "off") {
+			fillEzBackground(yGoal, yBack);
 			drawEzText(yGoal, yBack);
 			return;
 		}
 		if (ezArtMode === "solid") {
-			fillWorldQuad(fieldLeft(), yGoal, fieldRight(), yBack, uni.jersey || primary, 0.88);
+			const a = project(fieldLeft(), yGoal), b = project(fieldRight(), yGoal), c = project(fieldRight(), yBack), d = project(fieldLeft(), yBack);
+			ctx.fillStyle = uni.jersey || primary;
+			ctx.beginPath();
+			ctx.moveTo(a.sx, a.sy);
+			ctx.lineTo(b.sx, b.sy);
+			ctx.lineTo(c.sx, c.sy);
+			ctx.lineTo(d.sx, d.sy);
+			ctx.closePath();
+			ctx.fill();
 			drawEzText(yGoal, yBack);
 			return;
 		}
 		if (ezArtMode === "diamonds") {
+			fillEzBackground(yGoal, yBack);
 			drawDiamondEndzone(yGoal, yBack, uni);
 			drawEzText(yGoal, yBack);
 			return;
 		}
 		const fl = fieldLeft(), fr = fieldRight();
 		const a = project(fl, yGoal), b = project(fr, yGoal), c = project(fr, yBack), d = project(fl, yBack);
-		ctx.save();
+		ctx.fillStyle = primary;
 		ctx.beginPath();
 		ctx.moveTo(a.sx, a.sy);
 		ctx.lineTo(b.sx, b.sy);
 		ctx.lineTo(c.sx, c.sy);
 		ctx.lineTo(d.sx, d.sy);
 		ctx.closePath();
-		ctx.clip();
-		ctx.globalAlpha = 0.86;
-		ctx.fillStyle = primary;
 		ctx.fill();
 		const pts = [
 			[0, 0],
@@ -6910,7 +6562,6 @@ function remaining(group) {
 			[.94, .14],
 			[1, 0]
 		];
-		ctx.globalAlpha = 0.8;
 		ctx.fillStyle = secondary;
 		ctx.beginPath();
 		ctx.moveTo(a.sx, a.sy);
@@ -6921,7 +6572,6 @@ function remaining(group) {
 		ctx.lineTo(b.sx, b.sy);
 		ctx.closePath();
 		ctx.fill();
-		ctx.restore();
 		drawEzText(yGoal, yBack);
 	}
 	function drawEzText(yGoal, yBack) {
@@ -6972,7 +6622,7 @@ function remaining(group) {
 		ctx.translate(midP.sx, midP.sy);
 		ctx.rotate(ang + (logoFlip === 1 ? Math.PI / 2 : logoFlip === 2 ? -Math.PI / 2 : 0));
 		ctx.fillStyle = uni.logoFill || uni.helmet;
-		ctx.globalAlpha = .86;
+		ctx.globalAlpha = .4;
 		ctx.beginPath();
 		ctx.moveTo(-radX * 1.3, radY * .7);
 		ctx.lineTo(-radX * .5, -radY * .55);
@@ -6981,7 +6631,7 @@ function remaining(group) {
 		ctx.lineTo(radX * 1.3, radY * .7);
 		ctx.closePath();
 		ctx.fill();
-		ctx.globalAlpha = .95;
+		ctx.globalAlpha = .75;
 		ctx.beginPath();
 		ctx.ellipse(0, 0, radX, radY * .85, 0, 0, Math.PI * 2);
 		ctx.strokeStyle = uni.logoMark || uni.jersey;
@@ -6996,36 +6646,80 @@ function remaining(group) {
 		ctx.restore();
 		ctx.globalAlpha = 1;
 	}
-	function stepsToWorldPts(steps, ax, ay, sx, sy) {
-		sx = sx == null ? 8.4 : sx;
-		sy = sy == null ? 6.6 : sy;
-		let px = ax, py = ay;
-		const pts = [[px, py]];
-		(steps || []).forEach((st) => {
-			px += (st.dx || 0) * sx;
-			py += (st.dy || 0) * sy;
-			pts.push([px, py]);
-		});
-		return pts;
-	}
 	function playArrowWorld(play, ax, ay) {
-		if (play && play.steps && play.steps.length) {
-			const pts = stepsToWorldPts(play.steps, ax, ay);
-			return { type: pts.length >= 3 ? "poly" : "poly", pts };
-		}
-		if (play && play.arrow && play.arrow.length) {
-			let px = ax, py = ay;
-			const pts = [[px, py]];
-			play.arrow.forEach((dx) => {
-				px += dx * 6;
-				py += 5;
-				pts.push([px, py]);
-			});
-			return { type: "poly", pts };
-		}
-		return { type: "poly", pts: [[ax, ay], [ax, ay + 7]] };
+		const id = play.id;
+		if (id === "counterL") return {
+			type: "poly",
+			pts: [
+				[ax, ay],
+				[ax + 2.05, ay],
+				[ax - 1.6, ay + 8.2]
+			]
+		};
+		if (id === "counterR") return {
+			type: "poly",
+			pts: [
+				[ax, ay],
+				[ax - 2.05, ay],
+				[ax + 1.6, ay + 8.2]
+			]
+		};
+			if (id === "blastR") return {
+			type: "curve",
+			pts: [
+				[ax, ay],
+				[ax + 3.6, ay + 3.4],
+				[ax + 2.1, ay + 9]
+			]
+		};
+		if (id === "sweepL") return {
+			type: "curve",
+			pts: [
+				[ax, ay],
+				[ax - 6.6, ay + 1.7],
+				[ax - 8.4, ay + 7.3]
+			]
+		};
+		if (id === "sweepR") return {
+			type: "curve",
+			pts: [
+				[ax, ay],
+				[ax + 6.6, ay + 1.7],
+				[ax + 8.4, ay + 7.3]
+			]
+		};
+					if (id === "blastL") return {
+			type: "poly",
+			pts: [
+				[ax, ay],
+				[ax + 2.8, ay + 0.9],
+				[ax - 2.5, ay + 2.4],
+				[ax - 7.5, ay + 4.8],
+				[ax - 11.5, ay + 7.5],
+				[ax - 13.5, ay + 11.0]
+			]
+		};
+		if (id === "diveL") return {
+			type: "poly",
+			pts: [
+				[ax, ay],
+				[ax - 2.6, ay + 3.4],
+				[ax + 2.8, ay + 6.6],
+				[ax - 2.9, ay + 9.8],
+				[ax + 2.6, ay + 12.8],
+				[ax - 1.4, ay + 15.5]
+			]
+		};
+		if (id === "diveR") return {
+			type: "poly",
+			pts: [[ax, ay], [ax + 1.2, ay + 7.2]]
+		};
+		return {
+			type: "poly",
+			pts: [[ax, ay], [ax, ay + 7]]
+		};
 	}
-	function drawWorldPoly(pts, color, width, alpha, arrow, dashed) {
+	function drawWorldPoly(pts, color, width, alpha, arrow) {
 		if (!pts || pts.length < 2) return;
 		const scr = pts.map((p) => project(p[0], p[1]));
 		ctx.save();
@@ -7035,12 +6729,10 @@ function remaining(group) {
 		ctx.lineWidth = width;
 		ctx.lineCap = "round";
 		ctx.lineJoin = "round";
-		if (dashed) ctx.setLineDash([7, 5]);
 		ctx.beginPath();
 		ctx.moveTo(scr[0].sx, scr[0].sy);
 		for (let i = 1; i < scr.length; i++) ctx.lineTo(scr[i].sx, scr[i].sy);
 		ctx.stroke();
-		if (dashed) ctx.setLineDash([]);
 		if (arrow) {
 			const last = scr[scr.length - 1];
 			const prev = scr[scr.length - 2];
@@ -7157,16 +6849,49 @@ function remaining(group) {
 		if (a0 <= .02 && a1 <= .02) return;
 		const ax = playArtAnchor.x;
 		const ay = playArtAnchor.y;
-		if (currentPlay.altSteps && currentPlay.altSteps.length) {
-			const alt = { type: "poly", pts: stepsToWorldPts(currentPlay.altSteps, ax, ay) };
-			drawWorldPoly(alt.pts, "#FBBF24", 2.4, Math.max(a0, a1) * .7, true, true);
-		}
 		const art = playArrowWorld(currentPlay, ax, ay);
 		if (art.type === "curve") drawWorldCurve(art.pts, "#FBBF24", 3.2, a0, a1);
-		else drawWorldPoly(art.pts, "#FBBF24", 3.2, Math.max(a0, a1) * .9, true, false);
+		else drawWorldPoly(art.pts, "#FBBF24", 3.2, Math.max(a0, a1) * .9, true);
 	}
 	function drawPlayingSurface(sx0, fTop, sx1, fBot) {
-		fillTurfRange(0, 100);
+		const w = sx1 - sx0;
+		const h = fBot - fTop;
+		if (surface === "astroturf") {
+			ctx.fillStyle = "#00A651";
+			ctx.fillRect(sx0, fTop, w, h);
+			return;
+		}
+		if (surface === "grass") {
+			for (let yd = 0; yd < 100; yd += 5) {
+				const y0 = toScreenY(yd + 5);
+				const y1 = toScreenY(yd);
+				const stripe = yd / 5 % 2 === 0;
+				ctx.fillStyle = stripe ? "#5d8f4a" : "#4e7d3e";
+				ctx.fillRect(sx0, Math.min(y0, y1), w, Math.abs(y1 - y0) + .5);
+			}
+			const pat = getTurfPattern();
+			if (pat) {
+				ctx.save();
+				ctx.globalAlpha = .22;
+				fillWorldPattern(pat, sx0, fTop, w, h);
+				ctx.restore();
+			}
+			return;
+		}
+		for (let yd = 0; yd < 100; yd += 5) {
+			const y0 = toScreenY(yd + 5);
+			const y1 = toScreenY(yd);
+			const stripe = yd / 5 % 2 === 0;
+			ctx.fillStyle = stripe ? "#1a4a2c" : "#143d24";
+			ctx.fillRect(sx0, Math.min(y0, y1), w, Math.abs(y1 - y0) + .5);
+		}
+		const pat = getTurfPattern();
+		if (pat) {
+			ctx.save();
+			ctx.globalAlpha = .7;
+			fillWorldPattern(pat, sx0, fTop, w, h);
+			ctx.restore();
+		}
 	}
 	function fillWorldPattern(pat, sx0, fTop, w, h) {
 		const originY = toScreenY(0);
@@ -7184,46 +6909,44 @@ function remaining(group) {
 		if (turfPattern && turfPatternKey === key) return turfPattern;
 		turfPatternKey = key;
 		const tile = document.createElement("canvas");
-		tile.width = 64;
-		tile.height = 64;
+		tile.width = 48;
+		tile.height = 48;
 		const t = tile.getContext("2d");
 		if (!t) return null;
 		if (surface === "grass") {
-			t.fillStyle = "#466f38";
-			t.fillRect(0, 0, 64, 64);
-			for (let i = 0; i < 220; i++) {
-				const x = hash2(i, 3) * 64;
-				const y = hash2(i, 9) * 64;
-				t.fillStyle = hash2(i, 17) > .55 ? "#6a9a56" : "#35582c";
-				t.globalAlpha = 0.45 + hash2(i, 21) * 0.5;
-				t.fillRect(x, y, 1.2 + hash2(i, 5), 2.4 + hash2(i, 7) * 2.2);
+			t.fillStyle = "#4e7d3e";
+			t.fillRect(0, 0, 48, 48);
+			for (let i = 0; i < 70; i++) {
+				const x = hash2(i, 3) * 48;
+				const y = hash2(i, 9) * 48;
+				t.fillStyle = hash2(i, 17) > .5 ? "#6fa85a" : "#3d6a32";
+				t.fillRect(x, y, 1.8, 3.4);
 			}
-			t.globalAlpha = 1;
 		} else if (surface === "astroturf") {
 			// Old carpet turf: bright green + tight weave, almost no crumb rubber
 			t.fillStyle = "#2b9348";
-			t.fillRect(0, 0, 64, 64);
+			t.fillRect(0, 0, 48, 48);
 			t.strokeStyle = "rgba(18, 70, 32, 0.55)";
 			t.lineWidth = 1;
-			for (let x = 0; x <= 64; x += 3) {
-				t.beginPath(); t.moveTo(x + 0.5, 0); t.lineTo(x + 0.5, 64); t.stroke();
+			for (let x = 0; x <= 48; x += 3) {
+				t.beginPath(); t.moveTo(x + 0.5, 0); t.lineTo(x + 0.5, 48); t.stroke();
 			}
 			t.strokeStyle = "rgba(12, 55, 26, 0.4)";
-			for (let y = 0; y <= 64; y += 3) {
-				t.beginPath(); t.moveTo(0, y + 0.5); t.lineTo(64, y + 0.5); t.stroke();
+			for (let y = 0; y <= 48; y += 3) {
+				t.beginPath(); t.moveTo(0, y + 0.5); t.lineTo(48, y + 0.5); t.stroke();
 			}
 			t.fillStyle = "rgba(180, 230, 160, 0.18)";
-			t.fillRect(0, 0, 64, 64);
+			t.fillRect(0, 0, 48, 48);
 		} else {
 			// Field turf: dark modern turf + crumb-rubber speckle
 			t.fillStyle = "#163d24";
-			t.fillRect(0, 0, 64, 64);
+			t.fillRect(0, 0, 48, 48);
 			t.fillStyle = "#0a0a0a";
-			for (let i = 0; i < 160; i++) {
-				const x = hash2(i + 40, 5) * 64;
-				const y = hash2(i + 40, 11) * 64;
-				const r = .5 + hash2(i, 19) * 1.2;
-				t.globalAlpha = .5 + hash2(i, 23) * .45;
+			for (let i = 0; i < 90; i++) {
+				const x = hash2(i + 40, 5) * 48;
+				const y = hash2(i + 40, 11) * 48;
+				const r = .6 + hash2(i, 19) * 1.15;
+				t.globalAlpha = .55 + hash2(i, 23) * .4;
 				t.beginPath();
 				t.arc(x, y, r, 0, Math.PI * 2);
 				t.fill();
@@ -7443,15 +7166,15 @@ function remaining(group) {
 			const idx = Math.max(0, DEF_SCHEMES.findIndex((s) => s.id === (practiceDefSchemeId || (currentScheme && currentScheme.id))));
 			const scheme = DEF_SCHEMES[idx] || currentScheme;
 			if (numEl) numEl.textContent = scheme ? String(idx + 1) : "";
-			if (label) label.textContent = scheme ? scheme.name + (practiceDefFlipped ? " ⇄" : "") : "Defense";
+			if (label) label.textContent = scheme ? scheme.name : "Defense";
 			if (btn) {
 				const hit = getDefAudibleMap().find((m) => m.scheme && scheme && m.scheme.id === scheme.id);
 				btn.textContent = hit ? hit.label : "";
 				btn.style.display = hit ? "" : "none";
 			}
 		} else {
-			const stockId = practiceOffPlayId || (currentPlay && currentPlay.baseId) || (currentPlay && currentPlay.id) || "";
-			const idx = Math.max(0, OFF_PLAYS.findIndex((p) => p.id === stockId));
+			const id = practiceOffPlayId || (currentPlay && currentPlay.id) || "";
+			const idx = Math.max(0, OFF_PLAYS.findIndex((p) => p.id === id));
 			const play = OFF_PLAYS[idx] || currentPlay;
 			if (numEl) numEl.textContent = play ? String(idx + 1) : "";
 			if (label) label.textContent = play ? play.name + (practiceFlipped ? " ⇄" : "") : "Offense";
@@ -7502,17 +7225,15 @@ function drawMiniPreview(canvas, kind) {
 			c.lineWidth = 1;
 			c.stroke();
 		}
-		function arrow(x0w, y0w, x1w, y1w, color, dashed) {
+		function arrow(x0w, y0w, x1w, y1w, color) {
 			const a = { x: toPX(x0w), y: toPY(y0w) };
 			const b = { x: toPX(x1w), y: toPY(y1w) };
 			c.strokeStyle = color;
-			c.lineWidth = dashed ? 1.25 : 1.5;
-			if (dashed) c.setLineDash([5, 4]);
+			c.lineWidth = 1.5;
 			c.beginPath();
 			c.moveTo(a.x, a.y);
 			c.lineTo(b.x, b.y);
 			c.stroke();
-			c.setLineDash([]);
 			const ang = Math.atan2(b.y - a.y, b.x - a.x);
 			c.beginPath();
 			c.moveTo(b.x, b.y);
@@ -7612,28 +7333,21 @@ function drawMiniPreview(canvas, kind) {
 			});
 			if (rb) {
 				dot(rb.x, rb.y, "#fb4f14", 4.5);
-				function drawStepPath(steps, color, dashed) {
-					if (!steps || !steps.length) return;
+				if (currentPlay && currentPlay.steps && currentPlay.steps.length) {
 					let px = rb.x, py = rb.y;
-					steps.forEach((st) => {
-						const nx = px + (st.dx || 0) * 9;
-						const ny = py + (st.dy || 0) * 7;
-						arrow(px, py, nx, ny, color, dashed);
+					currentPlay.steps.forEach((s) => {
+						const nx = px + (s.dx || 0) * 9;
+						const ny = py + (s.dy || 0) * 7;
+						arrow(px, py, nx, ny, "#fb4f14");
 						px = nx; py = ny;
 					});
-				}
-				if (currentPlay && currentPlay.altSteps && currentPlay.altSteps.length) {
-					drawStepPath(currentPlay.altSteps, "rgba(251,191,36,0.8)", true);
-				}
-				if (currentPlay && currentPlay.steps && currentPlay.steps.length) {
-					drawStepPath(currentPlay.steps, "#fb4f14", false);
 				} else if (currentPlay && currentPlay.arrow) {
 					const a = currentPlay.arrow;
 					let px = rb.x, py = rb.y;
 					a.forEach((dx) => {
 						const nx = px + dx * 6;
 						const ny = py + 5;
-						arrow(px, py, nx, ny, "#fb4f14", false);
+						arrow(px, py, nx, ny, "#fb4f14");
 						px = nx; py = ny;
 					});
 				}
@@ -7702,6 +7416,7 @@ function drawMiniPreview(canvas, kind) {
 			row.appendChild(btn);
 			row.onclick = () => {
 				practiceOffPlayId = p.id;
+				practiceFlipped = false;
 				const sel = $("practiceOffPlay");
 				if (sel) sel.value = p.id;
 				try { placeEntitiesForNewPlay(); } catch (err) { console.error(err); }
@@ -7931,82 +7646,6 @@ function drawMiniPreview(canvas, kind) {
 		}
 		ctx.restore();
 	}
-	function drawSky() {
-		const g = ctx.createLinearGradient(0, 0, 0, canvas.height);
-		g.addColorStop(0, "#0c1828");
-		g.addColorStop(0.38, "#1c3144");
-		g.addColorStop(0.68, "#2e4650");
-		g.addColorStop(1, "#1a2c2a");
-		ctx.fillStyle = g;
-		ctx.fillRect(0, 0, canvas.width, canvas.height);
-	}
-	function drawVenueBehind() {
-		const fl = fieldLeft(), fr = fieldRight();
-		const midX = (fl + fr) / 2;
-		function deck(y0, y1, pad0, pad1, fill) {
-			const a = project(fl - pad0, y0), b = project(fr + pad0, y0);
-			const c = project(fr + pad1, y1), d = project(fl - pad1, y1);
-			ctx.beginPath();
-			ctx.moveTo(a.sx, a.sy);
-			ctx.lineTo(b.sx, b.sy);
-			ctx.lineTo(c.sx, c.sy);
-			ctx.lineTo(d.sx, d.sy);
-			ctx.closePath();
-			ctx.fillStyle = fill;
-			ctx.fill();
-			ctx.strokeStyle = "rgba(8,12,14,0.35)";
-			ctx.lineWidth = 1;
-			ctx.stroke();
-			ctx.strokeStyle = "rgba(255,255,255,0.06)";
-			for (let i = 1; i <= 3; i++) {
-				const t = i / 4;
-				const y = y0 + (y1 - y0) * t;
-				const p = pad0 + (pad1 - pad0) * t;
-				const l = project(fl - p, y), r = project(fr + p, y);
-				ctx.beginPath();
-				ctx.moveTo(l.sx, l.sy);
-				ctx.lineTo(r.sx, r.sy);
-				ctx.stroke();
-			}
-		}
-		ctx.save();
-		const hill = [
-			[0, 16], [12, 34], [24, 20], [38, 46], [52, 22], [66, 52], [80, 26], [92, 40], [100, 18]
-		];
-		ctx.beginPath();
-		const hStart = project(fl - 24, 116);
-		ctx.moveTo(hStart.sx, hStart.sy);
-		hill.forEach(([xf, h]) => {
-			const p = project(fl + (fr - fl) * (xf / 100), 118);
-			ctx.lineTo(p.sx, p.sy - h * 1.35);
-		});
-		const hEnd = project(fr + 24, 116);
-		ctx.lineTo(hEnd.sx, hEnd.sy);
-		ctx.closePath();
-		ctx.fillStyle = "#1a2832";
-		ctx.fill();
-		deck(111.2, 122.5, 6, 11, "#2a3338");
-		deck(122.5, 135, 11, 16, "#232b30");
-		deck(-11.2, -20.5, 5, 9, "#252c30");
-		deck(-20.5, -29, 9, 13, "#1e2528");
-		const board = project(midX, 141);
-		if (board.sy > -80 && board.sy < canvas.height + 40) {
-			const sc = Math.max(0.7, board.sc || 1);
-			const bw = 168 * sc, bh = 42 * sc;
-			ctx.fillStyle = "#12181c";
-			ctx.fillRect(board.sx - bw / 2, board.sy - bh, bw, bh);
-			ctx.strokeStyle = "#fb4f14";
-			ctx.lineWidth = 1.6 * sc;
-			ctx.strokeRect(board.sx - bw / 2, board.sy - bh, bw, bh);
-			ctx.fillStyle = "#e8ece6";
-			ctx.font = "bold " + Math.max(11, 15 * sc) + "px Barlow Condensed, sans-serif";
-			ctx.textAlign = "center";
-			ctx.textBaseline = "middle";
-			const clk = gameMode === "practice" ? "OFF" : formatClock(clock);
-			ctx.fillText("EE  " + score + "     " + clk, board.sx, board.sy - bh * 0.52);
-		}
-		ctx.restore();
-	}
 	function draw() {
 		let savedLive = null;
 		if (fullReplay && fullReplay.frames[fullReplay.i]) {
@@ -8032,7 +7671,8 @@ function drawMiniPreview(canvas, kind) {
 			fumbleSeq = f.fumbleSeq;
 		}
 		ctx.setTransform(1, 0, 0, 1, 0, 0);
-		drawSky();
+		ctx.fillStyle = "#0a0a0a";
+		ctx.fillRect(0, 0, canvas.width, canvas.height);
 		if (scoreSeq && (scoreSeq.who === "off" || scoreSeq.who === "def")) {
 			const jersey = getUni(scoreSeq.who).jersey || (scoreSeq.who === "def" ? "#E31837" : "#FB4F14");
 			ctx.fillStyle = jersey;
@@ -8078,9 +7718,16 @@ function drawMiniPreview(canvas, kind) {
 		}
 		const uni = getUni(fieldArtSide);
 		const fl = fieldLeft(), fr = fieldRight();
-		drawVenueBehind();
 		function fillBand(y0, y1, color) {
-			fillWorldQuad(fl, y0, fr, y1, color, 1);
+			const a = project(fl, y0), b = project(fr, y0), c = project(fr, y1), d = project(fl, y1);
+			ctx.fillStyle = color;
+			ctx.beginPath();
+			ctx.moveTo(a.sx, a.sy);
+			ctx.lineTo(b.sx, b.sy);
+			ctx.lineTo(c.sx, c.sy);
+			ctx.lineTo(d.sx, d.sy);
+			ctx.closePath();
+			ctx.fill();
 		}
 		function strokeWorld(x0, y0, x1, y1, color, width) {
 			const a = project(x0, y0), b = project(x1, y1);
@@ -8091,39 +7738,55 @@ function drawMiniPreview(canvas, kind) {
 			ctx.lineTo(b.sx, b.sy);
 			ctx.stroke();
 		}
-		fillTurfRange(0, 100);
-		drawMountainEndzoneWorld(0, -10, uni.endPrimary, uni.endSecondary);
-		drawMountainEndzoneWorld(100, 110, uni.endPrimary, uni.endSecondary);
-		function strokePaint(x0, y0, x1, y1, paint, width) {
-			strokeWorld(x0, y0, x1, y1, "rgba(12,20,16,0.75)", width + 1.4);
-			strokeWorld(x0, y0, x1, y1, paint, width);
+		if (cameraMode === "top") {
+			const sx0 = fl * SCALE_X, sx1 = fr * SCALE_X;
+			const fieldTop = toScreenY(100);
+			const fieldBot = toScreenY(0);
+			drawPlayingSurface(sx0, Math.min(fieldTop, fieldBot), sx1, Math.max(fieldTop, fieldBot));
+			drawMountainEndzoneWorld(0, -10, uni.endPrimary, uni.endSecondary);
+			drawMountainEndzoneWorld(100, 110, uni.endPrimary, uni.endSecondary);
+		} else {
+			drawMountainEndzoneWorld(0, -10, uni.endPrimary, uni.endSecondary);
+			drawMountainEndzoneWorld(100, 110, uni.endPrimary, uni.endSecondary);
+			for (let yd = 0; yd < 100; yd += 5) {
+				fillBand(yd, yd + 5, stripeFill(yd));
+			}
+			const patIso = getTurfPattern();
+			if (patIso) {
+				ctx.save();
+				ctx.globalAlpha = surface === "astroturf" ? .42 : surface === "grass" ? .16 : .55;
+				const a = project(fl, 0), b = project(fr, 0), c = project(fr, 100), d = project(fl, 100);
+				ctx.beginPath();
+				ctx.moveTo(a.sx, a.sy); ctx.lineTo(b.sx, b.sy); ctx.lineTo(c.sx, c.sy); ctx.lineTo(d.sx, d.sy);
+				ctx.closePath();
+				ctx.fillStyle = patIso;
+				ctx.fill();
+				ctx.restore();
+			}
 		}
-		strokePaint(fl, -10, fr, -10, "rgba(236,240,230,0.55)", 2);
-		strokePaint(fl, 110, fr, 110, "rgba(236,240,230,0.6)", 2);
+		strokeWorld(fl, -10, fr, -10, "rgba(255,255,255,0.45)", 2);
+		strokeWorld(fl, 110, fr, 110, "rgba(255,255,255,0.55)", 2);
 		for (let yd = 0; yd <= 100; yd += 5) {
-			const isTen = yd % 10 === 0;
-			strokePaint(fl, yd, fr, yd, isTen ? "rgba(236,240,230,0.5)" : "rgba(236,240,230,0.28)", isTen ? 1.35 : 1.05);
+			strokeWorld(fl, yd, fr, yd, "rgba(255,255,255,0.28)", 1.2);
 			const label = yd === 0 || yd === 100 ? "G" : String(yd > 50 ? 100 - yd : yd);
+			const isTen = yd % 10 === 0;
 			const numY = yd === 0 || yd === 5 || yd === 95 || yd === 100 ? yd + (yd < 50 ? .4 : yd > 50 ? -.4 : 0) : yd;
 			const lp = project(fl + 1.4, numY);
 			const rp = project(fr - 1.4, numY);
+			ctx.fillStyle = isTen ? "rgba(255,255,255,0.7)" : "rgba(255,255,255,0.42)";
 			ctx.font = (isTen ? "11px" : "9px") + " IBM Plex Sans, sans-serif";
 			ctx.textAlign = "center";
 			ctx.textBaseline = "middle";
-			ctx.lineJoin = "round";
-			ctx.lineWidth = isTen ? 3.2 : 2.6;
-			function paintNum(p, rot) {
-				ctx.save();
-				ctx.translate(p.sx, p.sy);
-				ctx.rotate(rot);
-				ctx.strokeStyle = "rgba(12,20,16,0.82)";
-				ctx.strokeText(label, 0, 0);
-				ctx.fillStyle = isTen ? "rgba(236,240,230,0.82)" : "rgba(236,240,230,0.55)";
-				ctx.fillText(label, 0, 0);
-				ctx.restore();
-			}
-			paintNum(lp, -Math.PI / 2);
-			paintNum(rp, Math.PI / 2);
+			ctx.save();
+			ctx.translate(lp.sx, lp.sy);
+			ctx.rotate(-Math.PI / 2);
+			ctx.fillText(label, 0, 0);
+			ctx.restore();
+			ctx.save();
+			ctx.translate(rp.sx, rp.sy);
+			ctx.rotate(Math.PI / 2);
+			ctx.fillText(label, 0, 0);
+			ctx.restore();
 		}
 		const hashXs = [
 			fl,
@@ -8142,7 +7805,7 @@ function drawMiniPreview(canvas, kind) {
 			9
 		]) {
 			const y = decade + off;
-			for (const hx of hashXs) strokePaint(hx, y, hx + (hx === fl ? .7 : hx === fr ? -.7 : .35), y, "rgba(236,240,230,0.48)", 1.15);
+			for (const hx of hashXs) strokeWorld(hx, y, hx + (hx === fl ? .7 : hx === fr ? -.7 : .35), y, "rgba(255,255,255,0.4)", 1.2);
 		}
 		drawMidfieldLogo();
 		function drawPylon(yardY, side) {
@@ -8163,40 +7826,37 @@ function drawMiniPreview(canvas, kind) {
 		drawPylon(110, "L");
 		drawPylon(110, "R");
 		{
-			const midX = (fl + fr) / 2;
-			const postHalf = FIELD_WIDTH * .11;
+			const base = project((fl + fr) / 2, 110);
+			const leftU = project((fl + fr) / 2 - FIELD_WIDTH * .11, 110);
+			const rightU = project((fl + fr) / 2 + FIELD_WIDTH * .11, 110);
+			const h = 74 * (base.sc || 1);
 			ctx.strokeStyle = "#facc15";
 			ctx.lineWidth = 3.2;
 			ctx.lineCap = "round";
-			if (cameraMode === "top") {
-				const stem = 3.2;
-				const postH = 6.6;
-				strokeWorld(midX, 110, midX, 110 + stem, "#facc15", 3.2);
-				strokeWorld(midX - postHalf, 110 + stem, midX + postHalf, 110 + stem, "#facc15", 3.2);
-				strokeWorld(midX - postHalf, 110 + stem, midX - postHalf, 110 + stem + postH, "#facc15", 3.2);
-				strokeWorld(midX + postHalf, 110 + stem, midX + postHalf, 110 + stem + postH, "#facc15", 3.2);
-			} else {
-				const base = project(midX, 110);
-				const leftU = project(midX - postHalf, 110);
-				const rightU = project(midX + postHalf, 110);
-				const h = 74 * (base.sc || 1);
-				ctx.beginPath();
-				ctx.moveTo(base.sx, base.sy);
-				ctx.lineTo(base.sx, base.sy - h * .5);
-				ctx.moveTo(leftU.sx, leftU.sy - h * .5);
-				ctx.lineTo(rightU.sx, rightU.sy - h * .5);
-				ctx.moveTo(leftU.sx, leftU.sy - h * .5);
-				ctx.lineTo(leftU.sx, leftU.sy - h * 1.38);
-				ctx.moveTo(rightU.sx, rightU.sy - h * .5);
-				ctx.lineTo(rightU.sx, rightU.sy - h * 1.38);
-				ctx.stroke();
-			}
+			ctx.beginPath();
+			ctx.moveTo(base.sx, base.sy);
+			ctx.lineTo(base.sx, base.sy - h * .5);
+			ctx.moveTo(leftU.sx, base.sy - h * .5);
+			ctx.lineTo(rightU.sx, base.sy - h * .5);
+			ctx.moveTo(leftU.sx, base.sy - h * .5);
+			ctx.lineTo(leftU.sx, base.sy - h * 1.38);
+			ctx.moveTo(rightU.sx, base.sy - h * .5);
+			ctx.lineTo(rightU.sx, base.sy - h * 1.38);
+			ctx.stroke();
 		}
 		strokeWorld(fl, playStartYard, fr, playStartYard, "#3b82f6", 2.6);
 		strokeWorld(fl, 0, fl, 100, "rgba(255,255,255,0.4)", 2.5);
 		strokeWorld(fr, 0, fr, 100, "rgba(255,255,255,0.4)", 2.5);
-		strokeWorld(fl, 20, fl, 80, "rgba(236,240,230,0.92)", Math.max(5, SCALE_X * .28));
-		strokeWorld(fr, 20, fr, 80, "rgba(236,240,230,0.92)", Math.max(5, SCALE_X * .28));
+		strokeWorld(fl, 20, fl, 80, "rgba(255,255,255,0.92)", Math.max(5, SCALE_X * .28));
+		strokeWorld(fr, 20, fr, 80, "rgba(255,255,255,0.92)", Math.max(5, SCALE_X * .28));
+		drawHandoffBall();
+		drawRunnerTrail();
+
+		if (fullReplay && fullReplay.frames[fullReplay.i] && fullReplay.frames[fullReplay.i].trail) {
+			strokeTrailWorld(fullReplay.frames[fullReplay.i].trail);
+		}
+		drawRouteArrow();
+		drawPlayArt();
 		if (qb && qb.active && !blockers.includes(qb)) drawPlayer(qb, false);
 		blockers.forEach((b) => {
 			if (b.active) drawPlayer(b, false);
@@ -8213,13 +7873,6 @@ function drawMiniPreview(canvas, kind) {
 			const bp = project(scoreSeq.ballX, scoreSeq.ballY);
 			drawFootball(bp.sx, bp.sy - scoreSeq.ballHop * SCALE_Y * .45, br, scoreSeq.t * 8);
 		}
-		drawHandoffBall();
-		drawRunnerTrail();
-		if (fullReplay && fullReplay.frames[fullReplay.i] && fullReplay.frames[fullReplay.i].trail) {
-			strokeTrailWorld(fullReplay.frames[fullReplay.i].trail);
-		}
-		drawRouteArrow();
-		drawPlayArt();
 		ctx.restore();
 		if (splitOn) ctx.restore();
 		if (savedLive) {
@@ -8375,18 +8028,6 @@ function drawMiniPreview(canvas, kind) {
 		if (trailEl) {
 			showRunnerTrail = !!trailEl.checked;
 			trailEl.addEventListener("change", () => { showRunnerTrail = !!trailEl.checked; });
-		}
-		const fatigueEl = $("fatigueToggle");
-		if (fatigueEl) {
-			fatigueOn = !!fatigueEl.checked;
-			fatigueEl.addEventListener("change", () => {
-				fatigueOn = !!fatigueEl.checked;
-				if (!fatigueOn) {
-					sprintCharge = 1;
-					sprintHoldT = 0;
-					sprintExhausted = false;
-				}
-			});
 		}
 		const speedTrailEl = $("speedTrailToggle");
 		if (speedTrailEl) {
@@ -8571,23 +8212,19 @@ function drawMiniPreview(canvas, kind) {
 		}
 		populatePracticeSelects();
 		practiceAwaitSnap = true;
+		practiceFlipped = false;
 		practiceAudibleArm = false;
-		if (gameMode !== "practice") resetSessionClock();
+		resetSessionClock();
 		randomizeCamCorner();
-		document.body.classList.toggle("practice-mode", gameMode === "practice");
+		cameraMode = "high";
+		const camSel = $("cameraSelect");
+		if (camSel) camSel.value = "high";
 		if (gameMode === "practice") {
 			applyPracticeLosNow();
-			updateHUD();
 		} else {
 			syncStartYardFromUI();
-			ballYard = userToAbsolute(userStartYard);
-			playStartYard = ballYard;
-			driveStartYard = ballYard;
 			playActive = false;
 			practiceAwaitSnap = true;
-			resetSessionClock();
-			try { placeEntitiesForNewPlay(); } catch (err) { console.error(err); }
-			updateHUD();
 		}
 		if (typeof refreshPracticePreviews === "function") refreshPracticePreviews();
 	}
@@ -8599,6 +8236,7 @@ function drawMiniPreview(canvas, kind) {
 	const pop = $("practiceOffPlay");
 	if (pop) pop.onchange = (e) => {
 		practiceOffPlayId = e.target.value;
+		practiceFlipped = false;
 		if (!playActive) {
 			try { placeEntitiesForNewPlay(); } catch (err) { console.error(err); }
 		}
@@ -8656,20 +8294,10 @@ function drawMiniPreview(canvas, kind) {
 	wireStrengthSlider("breakTackleSlider", "breakTackleLabel", () => breakTackle, (v) => { breakTackle = v; });
 	const fumCheck = $("fumblesCheck");
 	const fumLab = $("fumblesLabel");
-	function syncFumblesForProfile() {
-		if (padProfile === "v6") {
-			fumblesOn = false;
-			if (fumCheck) fumCheck.checked = false;
-			if (fumLab) fumLab.textContent = "Off";
-		}
-	}
 	if (fumCheck) {
 		fumblesOn = fumCheck.checked;
 		fumCheck.onchange = () => {
-			if (padProfile === "v6") {
-				fumCheck.checked = false;
-				fumblesOn = false;
-			} else fumblesOn = fumCheck.checked;
+			fumblesOn = fumCheck.checked;
 			if (fumLab) fumLab.textContent = fumblesOn ? "On" : "Off";
 		};
 	}
@@ -8740,11 +8368,9 @@ function drawMiniPreview(canvas, kind) {
 	syncCamCornerUi();
 	const profSel = $("profileSelect");
 	if (profSel) {
-		padProfile = profSel.value || "v6";
-		syncFumblesForProfile();
+		padProfile = profSel.value || "v4";
 		profSel.onchange = () => {
-			padProfile = profSel.value || "v6";
-			syncFumblesForProfile();
+			padProfile = profSel.value || "v4";
 		};
 	}
 	const swapCheck = $("swapStickDpadCheck");
@@ -8766,6 +8392,19 @@ function drawMiniPreview(canvas, kind) {
 	}
 	const modeSel = $("modeSelect");
 	if (modeSel) {
+		gameMode = modeSel.value || "practice";
+		modeSel.addEventListener("change", () => {
+			gameMode = modeSel.value || "practice";
+			const np = $("nextPlaySelect");
+			if (np) {
+				// defaults: practice → on snap, game → automatic
+				np.value = "snap";
+				nextPlayOnSnap = true;
+			}
+			const pc = $("practiceControls");
+			if (pc) pc.classList.remove("hidden");
+			if (typeof refreshPracticePreviews === "function") refreshPracticePreviews();
+		});
 		const pc0 = $("practiceControls");
 		if (pc0) pc0.classList.remove("hidden");
 	}
@@ -8822,31 +8461,6 @@ function drawMiniPreview(canvas, kind) {
 		getPlayArt: () => playArtMode,
 		getReplayReady: () => lastPlayFrames.length,
 		getCamera: () => cameraMode,
-		getCamDebug: () => ({
-			mode: cameraMode,
-			skew: camSpec().skew,
-			xLean: camSpec().xLean,
-			yScale: camSpec().yScale,
-			a: project(0, 50),
-			b: project(FIELD_WIDTH, 50),
-			c: project(0, 60)
-		}),
-		getSnapState: () => ({
-			play: currentPlay && (currentPlay.baseId || currentPlay.id),
-			scheme: currentScheme && currentScheme.id,
-			yard: playStartYard,
-			steps: currentPlay && currentPlay.steps ? currentPlay.steps.map((s) => ({ dx: s.dx, dy: s.dy, t: s.t })) : [],
-			altSteps: currentPlay && currentPlay.altSteps ? currentPlay.altSteps.map((s) => ({ dx: s.dx, dy: s.dy, t: s.t })) : null,
-			pad: padProfile,
-			awaitSnap: !!practiceAwaitSnap,
-			sprintCharge,
-			sprintHoldT,
-			sprintExhausted,
-			fatigue: fatigueOn,
-			defYs: (defenders || []).map((d) => +Number(d.y).toFixed(2)),
-			jobYs: (defenders || []).map((d) => d.jobY == null ? null : +Number(d.jobY).toFixed(2)),
-			hash: [hashLeft(), hashRight()].map((v) => +Number(v).toFixed(2))
-		}),
 		getSpikeStyle: () => scoreSeq?.spikeStyle || null,
 		getEzArt: () => ezArtMode,
 		setEzArt: (v) => {

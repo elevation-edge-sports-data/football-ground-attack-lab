@@ -1,4 +1,4 @@
-/* Football Ground Attack Lab v6 */
+/* Football Ground Attack Lab v3 */
 :root {
   --color-bg: #0c1410;
   --color-surface: #161c18;
@@ -922,24 +922,3 @@ details[open] > summary span {
 .los-mode { font-size:11px; padding:2px 6px; }
 .los-mode.on { background:#fb4f14; border-color:#fb4f14; color:#111; font-weight:600; }
 .los-post-row { align-items:flex-start; }
-
-body.practice-mode #clockWrap {
-  opacity: 0.38;
-  letter-spacing: 0.04em;
-}
-body.practice-mode #clockRow {
-  opacity: 0.45;
-  pointer-events: none;
-}
-.prev-flip {
-  margin-left: 4px;
-  font-size: 0.78rem;
-  letter-spacing: 0;
-  color: inherit;
-  opacity: 0.95;
-}
-.practice-play-list .play-item .play-flip {
-  font-size: 0.72rem;
-  opacity: 0.8;
-  margin-left: 4px;
-}

@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Football Ground Attack Lab</title>
-  <meta name="description" content="Practice lab: 6 offense × 6 defense. Make defenders miss." />
+  <meta name="description" content="Customizable running-back drill. Make defenders miss." />
   <meta name="theme-color" content="#0c1410" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -15,25 +15,24 @@
   <main class="lab-main">
     <header class="lab-header">
       <div>
-        <p class="lab-eyebrow">Elevation Edge · v6</p>
+        <p class="lab-eyebrow">Elevation Edge · v5</p>
         <h1>Football Ground Attack Lab</h1>
       </div>
             <nav class="lab-versions" aria-label="Version archive">
         <span class="lab-versions-label">Archive</span>
-        <a href="https://elevation-edge-sports-data.github.io/football-ground-attack-lab/archive/v0.html" target="_blank" rel="noreferrer">v0</a>
-        <a href="https://elevation-edge-sports-data.github.io/football-ground-attack-lab/archive/v1.html" target="_blank" rel="noreferrer">v1</a>
-        <a href="https://elevation-edge-sports-data.github.io/football-ground-attack-lab/archive/v2.html" target="_blank" rel="noreferrer">v2</a>
-        <a href="https://elevation-edge-sports-data.github.io/football-ground-attack-lab/archive/v3/index.html" target="_blank" rel="noreferrer">v3</a>
-        <a href="https://elevation-edge-sports-data.github.io/football-ground-attack-lab/archive/v4/index.html" target="_blank" rel="noreferrer">v4</a>
-        <a href="https://elevation-edge-sports-data.github.io/football-ground-attack-lab/index.html" target="_blank" rel="noreferrer">v5</a>
-        <a href="index.html" aria-current="page">v6</a>
+        <a href="archive/v0.html" target="_blank" rel="noreferrer">v0</a>
+        <a href="archive/v1.html" target="_blank" rel="noreferrer">v1</a>
+        <a href="archive/v2.html" target="_blank" rel="noreferrer">v2</a>
+        <a href="archive/v3/index.html" target="_blank" rel="noreferrer">v3</a>
+        <a href="archive/v4/index.html" target="_blank" rel="noreferrer">v4</a>
+        <a href="index.html" aria-current="page">v5</a>
         <a href="https://github.com/elevation-edge-sports-data/football-ground-attack-lab" target="_blank" rel="noreferrer">GitHub</a>
       </nav>
     </header>
 
     <div id="hud" class="lab-hud">
       <div>Score: <span id="score">0</span></div>
-      <div id="clockWrap">Clock: <span id="clock">2:00</span></div>
+      <div>Clock: <span id="clock">2:00</span></div>
       <div class="lab-muted">Yards: <span id="totalYards">0</span></div>
       <div class="lab-muted">TDs: <span id="tdCount">0</span></div>
       <div class="lab-muted">Ball on: <span id="ballOn">OPP 20</span></div>
@@ -80,8 +79,8 @@
           <label class="lab-row">
             Mode
             <select id="modeSelect">
-              <option value="game">Game</option>
-              <option value="practice" selected>Practice</option>
+              <option value="game" selected>Game</option>
+              <option value="practice">Practice</option>
             </select>
           </label>
           <label class="lab-row">
@@ -91,7 +90,7 @@
               <option value="snap" selected>On snap (A)</option>
             </select>
           </label>
-          <div id="practiceControls">
+          <div id="practiceControls" class="hidden">
             <label class="lab-row">Offense play
               <select id="practiceOffPlay"></select>
             </label>
@@ -99,7 +98,7 @@
               <select id="practiceDefScheme"></select>
             </label>
             <div class="lab-muted" style="font-size:11px;margin-top:4px;line-height:1.35">
-              Practice: 6×6 books · ←→ switch · ↑↓ / click browse · RT flip O · LT flip D · A snap
+              Practice: LS↕ / click preview · RT flip offense · LT flip defense · A snap · X/B menus
             </div>
           </div>
         </div>
@@ -107,7 +106,7 @@
         
         <div class="lab-panel">
           <div class="lab-panel-title">Gameplay</div>
-          <label class="lab-row" id="clockRow">
+          <label class="lab-row">
             Clock
             <select id="minSelect">
               <option value="60">1:00</option>
@@ -143,8 +142,12 @@
             <input id="breakTackleSlider" type="range" min="0.5" max="2" step="0.05" value="1.00" />
             <span id="breakTackleLabel">1.00×</span>
           </label>
-          <label class="lab-row" title="When off, speed burst stays at full power.">
-            <input type="checkbox" id="fatigueToggle" checked /> Fatigue
+          <label class="lab-row">
+            Fumbles
+            <span style="display:flex;align-items:center;gap:4px">
+              <input id="fumblesCheck" type="checkbox" checked />
+              <span id="fumblesLabel">On</span>
+            </span>
           </label>
         </div>
 
@@ -195,10 +198,9 @@
             Profile
             <select id="profileSelect">
               <option value="basic">Basic (v1)</option>
-              <option value="classic">Expanded (v2)</option>
-              <option value="v3">Wings (v3)</option>
-              <option value="v4">Independent (v4)</option>
-              <option value="v6" selected>Classic (v6)</option>
+              <option value="classic">Classic (v2)</option>
+              <option value="v3">Trio (v3)</option>
+              <option value="v4" selected>Advanced (v4)</option>
             </select>
           </label>
           <label class="lab-row" title="Off: Left stick = run, D-pad = special moves. On: swap those roles.">
@@ -206,13 +208,6 @@
             <span style="display:flex;align-items:center;gap:4px">
               <input id="swapStickDpadCheck" type="checkbox" />
               <span id="swapStickDpadLabel">Off (stick runs)</span>
-            </span>
-          </label>
-          <label class="lab-row">
-            Fumbles
-            <span style="display:flex;align-items:center;gap:4px">
-              <input id="fumblesCheck" type="checkbox" />
-              <span id="fumblesLabel">Off</span>
             </span>
           </label>
         </div>
@@ -351,25 +346,21 @@
 
     <div class="lab-foot">
       <div id="help">
-        <strong>v6 Practice:</strong> 6 offense × 6 defense. Flip latches on both books. No clock. LOS is the Practice control every snap.
+        <strong>Profiles:</strong> Basic = v1 (D-pad steers, LT/RT stiff, Start pause). Classic = v2
+        (D-pad is eight extra moves, click RS pause). Trio (v3) = LT/RT steer nearest teammate
+        left/right, D-pad up-left / up-right stiff, H peeks the defense.
         <br />
-        <strong>Profiles:</strong> Basic (v1) = D-pad steers, LT/RT stiff, Start pause.
-        Expanded (v2) = D-pad is eight extra moves, click RS pause.
-        Wings (v3) = LT/RT independently select nearest teammates left/right; one stick directs you and them.
-        Independent (v4) = T-9; independently steer ball carrier and teammates using left and right sticks.
-        Classic (v6) = built on Independent; View/Select stiff left, Menu/Start stiff right; no celebrate.
-        <br />
-        <strong>Xbox:</strong> Stick run · A burst · B spin · X dive · Y truck (Independent/Classic) / hurdle (Wings) · LB/RB juke ·
-        LT/RT teammates · D-pad: up hurdle (Independent/Classic) / truck (Wings) · up-left / up-right stiff ·
+        <strong>Xbox Trio:</strong> Stick run · A burst · B spin · X dive · Y truck (v4) / hurdle (v3) · LB/RB juke ·
+        LT/RT teammate (stick still cuts you and them) · D-pad: up hurdle (v4) / truck (v3) · up-left / up-right stiff ·
         left / right shake · down dead-leg · down-left / down-right dead-leg cut · RS also shake ·
-        View celebrate (off on Classic) · click RS pause · H peek · Classic: View stiff L · Menu stiff R
+        View celebrate · click RS pause · H peek
         <br />
         <strong>Goal line (inside 5):</strong> D-pad up / up-left / up-right plow a lane · X dive ducks under
         a pile or into a crease · Y truck powers through contact · D-pad up hurdle leaps or glances off the stack.
         <br />
         <strong>Keys:</strong> WASD run · Space burst · Q/E juke · IJKL miss-pad (I+J / I+L stiff) ·
-        F spin · C dive · V truck (Independent/Classic) / hurdle (Wings) · Z/X teammates (Wings+) or stiff (Basic/Expanded) · G celebrate (off on Classic) · H peek ·
-        R replay · P pause · 1–6 pick the focused book
+        F spin · C dive · V truck (v4) / hurdle (v3) · Z/X teammate (v3) or stiff (classic) · G celebrate · H peek ·
+        R replay · P pause
       </div>
       <div class="lab-scores">
         <h3>Top 5</h3>
@@ -380,8 +371,8 @@
     <div id="nameModal" class="lab-modal hidden">
       <div class="lab-modal-card">
         <div>Time expired! Final score: <span id="finalScore">0</span></div>
-        <div style="margin-top:8px">Tag:</div>
-        <input id="nameInput" maxlength="3" value="EE" />
+        <div style="margin-top:8px">Team abbreviation:</div>
+        <input id="nameInput" maxlength="3" value="DEN" />
         <br />
         <button type="button" id="saveScoreBtn">Enter</button>
         <div class="lab-muted" style="margin-top:8px;font-size:12px">Press A / Enter to start the next game</div>
