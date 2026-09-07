@@ -353,17 +353,6 @@ const CAMERAS = {
 		zoom: 1,
 		sc: 1
 	},
-	topZoom: {
-		id: "topZoom",
-		name: "Overhead Zoom",
-		skew: 0,
-		yScale: 1,
-		yBias: 0,
-		xLean: 0,
-		follow: 4.2,
-		zoom: 1.52,
-		sc: 1.18
-	},
 	high: {
 		id: "high",
 		name: "High Angle",
@@ -496,7 +485,7 @@ function startGame(canvas) {
 	let numDT = 3;
 	let numLBs = 2;
 	let numDBs = 6;
-	let playSpeed = 1.0;
+	let playSpeed = 1.2;
 	let offStrength = 1.0;
 	let defStrength = 1.0;
 	let breakBlock = 1.0;   // defense ability to shed blocks (>1 sheds more)
@@ -520,7 +509,7 @@ function startGame(canvas) {
 	let camZoom = 1;
 	let breakaway = false;
 	let tdZoom = false;
-	let cameraMode = "top";
+	let cameraMode = "high";
 	let camCorner = Math.random() < .5 ? "sw" : "nw";
 	let playArtMode = "on";
 	let padProfile = "v6";
@@ -792,7 +781,7 @@ function startGame(canvas) {
 	}
 	function camSpec() {
 		const base = CAMERAS[cameraMode] || CAMERAS.iso;
-		if (cameraMode === "top" || cameraMode === "topZoom" || camCorner !== "sw") return base;
+		if (cameraMode === "top" || camCorner !== "sw") return base;
 		return {
 			...base,
 			skew: -base.skew,
@@ -806,7 +795,7 @@ function startGame(canvas) {
 		const cam = camSpec();
 		const x = absX;
 		const y = absY;
-		if (cameraMode === "top" || cameraMode === "topZoom") return {
+		if (cameraMode === "top") return {
 			sx: x * SCALE_X,
 			sy: toScreenYRaw(y),
 			sc: cam.sc
@@ -847,7 +836,7 @@ function startGame(canvas) {
 		let zBoost = 1;
 		if (ankleCam && ankleCam.t > 0) zBoost = 1.32;
 		else if (breakaway) zBoost = 1.28;
-		else if (scoreSeq || tdZoom) zBoost = (cameraMode === "top" || cameraMode === "topZoom") ? 1.06 : 1.18;
+		else if (scoreSeq || tdZoom) zBoost = cameraMode === "top" ? 1.06 : 1.18;
 		const want = (cam.zoom || 1) * zBoost;
 		camZoom += (want - camZoom) * .1;
 		if (ankleCam) {
@@ -936,7 +925,6 @@ function startGame(canvas) {
 			vx: 0,
 			vy: 0,
 			radius: group === "OL" || group === "DT" ? .95 : group === "FB" || group === "TE" ? .9 : .85,
-			mass: group === "DT" || group === "OL" ? 1.35 : group === "LB" || group === "FB" || group === "TE" ? 1.05 : 0.78,
 			speed: group === "OL" ? 8.15 : group === "FB" ? 8.35 : group === "TE" ? 8.55 : group === "DT" ? 7.45 : group === "QB" ? 7.2 : 9,
 			baseSpeed: 0,
 			color: uni.jersey,
@@ -979,13 +967,6 @@ function startGame(canvas) {
 			isSafety: false,
 			fakeBlitz: false,
 			lagT: 0,
-			pancaked: false,
-			dtPenetrate: false,
-			atkKind: null,
-			atkT: 0,
-			atkDX: 0,
-			atkDY: 0,
-			atkDecideT: 0,
 			laneOffset: 0,
 			stutter: false,
 			stutterX: x,
@@ -999,7 +980,6 @@ function startGame(canvas) {
 			pullPhase: 0,
 			pullVia: null,
 			driveSide: 1,
-			sealSide: 1,
 			levelY: 3
 		};
 	}
@@ -1164,7 +1144,7 @@ function startGame(canvas) {
 		}
 		const EZ_BACK = 108.5; // keep bodies inside the endzone (back line is 110)
 		function clampDefAlignY(y) {
-			return clamp(y, playStartYard + 1.15, EZ_BACK);
+			return clamp(y, playStartYard + 2.1, EZ_BACK);
 		}
 		const room = Math.max(4.2, EZ_BACK - playStartYard);
 		const depthScale = Math.min(1, room / 16);
@@ -1184,45 +1164,21 @@ function startGame(canvas) {
 			d.speed = d.baseSpeed;
 			defenders.push(d);
 		}
-		{
-			const Wdb = Math.max(8, frDb - flDb);
-			const cbInset = Math.min(Wdb * 0.22, 9.5);
-			const slots = [];
-			const cbL = { x: flDb + cbInset, y: playStartYard + 2.35, role: "CB", corner: true, safety: false };
-			const cbR = { x: frDb - cbInset, y: playStartYard + 2.35, role: "CB", corner: true, safety: false };
-			const fs = { x: mid + (snap - mid) * 0.12, y: playStartYard + Math.min(sch.depthDB * depthScale, 13.2), role: "FS", corner: false, safety: true };
-			const ss = { x: snap + (snap >= mid ? 1 : -1) * Math.min(Wdb * 0.12, 5.2), y: playStartYard + 8.4, role: "SS", corner: false, safety: true };
-			const nick = { x: snap - playSideSign() * Math.min(Wdb * 0.1, 4.2), y: playStartYard + 4.1, role: "NCB", corner: false, safety: false };
-			const dime = { x: snap + playSideSign() * Math.min(Wdb * 0.08, 3.4), y: playStartYard + 6.4, role: "DIME", corner: false, safety: true };
-			if (numDBs <= 1) slots.push(fs);
-			else if (numDBs === 2) slots.push(cbL, cbR);
-			else if (numDBs === 3) slots.push(cbL, cbR, fs);
-			else if (numDBs === 4) slots.push(cbL, cbR, ss, fs);
-			else if (numDBs === 5) slots.push(cbL, nick, cbR, ss, fs);
-			else {
-				slots.push(cbL, nick, dime, cbR, ss, fs);
-				for (let extra = 6; extra < numDBs; extra++) {
-					const t = (extra - 5) / Math.max(1, numDBs - 5);
-					slots.push({ x: mid + (t - 0.5) * Wdb * 0.28, y: playStartYard + 7.2 + extra * 0.4, role: "DB", corner: false, safety: false });
-				}
-			}
-			for (let i = 0; i < numDBs; i++) {
-				const slot = slots[i] || fs;
-				const d = createPlayer(slot.x + (Math.random() - .5) * 0.45, clampDefAlignY(slot.y + (Math.random() - .5) * 0.25), "DB", i, "def");
-				d.baseSpeed = 9.15;
-				d.speed = d.baseSpeed;
-				d.dbRole = slot.role;
-				d.isCorner = !!slot.corner;
-				d.isSafety = !!slot.safety;
-				defenders.push(d);
-			}
+		for (let i = 0; i < numDBs; i++) {
+			const wide = i === 0 || i === numDBs - 1;
+			const extra = wide ? Math.min(1.0, room * 0.08) : Math.min(5.5 + Math.random() * 7, room * 0.72);
+			let x;
+			if (numDBs <= 1) x = mid;
+			else if (i === 0) x = flDb + FIELD_WIDTH * .1;
+			else if (i === numDBs - 1) x = frDb - FIELD_WIDTH * .1;
+			else x = clusterX(i - 1, Math.max(1, numDBs - 2), sch.cluster);
+			const d = createPlayer(x + (Math.random() - .5) * 1.2, clampDefAlignY(playStartYard + Math.min(sch.depthDB * depthScale + extra, room * 0.92)), "DB", i, "def");
+			d.baseSpeed = 9.15;
+			d.speed = d.baseSpeed;
+			defenders.push(d);
 		}
 		defenders.forEach((d) => {
 			d._pushYards = 0;
-			d.pancaked = false;
-			d.atkKind = null;
-			d.atkT = 0;
-			d.atkDecideT = 0;
 		});
 		assignDefenseJobs();
 		defenders.forEach((d) => {
@@ -1240,13 +1196,8 @@ function startGame(canvas) {
 		});
 		if (practiceDefFlipped) mirrorDefenseHorizontal();
 		applyCellDefenseTweaks();
-		limitDtPenetration();
 		assignBlockJobs();
 		applyCellBlockTweaks();
-		blockers.forEach((b) => {
-			b.sealSide = b.driveSide || playSideSign() || 1;
-		});
-		applyPresnapLook();
 		playAge = 0;
 		idleCarrierT = 0;
 		replayBuf.length;
@@ -1260,52 +1211,6 @@ function startGame(canvas) {
 		ctrlRight = null;
 		updateCamera();
 		if (typeof refreshPracticePreviews === "function") refreshPracticePreviews();
-	}
-	function limitDtPenetration() {
-		// P0b: at most one DT may slant across the LOS. Everyone else 2-gaps
-		// on their side of the ball so they cannot appear untouched in the backfield.
-		const dts = defenders.filter((d) => d.group === "DT");
-		if (!dts.length) return;
-		const schemeId = (currentScheme && currentScheme.id) || "";
-		const allowPen = schemeId === "overloadBlitz" || schemeId === "wide" || schemeId === "tight" || schemeId === "goalLine" || schemeId === "stormBlitz";
-		const side = playSideSign();
-		const snap = snapX();
-		const already = dts.filter((d) => d.job === "blitz" && d.jobY != null && d.jobY < playStartYard + 0.45);
-		let chosen = null;
-		if (allowPen) {
-			const pool = already.length ? already : dts.slice();
-			pool.sort((a, b) => {
-				const playRank = side ? side * (b.x - a.x) : (Math.abs(a.x - snap) - Math.abs(b.x - snap));
-				return playRank;
-			});
-			chosen = pool[0] || null;
-		}
-		dts.forEach((d) => {
-			d.dtPenetrate = d === chosen;
-			d.dtLag = true;
-			if (d.dtPenetrate) {
-				d.job = "blitz";
-				d.aggressor = true;
-				d.jobX = d.jobX != null ? d.jobX : d.x;
-				d.jobY = clamp(d.jobY != null ? d.jobY : playStartYard - 0.35, playStartYard - 0.85, playStartYard - 0.12);
-				d.zoneRx = 1.2;
-				d.zoneRy = 1.2;
-				d.zoneFollow = false;
-				if (d.stutterY != null) d.stutterY = Math.max(d.stutterY, playStartYard + 0.6);
-			} else {
-				d.job = "shade";
-				d.aggressor = false;
-				d.artCurve = false;
-				d.stutter = false;
-				d.fakeBlitz = false;
-				d.jobX = d.x;
-				d.jobY = playStartYard + 1.65 + (Math.abs(d.x - snap) < 1.2 ? 0.25 : 0);
-				d.zoneRx = 1.6;
-				d.zoneRy = 1.15;
-				d.zoneFollow = false;
-				d.y = Math.max(d.y, playStartYard + 2.15);
-			}
-		});
 	}
 	function playSideSign() {
 		const id = currentPlay ? currentPlay.id : "";
@@ -1353,184 +1258,6 @@ function startGame(canvas) {
 		if (key === "blast" && sch === "wide" && practiceFlipped) leadFb(-1);
 		// Sweep vs Bear, flipped: retarget 2–3 leftmost defenders
 		if (key === "sweep" && sch === "tight" && practiceFlipped) retargetLeftmost(3);
-	}
-	function unstackGroup(list, minDist) {
-		for (let pass = 0; pass < 10; pass++) {
-			for (let i = 0; i < list.length; i++) {
-				for (let j = i + 1; j < list.length; j++) {
-					const a = list[i], b = list[j];
-					if (!a || !b) continue;
-					const dx = b.x - a.x, dy = b.y - a.y;
-					const d = Math.hypot(dx, dy);
-					if (d >= minDist || d < 0.001) {
-						if (d < 0.001) {
-							b.x += 0.8;
-							continue;
-						}
-						continue;
-					}
-					const push = (minDist - d) * 0.52;
-					const nx = dx / d, ny = dy / d;
-					a.x -= nx * push * 0.85;
-					b.x += nx * push * 0.85;
-					a.y -= ny * push * 0.28;
-					b.y += ny * push * 0.28;
-				}
-			}
-		}
-	}
-	function applyPresnapLook() {
-		const sch = (currentScheme && currentScheme.id) || "";
-		const fl = fieldLeft();
-		const fr = fieldRight();
-		const mid = (fl + fr) / 2;
-		const W = fr - fl;
-		const snap = snapX();
-		const dbs = defenders.filter((d) => d.group === "DB").sort((a, b) => a.x - b.x);
-		const lbs = defenders.filter((d) => d.group === "LB").sort((a, b) => a.x - b.x);
-		const dts = defenders.filter((d) => d.group === "DT").sort((a, b) => a.x - b.x);
-
-		function plantDeep(d, xFrac, yOff, rx) {
-			d.x = clamp(fl + W * xFrac, fl + 3.2, fr - 3.2);
-			d.y = playStartYard + yOff;
-			d.job = "deep";
-			d.jobX = d.x;
-			d.jobY = d.y + 1.6;
-			d.zoneRx = rx || W * 0.16;
-			d.zoneRy = 5.0;
-			d.zoneFollow = false;
-			d.isSafety = true;
-			d.isCorner = false;
-			d.artCurve = false;
-		}
-
-		if (sch === "cover4Quarters" || sch === "goalLine") {
-			const deepFracs = [0.125, 0.375, 0.625, 0.875];
-			const deepY = sch === "goalLine" ? 10.4 : 11.6;
-			dbs.slice(0, 4).forEach((d, i) => plantDeep(d, deepFracs[i], deepY, W * 0.16));
-			dbs.slice(4).forEach((d, i) => {
-				d.x = snap + (i % 2 === 0 ? -1 : 1) * (4.2 + i);
-				d.y = playStartYard + 4.6 + i * 0.6;
-				if (d.job === "deep") d.job = "curl";
-				d.isSafety = false;
-				d.jobX = d.x;
-				d.jobY = playStartYard + 5.2;
-			});
-			if (sch === "cover4Quarters") {
-				lbs.forEach((d) => {
-					if (d.job !== "blitz") return;
-					const gap = Math.sign(d.x - snap) || playSideSign() || 1;
-					d.jobX = clamp(snap + gap * 1.35, snap - 3.0, snap + 3.0);
-					d.jobY = playStartYard - 0.25;
-					d.artCurve = false;
-					d.stutter = false;
-					d.x = clamp(d.x, snap - 5.4, snap + 5.4);
-					d.y = playStartYard + 4.6;
-				});
-			}
-		} else if (sch === "prevent") {
-			const deepFracs = [0.10, 0.30, 0.50, 0.70, 0.90];
-			dbs.slice(0, 5).forEach((d, i) => plantDeep(d, deepFracs[i], 12.2, W * 0.14));
-			dbs.slice(5).forEach((d) => {
-				d.x = mid + 6.2;
-				d.y = playStartYard + 6.6;
-				d.job = "curl";
-				d.isSafety = false;
-				d.isCorner = false;
-				d.jobX = d.x;
-				d.jobY = d.y + 0.4;
-				d.zoneFollow = false;
-			});
-		} else if (sch === "tight") {
-			const outerL = dbs[0], outerR = dbs[dbs.length - 1];
-			const keepX = new Set();
-			if (outerL) keepX.add(outerL);
-			if (outerR) keepX.add(outerR);
-			dbs.forEach((d, i, arr) => {
-				if (keepX.has(d)) return;
-				const t = arr.length <= 1 ? 0 : i / (arr.length - 1) - 0.5;
-				d.x = mid + t * Math.min(W * 0.52, 16);
-			});
-			lbs.forEach((d, i, arr) => {
-				const t = arr.length <= 1 ? 0 : i / (arr.length - 1) - 0.5;
-				d.x = snap + t * Math.min(W * 0.48, 14.5);
-				d.y = playStartYard + 4.6;
-			});
-			const ols = blockers.filter((b) => b.group === "OL").sort((a, b) => a.x - b.x);
-			dts.forEach((d, i, arr) => {
-				if (ols.length >= 2) {
-					const gap = Math.min(i + 1, ols.length - 1);
-					d.x = (ols[gap - 1].x + ols[gap].x) / 2;
-				} else {
-					d.x = snap + (i - (arr.length - 1) / 2) * 3.15;
-				}
-				d.y = playStartYard + 2.85;
-			});
-		} else if (sch === "wide") {
-			if (dbs.length >= 2) {
-				const L = dbs[0], R = dbs[dbs.length - 1];
-				L.x = clamp(L.x - 2.6, fl + 2.4, snap - 7);
-				R.x = clamp(R.x + 2.6, snap + 7, fr - 2.4);
-				L.y += 2.5;
-				R.y += 2.5;
-				if (L.job === "spy") {
-					L.stutterX = L.x + Math.min(2.2, Math.max(1.4, (mid - L.x) * 0.22));
-					L.stutterY = L.y - 1.1;
-					L.jobX = L.x + Math.min(3.2, Math.max(2.0, (mid - L.x) * 0.28));
-					L.jobY = L.y + 2.1;
-					L.zoneRx = 1.55;
-					L.zoneRy = 1.45;
-					L.artCurve = true;
-					L.fakeBlitz = true;
-				} else {
-					if (L.jobX != null) L.jobX = L.x;
-					if (L.jobY != null) L.jobY = L.y + 0.8;
-				}
-				if (R.jobX != null) R.jobX = R.x;
-				if (R.jobY != null) R.jobY = R.y + 0.8;
-			}
-			const innerLbs = lbs.slice(1, Math.max(1, lbs.length - 1));
-			const bump = innerLbs.length >= 2 ? innerLbs.slice(0, 2) : lbs.slice(0, 2);
-			bump.forEach((d) => {
-				d.y += 2.5;
-				if (d.jobY != null && d.job !== "blitz") d.jobY = Math.max(d.jobY, d.y);
-			});
-		} else if (sch === "overloadBlitz") {
-			const corners = dbs.length >= 2 ? [dbs[0], dbs[dbs.length - 1]] : [];
-			const rest = dbs.filter((d) => !corners.includes(d)).sort((a, b) => a.x - b.x);
-			if (rest.length >= 2) {
-				rest[0].x = mid - 2.55;
-				rest[1].x = mid + 2.55;
-				rest[0].y = playStartYard + 11.3;
-				rest[1].y = playStartYard + 11.3;
-				rest.slice(0, 2).forEach((d) => {
-					d.job = "deep";
-					d.jobX = d.x;
-					d.jobY = d.y + 1.4;
-					d.isSafety = true;
-					d.zoneFollow = false;
-				});
-			}
-		}
-
-		unstackGroup(defenders, 2.05);
-		unstackGroup(blockers, 1.55);
-		defenders.forEach((d) => {
-			blockers.forEach((b) => {
-				const gap = (d.radius || 0.9) + (b.radius || 0.9) + 0.25;
-				const dd = dist(d, b);
-				if (dd < gap && dd > 0.01) {
-					const push = gap - dd;
-					d.y += push * 0.7 + 0.35;
-					d.x += Math.sign(d.x - b.x || d.x - snap) * push * 0.45;
-				}
-			});
-		});
-		defenders.forEach((d) => {
-			d.x = clamp(d.x, fl + 2.2, fr - 2.2);
-			d.y = clamp(d.y, playStartYard + 1.15, 108.5);
-			if (d.jobX != null && Math.abs(d.jobX - d.x) < 1.4) d.jobX = d.x;
-		});
 	}
 	function applyCellDefenseTweaks() {
 		const key = cellPlayKey();
@@ -1946,23 +1673,21 @@ function startGame(canvas) {
 				return best;
 			}
 			const line = [...ols, ...tes].sort((a, b) => a.x - b.x);
-			const hinges = line.slice(0, 2); // two leftmost stay — the hinge
+			const hinge = line[0] || null; // left edge acts as wedge tip
 			blockers.forEach((b) => {
 				b.blockTarget = null; b.blockMode = "man"; b.pullPhase = 0; b.pullVia = null;
 				b.driveSide = -1; b.levelY = 3; b.driveBlock = true; b.sturdyBlock = true; b._userCtrl = 0;
 			});
 			line.forEach((b, i) => {
 				const rank = line.length - 1 - i; // rightmost travels farthest left
-				if (hinges.includes(b)) {
+				if (hinge && b === hinge) {
 					b.blockMode = "reach";
 					b.driveBlock = true;
 					b.sturdyBlock = true;
-					b.pullVia = null;
-					b.pullPhase = 0;
-					b.gapAimX = b.x - 0.8;
-					b.gapAimY = playStartYard + 2.2;
-					b.blockTarget = takeDef(b.x - 1.1, 14);
-					b.levelY = 2.2;
+					b.gapAimX = b.x - 1.2;
+					b.gapAimY = playStartYard + 4.5;
+					b.blockTarget = takeDef(b.x - 1.5, 16);
+					b.levelY = 4;
 					return;
 				}
 				b.blockMode = "pull";
@@ -1981,37 +1706,20 @@ function startGame(canvas) {
 				b.driveBlock = true;
 			});
 			fbs.forEach((b, i) => {
-				b.blockMode = "man";
-				b.pullVia = null;
+				b.blockMode = "pull";
 				b.pullPhase = 0;
-				b.driveSide = 1;
-				b.sealSide = 1;
-				b.backsideSeal = true;
+				b.pullBoost = 1.2;
+				b.pullVia = {
+					x: snap - 1.2, y: playStartYard - 2.6,
+					x2: snap - (10 + i * 1.2), y2: playStartYard + 5.8 + i
+				};
+				b.blockTarget = takeDef(snap - 11, 24);
+				b.levelY = 6 + i;
 				b.driveBlock = true;
-				b.sturdyBlock = true;
-				b.facing = 0;
-				b.x = snap + 3.2 + i * 0.7;
-				b.y = playStartYard - 1.1;
-				b.blockTarget = takeDef(snap + 4.2 + i * 0.8, 18);
-				b.gapAimX = snap + 4.4;
-				b.gapAimY = playStartYard + 2.8;
-				b.levelY = 2.6;
 			});
 			qbs.forEach((b) => {
 				b.blockMode = "man";
-				b.pullVia = null;
-				b.driveSide = 1;
-				b.sealSide = 1;
-				b.backsideSeal = true;
-				b.driveBlock = true;
-				b.sturdyBlock = true;
-				b.facing = 0;
-				b.x = snap + 2.4;
-				b.y = playStartYard - 0.55;
-				b.blockTarget = takeDef(snap + 3.2, 16);
-				b.gapAimX = snap + 3.6;
-				b.gapAimY = playStartYard + 2.4;
-				b.levelY = 2.2;
+				b.blockTarget = takeDef(snap + 2, 12);
 			});
 			return;
 		}
@@ -2029,23 +1737,21 @@ function startGame(canvas) {
 				return best;
 			}
 			const line = [...ols, ...tes].sort((a, b) => a.x - b.x);
-			const hinges = line.slice(-2); // two rightmost stay — the hinge
+			const hinge = line[line.length - 1] || null;
 			blockers.forEach((b) => {
 				b.blockTarget = null; b.blockMode = "man"; b.pullPhase = 0; b.pullVia = null;
 				b.driveSide = 1; b.levelY = 3; b.driveBlock = true; b.sturdyBlock = true; b._userCtrl = 0;
 			});
 			line.forEach((b, i) => {
 				const rank = i;
-				if (hinges.includes(b)) {
+				if (hinge && b === hinge) {
 					b.blockMode = "reach";
 					b.driveBlock = true;
 					b.sturdyBlock = true;
-					b.pullVia = null;
-					b.pullPhase = 0;
-					b.gapAimX = b.x + 0.8;
-					b.gapAimY = playStartYard + 2.2;
-					b.blockTarget = takeDef(b.x + 1.1, 14);
-					b.levelY = 2.2;
+					b.gapAimX = b.x + 1.2;
+					b.gapAimY = playStartYard + 4.5;
+					b.blockTarget = takeDef(b.x + 1.5, 16);
+					b.levelY = 4;
 					return;
 				}
 				b.blockMode = "pull";
@@ -2064,33 +1770,20 @@ function startGame(canvas) {
 				b.driveBlock = true;
 			});
 			fbs.forEach((b, i) => {
-				b.blockMode = "man";
-				b.pullVia = null;
+				b.blockMode = "pull";
 				b.pullPhase = 0;
-				b.driveSide = -1;
-				b.sealSide = -1;
-				b.backsideSeal = true;
+				b.pullBoost = 1.2;
+				b.pullVia = {
+					x: snap + 1.2, y: playStartYard - 2.6,
+					x2: snap + (10 + i * 1.2), y2: playStartYard + 5.8 + i
+				};
+				b.blockTarget = takeDef(snap + 11, 24);
+				b.levelY = 6 + i;
 				b.driveBlock = true;
-				b.sturdyBlock = true;
-				b.facing = Math.PI;
-				b.blockTarget = takeDef(snap - 3.4 - i * 0.8, 16);
-				b.gapAimX = snap - 3.8;
-				b.gapAimY = playStartYard + 1.2;
-				b.levelY = 1.8;
 			});
 			qbs.forEach((b) => {
 				b.blockMode = "man";
-				b.pullVia = null;
-				b.driveSide = -1;
-				b.sealSide = -1;
-				b.backsideSeal = true;
-				b.driveBlock = true;
-				b.sturdyBlock = true;
-				b.facing = Math.PI;
-				b.blockTarget = takeDef(snap - 2.4, 14);
-				b.gapAimX = snap - 2.8;
-				b.gapAimY = playStartYard + 1.1;
-				b.levelY = 1.4;
+				b.blockTarget = takeDef(snap - 2, 12);
 			});
 			return;
 		}
@@ -2636,27 +2329,6 @@ function startGame(canvas) {
 			const delay = delays[di++ % delays.length];
 			claimBlitz(d, gap + (_rnd() - 0.5) * 0.6, playStartYard - 0.3, delay, true);
 		});
-		const spyDb = dbs[0];
-		if (spyDb) {
-			spyDb.job = "spy";
-			spyDb.fakeBlitz = true;
-			spyDb.artCurve = true;
-			spyDb.stutter = true;
-			spyDb.aggressor = false;
-			spyDb.blitzDelay = 0;
-			spyDb.readT = 0.42;
-			spyDb.reactT = 0.48;
-			spyDb.zoneFollow = false;
-			spyDb.isSafety = false;
-			spyDb.stutterX = spyDb.x + Math.min(2.2, Math.max(1.4, (mid - spyDb.x) * 0.22));
-			spyDb.stutterY = spyDb.y - 1.1;
-			spyDb.jobX = spyDb.x + Math.min(3.2, Math.max(2.0, (mid - spyDb.x) * 0.28));
-			spyDb.jobY = spyDb.y + 2.1;
-			spyDb.zoneRx = 1.55;
-			spyDb.zoneRy = 1.45;
-			spyDb.spyPhase = "fake";
-			used.add(spyDb);
-		}
 		defenders.forEach((d, i) => { d.laneOffset = (i - (defenders.length - 1) / 2) * 1.7; });
 	}
 
@@ -2840,19 +2512,14 @@ function startGame(canvas) {
 			const tmp = gapXs[i]; gapXs[i] = gapXs[j]; gapXs[j] = tmp;
 		}
 		blitzPool.slice(0, 3).forEach((d, i) => {
-			let gap = gapXs[i % gapXs.length];
-			if (d.group === "DB") {
-				const near = gapXs.filter((x) => Math.sign(x - mid) === Math.sign(d.x - mid) || Math.abs(x - mid) < W * 0.08);
-				gap = near.length ? near.reduce((a, x) => Math.abs(x - d.x) < Math.abs(a - d.x) ? x : a, near[0]) : (d.x < mid ? mid - W * 0.14 : mid + W * 0.14);
-			}
 			claim(d, {
 				job: "blitz",
-				x: gap,
+				x: gapXs[i % gapXs.length],
 				y: playStartYard - 0.2 - _rnd() * 0.4,
 				rx: 1.2,
 				ry: 1.2
 			});
-			d.artCurve = d.group === "DB" || _rnd() < 0.45;
+			d.artCurve = _rnd() < 0.45;
 			d.stutter = _rnd() < 0.35;
 		});
 
@@ -2993,23 +2660,17 @@ function remaining(group) {
 		// --- Priority 3+: blitz — LB and DT only (no DB blitz on this play) ---
 		remainingAny().filter((d) => d.group !== "DB").forEach((d) => {
 			d.job = "blitz";
-			const gap = Math.sign(d.x - snapX()) || 1;
-			d.jobX = clamp(snapX() + gap * (d.group === "LB" ? 1.25 : 1.8), fl + 2.7, fr - 2.7);
+			d.jobX = clamp(d.x, fl + 2.7, fr - 2.7);
 			d.jobY = playStartYard - 0.2 - _rnd() * 0.5;
 			d.zoneRx = 1.2;
 			d.zoneRy = 1.2;
 			d.zoneFollow = false;
-			d.artCurve = d.group !== "LB";
+			d.artCurve = false;
 			d.stutter = false;
 			d.readT = 0.12 + _rnd() * 0.2;
 			d.isSafety = false;
 			d.isCorner = false;
 			used.add(d);
-		});
-		defenders.filter((d) => d.group === "DB" && d.isCorner && d.job === "deep").forEach((d) => {
-			const inward = Math.sign(mid - d.x) || 1;
-			d.jobX = clamp((d.jobX != null ? d.jobX : d.x) + inward * Math.min(2.8, W * 0.06), fl + 3, fr - 3);
-			d.artCurve = true;
 		});
 
 		defenders.forEach((d, i) => {
@@ -3853,80 +3514,13 @@ function remaining(group) {
 			_rsY: rsY
 		};
 	}
-	function chooseDefenderAttack(d, distToRb) {
-		if (!rb || !d) return;
-		if (d.pancaked || d.engageT > 0) return;
-		if (d.state === "whiff" || d.state === "recover") return;
-		if (d.atkT > 0) return;
-		if ((d.atkDecideT || 0) > 0) return;
-		d.atkDecideT = 0.12 + Math.random() * 0.1;
-		if (distToRb > 5.2 || distToRb < 1.05) return;
-		// Shade DTs holding the LOS do not launch into the backfield
-		if (d.group === "DT" && !d.dtPenetrate && rb.y < playStartYard + 0.25) return;
-		const closing = Math.hypot(d.vx || 0, d.vy || 0);
-		const ang = Math.atan2(rb.y - d.y, rb.x - d.x);
-		const face = d.facing || 0;
-		let turn = Math.abs(ang - face);
-		if (turn > Math.PI) turn = Math.PI * 2 - turn;
-		const headUp = turn < 0.85;
-		const crossing = Math.abs(rb.vx || 0) > 2.4 && Math.abs(rb.x - d.x) < 3.2;
-		const r = Math.random();
-		let kind = null;
-		if (d.group !== "DT" && distToRb > 1.85 && distToRb < 5.15) {
-			let diveP = d.group === "DB" ? 0.56 : 0.48;
-			if (crossing) diveP += 0.22;
-			if (r < diveP) kind = "dive";
-		}
-		if (!kind && d.group !== "DT" && distToRb > 1.55 && distToRb < 3.45 && headUp && closing > 5.4 && r < 0.3) kind = "hit";
-		if (!kind && distToRb < 2.95) kind = "wrap";
-		if (!kind) return;
-		d.atkKind = kind;
-		d.atkDX = Math.cos(ang);
-		d.atkDY = Math.sin(ang);
-		if (kind === "dive") {
-			d.state = "dive";
-			d.atkT = 0.5 + Math.random() * 0.16;
-			d.low = true;
-			d.hop = 0.22;
-		} else if (kind === "hit") {
-			d.state = "hit";
-			d.atkT = 0.26 + Math.random() * 0.1;
-			d.low = false;
-		} else {
-			d.state = "commit";
-			d.atkT = 0.18;
-		}
-	}
-	function clearAttack(d) {
-		if (!d) return;
-		d.atkKind = null;
-		d.atkT = 0;
-		d.hop = 0;
-	}
-	function playerMass(p) {
-		return (p && p.mass) || 1;
-	}
-	function carrierDir(p) {
-		if (!p) return { x: 0, y: 1 };
-		let dx = p.vx || 0, dy = p.vy || 0;
-		if (Math.hypot(dx, dy) < 0.55) {
-			dx = Math.cos(p.facing || Math.PI / 2);
-			dy = Math.sin(p.facing || Math.PI / 2);
-		}
-		const L = Math.hypot(dx, dy) || 1;
-		return { x: dx / L, y: dy / L };
-	}
 	function tryMiss(kind) {
 		if (!rb) return;
 		for (const d of defenders) {
-			// P0a / P0c: miss moves beat engaged, diving, and hit-sticking defenders.
-			if (d.pancaked || d.state === "whiff") continue;
-			const engaged = d.engageT > 0;
-			const diving = d.atkKind === "dive" && d.atkT > 0;
-			const hitting = d.atkKind === "hit" && d.atkT > 0;
-			if (!engaged && !diving && !hitting && d.state !== "commit" && d.state !== "breakdown" && d.state !== "recover") continue;
+			if (d.engageT > 0) continue;
+			if (d.state !== "commit" && d.state !== "breakdown") continue;
 			const dd = dist(d, rb);
-			if (dd > (diving ? 4.2 : 3.2)) continue; // dive commit can be beaten from a step farther
+			if (dd > 3.2) continue; // only miss nearby, not 20 yd dives
 			const side = Math.sign(d.x - rb.x) || 1;
 			const trail = rb.y - d.y;
 			let chance = 0;
@@ -3937,18 +3531,9 @@ function remaining(group) {
 			else if (kind.startsWith("deadleg")) chance = trail > .2 ? .9 : .45;
 			else continue;
 			if (d.state === "breakdown") chance *= .75;
-			if (engaged) chance = Math.min(0.97, chance + 0.22);
-			if (diving || hitting) {
-				if (kind.startsWith("shake") || kind.startsWith("deadleg") || kind === "spin" || kind.startsWith("juke")) chance = Math.min(0.97, Math.max(chance, 0.9) + 0.04);
-			} else if (d.state === "commit" && !engaged && (kind.startsWith("juke") || kind === "spin")) {
-				chance *= 0.72; // square wrap: finesse is weaker
-			}
-			if (d.state === "recover") chance *= 0.7;
 			if (Math.random() > chance) continue;
-			d.engageT = 0;
-			clearAttack(d);
 			d.state = "whiff";
-			d.whiffT = diving ? 0.72 + Math.random() * 0.2 : kind.startsWith("shake") ? .48 : .38;
+			d.whiffT = kind.startsWith("shake") ? .48 : .38;
 			d.low = true;
 			const spd = Math.min(4.5, Math.hypot(d.vx, d.vy) || d.speed * .45);
 			const ang = Math.atan2(d.vy, d.vx) || d.facing;
@@ -4914,17 +4499,20 @@ function remaining(group) {
 	}
 	function yieldBlocker(b, minD, dd) {
 		if (!rb || !b) return;
-		let lat = b.sealSide || b.driveSide || Math.sign(b.x - rb.x) || 1;
+		let lat = Math.sign(b.x - rb.x);
+		if (!lat) lat = b.driveSide || 1;
 		const need = minD - dd;
 		if (b._escortFrom == null) b._escortFrom = rb.y;
 		const shoved = rb.y - b._escortFrom;
-		const peel = shoved > 1.8;
-		b.x += lat * need * (peel ? 1.85 : 1.25);
-		if (peel || b.y <= rb.y + 0.55) {
-			b.y = Math.min(b.y + need * 0.12, rb.y + 0.7);
-			b.x += lat * Math.min(0.28, 0.06 + shoved * 0.02);
-		}
+		const peel = shoved > 6.5;
+		b.x += lat * need * (peel ? 1.75 : 1.08);
+		if (peel) {
+			b.y = Math.min(b.y, rb.y + .35);
+			b.x += lat * Math.min(.22, .04 + shoved * .012);
+		} else if (b.y <= rb.y + .45) b.y += need * .28;
 		b.x = clamp(b.x, fieldLeft() + .8, fieldRight() - .8);
+		const dd2 = dist(rb, b);
+		if (dd2 < minD && dd2 > .01) rb.x -= lat * (minD - dd2) * .12;
 	}
 	function yieldToCarrier() {
 		if (!rb) return;
@@ -5491,36 +5079,33 @@ function remaining(group) {
 			for (let n = 1; n <= 6; n++) {
 				if (keys.has("Digit" + n) || keys.has("Numpad" + n)) { numPick = n; break; }
 			}
-			const bookOpen = !!(practiceAudibleArm || practiceDefAudibleArm);
-			if (numPick && !practiceNumLatch && bookOpen) {
+			if (numPick && !practiceNumLatch) {
 				pickFocusedByIndex(numPick);
 				practiceNumLatch = true;
 			} else if (!numPick) practiceNumLatch = false;
 
-			// ← / → switch books only while a menu is open
+			// ← / → switch between offense & defense playbooks
 			const bookLeft = !!(inp._dpadLeft || keys.has("ArrowLeft"));
 			const bookRight = !!(inp._dpadRight || keys.has("ArrowRight"));
-			if (bookOpen && (bookLeft || bookRight) && !practiceBookLatch) {
+			if ((bookLeft || bookRight) && !practiceBookLatch) {
 				practiceFocusSide = bookLeft ? "off" : "def";
-				practiceAudibleArm = bookLeft;
-				practiceDefAudibleArm = bookRight;
 				practiceBookLatch = true;
 				if (typeof refreshPracticePreviews === "function") refreshPracticePreviews();
 				if (typeof updateAudibleHint === "function") updateAudibleHint();
 			} else if (!bookLeft && !bookRight) practiceBookLatch = false;
 
-			// Left stick / ↑↓ browse only while X or B menu is open
-			if (bookOpen && !inp.ctrlL && !inp.ctrlR && stickUp(sy)) {
+			// Left stick / ↑↓ follow focused preview (not while LT/RT are flipping)
+			if (!inp.ctrlL && !inp.ctrlR && stickUp(sy)) {
 				if (practiceStickLatch === 0) {
 					const step = sy > 0 ? -1 : 1;
-					if (practiceDefAudibleArm || practiceFocusSide === "def") cycleDefense(step);
+					if (practiceFocusSide === "def" || practiceDefAudibleArm) cycleDefense(step);
 					else cycleOffense(step);
 					practiceStickLatch = sy > 0 ? 1 : -1;
 				}
 			} else if (!stickUp(sy) || inp.ctrlL || inp.ctrlR) practiceStickLatch = 0;
 
-			// Right stick cycles defense only in the B menu
-			if (practiceDefAudibleArm && !inp.ctrlL && !inp.ctrlR && stickUp(rsy)) {
+			// Right stick cycles defense — ignore while LT/RT held (trigger axes can look like RS)
+			if (!practiceAudibleArm && !inp.ctrlL && !inp.ctrlR && stickUp(rsy)) {
 				if (practiceDefStickLatch === 0) {
 					cycleDefense(rsy > 0 ? -1 : 1);
 					practiceDefStickLatch = rsy > 0 ? 1 : -1;
@@ -5578,15 +5163,9 @@ function remaining(group) {
 			}
 			practiceDefFlipEdge = !!inp.ctrlL;
 
-			// Y closes the open book, or restores the last audible if no menu is open
+			// Y cancels last audible and restores previous O or D call
 			const yPressed = !!(inp.truck || inp.hurdle);
-			if (yPressed && !practiceYCancelEdge && (practiceAudibleArm || practiceDefAudibleArm)) {
-				practiceAudibleArm = false;
-				practiceDefAudibleArm = false;
-				setPlayCall((currentPlay ? currentPlay.name : "Play") + (currentScheme ? " · vs " + currentScheme.name : "") + " — press X/B for book · A snap");
-				if (typeof refreshPracticePreviews === "function") refreshPracticePreviews();
-				updateAudibleHint();
-			} else if (yPressed && !practiceYCancelEdge && !practiceAudibleArm && !practiceDefAudibleArm) {
+			if (yPressed && !practiceYCancelEdge && !practiceAudibleArm && !practiceDefAudibleArm) {
 				let restored = false;
 				if (practiceFocusSide === "def" && practiceDefSchemeIdPrev) {
 					const tmp = practiceDefSchemeId;
@@ -5704,9 +5283,7 @@ function remaining(group) {
 				if (nextPlayOnSnap || gameMode === "practice") {
 					playActive = false;
 					practiceAwaitSnap = true;
-					practiceAudibleArm = false;
-					practiceDefAudibleArm = false;
-					setPlayCall((currentPlay ? currentPlay.name : "Practice") + " — X/B book · A snap");
+					setPlayCall((currentPlay ? currentPlay.name : "Practice") + " — press A to snap");
 					updateBallOn();
 				} else {
 					playActive = true;
@@ -5814,8 +5391,9 @@ function remaining(group) {
 				if (sprintExhausted && sprintCharge >= .42) sprintExhausted = false;
 			}
 			if (fatigueOn && sprintExhausted) spd *= .86;
+			let clearBoost = 1;
 			breakaway = false;
-			if (handoffDone && defenders.length) {
+			if (handoffDone && !activeMove && defenders.length) {
 				let nearestD = defenders[0];
 				let nd = dist(nearestD, carrier);
 				defenders.forEach((d) => {
@@ -5826,10 +5404,12 @@ function remaining(group) {
 					}
 				});
 				const trail = rb.y - nearestD.y;
-				if (nd > 6.5 && trail > 2.4) breakaway = true;
+				if (nd > 6.5 && trail > 2.4) {
+					clearBoost = 1.55;
+					breakaway = true;
+				}
 			}
-			// Clear-field 1.55× only while burst is held (not a free runaway gear)
-			if (breakaway && inp.sprint && !(fatigueOn && sprintExhausted)) spd *= 1.55 / SPRINT_MULT;
+			spd *= clearBoost;
 			let useScript = scriptIndex < scriptSteps.length;
 			let sdx = 0, sdy = 0;
 			if (useScript) {
@@ -6034,7 +5614,7 @@ function remaining(group) {
 			let targetX = b.x;
 			let targetY = b.y;
 			let tgt = b.blockTarget && b.blockTarget.active && b.blockTarget.state !== "whiff" ? b.blockTarget : null;
-			if (tgt && rb && !b.backsideSeal) {
+			if (tgt && rb) {
 				const beaten = tgt.y < rb.y - 1.8 && dist(tgt, rb) + .4 < dist(b, rb);
 				const stale = rb.y - tgt.y > 6.2;
 				if (beaten || stale) {
@@ -6045,19 +5625,16 @@ function remaining(group) {
 					tgt = null;
 				}
 			}
-			if (!tgt && !b.backsideSeal) {
+			if (!tgt) {
 				let best = null, nd = 8.8;
-				const hole = rb.x;
-				const seal = b.sealSide || b.driveSide || playSideSign() || 1;
 				defenders.forEach((d) => {
 					if (d.state === "whiff" || d.state === "recover" || claimedDefs.has(d)) return;
 					if (d.y < rb.y - 1.6) return;
-					const sameLane = Math.abs(d.x - b.x) < 3.6;
-					const playSide = seal > 0 ? d.x >= hole - 1.4 : d.x <= hole + 1.4;
-					if (!sameLane && !playSide) return;
+					const nearPath = Math.abs(d.x - rb.x) < 5.8 || Math.abs(d.x - b.x) < 3.4;
+					if (!nearPath) return;
+					// OL prefer DTs on the line; slight bias so DTs actually get blocked
 					const groupBias = (b.group === "OL" && d.group === "DT") ? 0.72 : 1;
-					const sideBias = playSide ? 0.82 : 1;
-					const dd = (dist(d, b) * .65 + dist(d, rb) * .35) * groupBias * sideBias;
+					const dd = (dist(d, b) * .4 + dist(d, rb) * .6) * groupBias;
 					if (dd < nd) {
 						nd = dd;
 						best = d;
@@ -6070,34 +5647,7 @@ function remaining(group) {
 				}
 			}
 			const behindLos = rb.y < playStartYard - .35;
-			if (b.backsideSeal) {
-				const side = b.sealSide || b.driveSide || 1;
-				const snap = snapX();
-				if (tgt && (tgt.x - snap) * side < 1.1) {
-					claimedDefs.delete(tgt);
-					b.blockTarget = null;
-					tgt = null;
-				}
-				if (!tgt) {
-					let best = null, bd = 12;
-					defenders.forEach((d) => {
-						if (d.state === "whiff" || d.state === "recover" || claimedDefs.has(d)) return;
-						if ((d.x - snap) * side < 1.1) return;
-						const dd = Math.hypot(d.x - (snap + side * 3.8), d.y - (playStartYard + 2.4));
-						if (dd < bd) { bd = dd; best = d; }
-					});
-					if (best) { claimedDefs.add(best); b.blockTarget = best; tgt = best; }
-				}
-				if (tgt) {
-					targetX = Math.max(tgt.x + side * 0.7, snap + side * 2.6);
-					targetY = Math.max(tgt.y + 0.85, playStartYard + 2.4);
-				} else {
-					targetX = snap + side * 3.8;
-					targetY = playStartYard + 2.6;
-				}
-				if (side > 0) targetX = Math.max(targetX, snap + 2.6);
-				else targetX = Math.min(targetX, snap - 2.6);
-			} else if (b.blockMode === "pull" && b.pullVia) {
+			if (b.blockMode === "pull" && b.pullVia) {
 				if (b.pullPhase === 0) {
 					targetX = b.pullVia.x;
 					targetY = b.pullVia.y;
@@ -6110,20 +5660,19 @@ function remaining(group) {
 					targetY = b.pullVia.y2;
 					if (Math.abs(b.x - b.pullVia.x2) < 1.4) b.pullPhase = 2;
 				} else if (tgt) {
-					const side = b.sealSide || b.driveSide || 1;
-					targetX = tgt.x + side * .85;
-					targetY = tgt.y + .35;
+					targetX = tgt.x + (b.driveSide || 1) * .65;
+					targetY = tgt.y + .4;
 				} else {
-					targetX = rb.x + (b.sealSide || playSideSign()) * 3.2;
+					targetX = rb.x + playSideSign() * 3.2;
 					targetY = Math.max(playStartYard + 3.5, rb.y + 2.2);
 				}
 			} else if (tgt) {
-				const side = b.sealSide || b.driveSide || 1;
-				targetX = tgt.x + side * .9;
-				targetY = tgt.y + (b.blockMode === "climb" ? .25 : .35);
+				const side = b.driveSide || Math.sign(tgt.x - rb.x) || 1;
+				targetX = tgt.x + side * .75;
+				targetY = tgt.y + (b.blockMode === "climb" ? .25 : .4);
 				if (b.blockMode === "reach") {
 					targetX = tgt.x + side * 1.15;
-					targetY = tgt.y + .12;
+					targetY = tgt.y + .15;
 				}
 			} else if (behindLos) {
 				let best = null;
@@ -6140,7 +5689,7 @@ function remaining(group) {
 				if (best) {
 					claimedDefs.add(best);
 					b.blockTarget = best;
-					targetX = best.x + (b.sealSide || b.driveSide || 1) * .8;
+					targetX = best.x + (b.driveSide || 1) * .6;
 					targetY = best.y + .3;
 				} else {
 					const f = rb.facing || Math.PI / 2;
@@ -6155,10 +5704,7 @@ function remaining(group) {
 					if (d.state === "whiff" || d.state === "recover" || claimedDefs.has(d)) return;
 					if (d.y < rb.y - 1.2 || d.y > rb.y + 7) return;
 					if (Math.abs(d.x - rb.x) > 5.5) return;
-					const seal = b.sealSide || playSideSign() || 1;
-					if (seal > 0 && d.x < rb.x - 3.2) return;
-					if (seal < 0 && d.x > rb.x + 3.2) return;
-					const dd = dist(d, b) * 0.55 + dist(d, rb) * 0.45;
+					const dd = dist(d, rb);
 					if (dd < td) {
 						td = dd;
 						threat = d;
@@ -6167,15 +5713,14 @@ function remaining(group) {
 				if (threat) {
 					claimedDefs.add(threat);
 					b.blockTarget = threat;
-					targetX = threat.x + (b.sealSide || b.driveSide || 1) * .8;
+					targetX = threat.x + (b.driveSide || 1) * .7;
 					targetY = threat.y + .3;
 				} else if (gained > 6.2) {
-					const side = b.sealSide || b.driveSide || Math.sign(b.x - rb.x) || 1;
+					const side = Math.sign(b.x - rb.x) || b.driveSide || (lane < 0 ? -1 : 1);
 					targetX = rb.x + side * (3.3 + Math.min(3.6, (gained - 6) * .32));
 					targetY = rb.y + .55;
 				} else {
-					const side = b.sealSide || b.driveSide || 1;
-					targetX = rb.x + side * (2.2 + Math.abs(lane) * 0.55);
+					targetX = rb.x + lane * 2.8 + (b.driveSide || 0) * .4;
 					targetY = Math.max(playStartYard + (b.levelY || 3), rb.y + 3.1);
 					if (idleCarrierT > .4) {
 						targetX = rb.x + (lane === 0 ? (b.driveSide || 1) : lane) * 3.4;
@@ -6183,7 +5728,7 @@ function remaining(group) {
 					}
 				}
 			}
-			if (!b.backsideSeal && (playStartYard >= 95 || rb.y >= 96)) {
+			if (playStartYard >= 95 || rb.y >= 96) {
 				const lane = idx - (nB - 1) / 2;
 				targetX = snapX() + lane * 3.05 + (b.driveSide || 1) * .35;
 				targetY = Math.min(103.2, playStartYard + 3.4 + Math.abs(lane) * .8);
@@ -6195,7 +5740,6 @@ function remaining(group) {
 			if (style === "wallL" || style === "wallR") bspd *= 1.12;
 			if (style === "zoneR" || style === "zoneL") bspd *= 1.08;
 			if (b.blockMode === "pull" && b.pullPhase < 2) bspd *= 1.18 * (b.pullBoost || 1);
-			if (b.backsideSeal) bspd *= 1.22;
 			if (!tgt) bspd *= 1.06;
 			const step = Math.min(bspd * dt, 0.55);
 			b.x += Math.cos(ang) * step;
@@ -6204,12 +5748,6 @@ function remaining(group) {
 			const backLimit = behindLos ? Math.min(playStartYard - 8, rb.y - 2) : playStartYard - 6;
 			b.y = clamp(b.y, backLimit, Math.min(104.8, Math.max(rb.y + 10, playStartYard + 12)));
 			b.x = clamp(b.x, fl + 1, fr - 1);
-			if (b.backsideSeal) {
-				const side = b.sealSide || b.driveSide || 1;
-				const snap = snapX();
-				if (side > 0) b.x = Math.max(b.x, snap + 2.15);
-				else b.x = Math.min(b.x, snap - 2.15);
-			}
 		});
 		blockers.forEach((b) => {
 			if (!b.active) return;
@@ -6238,32 +5776,30 @@ function remaining(group) {
 						const farPlay = rb && dist(d, rb) > 8.5;
 						const isDt = d.group === "DT";
 						const olOnDt = isDt && (b.group === "OL" || b.group === "TE" || b.group === "FB");
-						// P0a: hold the point long enough to make a lane. Slip only after
-						// the block has done work, not on first contact.
-						let slipP = (d._pushYards || 0) > 1.15 || d.y > 95.5 || rb && d.y > rb.y + 2.4 || playAge > 2.15 || idleCarrierT > .45 ? .72 : .28;
-						if (olOnDt) slipP = (d._pushYards || 0) > 2.1 || d.y > 95.5 || playAge > 2.8 ? .38 : .1;
+						// DTs used to slip off blocks constantly — keep them engaged more often
+						let slipP = (d._pushYards || 0) > .65 || d.y > 95.5 || rb && d.y > rb.y + 2.4 || playAge > 1.35 || idleCarrierT > .28 ? .94 : .62;
+						if (olOnDt) slipP = (d._pushYards || 0) > 1.35 || d.y > 95.5 || playAge > 2.4 ? .55 : .22;
 						// breakBlock > 1 → shed more; < 1 → stay engaged longer
-						slipP = clamp(slipP * (0.55 + 0.45 * breakBlock), 0.06, 0.92);
+						slipP = clamp(slipP * (0.55 + 0.45 * breakBlock), 0.08, 0.98);
 						if (b._userCtrl > 0) slipP *= 0.35; // user-steered blockers hold much better
 						if (holding2 || farPlay || idleCarrierT > .4 || Math.random() < slipP) {
 							d.engageT = 0;
 							d.state = "recover";
-							d.recoverT = holding2 ? .08 : (olOnDt ? .28 : .16) + Math.random() * .12;
+							d.recoverT = holding2 ? .08 : (olOnDt ? .22 : .14) + Math.random() * .12;
 							d.low = false;
 							const ang = rb ? Math.atan2(rb.y - d.y, rb.x - d.x) : -Math.PI / 2;
 							d.vx = Math.cos(ang) * (8 + Math.random() * 3);
 							d.vy = Math.sin(ang) * (8 + Math.random() * 3);
 							return;
 						}
-						const fatigue = playAge < 2.2 ? 1 : Math.max(.42, 1 - (playAge - 2.2) * .22);
-						// P0a: OL–DT ~1.15–1.6s; other sturdy contacts ~0.55–0.85s
-						d.engageT = ((olOnDt || b.driveBlock ? 1.15 : .55) + Math.random() * (olOnDt || b.driveBlock ? .45 : .3)) * fatigue * (b.sturdyBlock ? 1.2 : 1) / Math.max(0.45, breakBlock);
+						const fatigue = playAge < 1.6 ? 1 : Math.max(.28, 1 - (playAge - 1.6) * .32);
+						// Longer engage window vs DT so push can accumulate
+						d.engageT = ((olOnDt || b.driveBlock ? .38 : .14) + Math.random() * (olOnDt || b.driveBlock ? .28 : .12)) * fatigue * (b.sturdyBlock ? 1.35 : 1) / Math.max(0.45, breakBlock);
 						if (b._userCtrl > 0) d.engageT *= 1.65;
 						// Prefer sustained blocks over pancakes; rare short pancake only
 						if (b.y <= d.y + .55 && Math.random() < (d.group === "DT" ? (b.group === "OL" ? .11 : .08) : (b.group === "FB" ? .1 : .07))) {
 							d.state = "whiff";
-							d.pancaked = true;
-							d.whiffT = 0.7 + Math.random() * .3;
+							d.whiffT = 0.55 + Math.random() * .25;
 							d.low = true;
 							d.spinT = .35 + Math.random() * .2;
 							d.vx = (Math.sign(d.x - b.x) || 1) * (1.1 + Math.random() * 0.9);
@@ -6274,21 +5810,15 @@ function remaining(group) {
 					}
 					d.slowed = Math.max(d.slowed, d.group === "DT" ? .62 : .42);
 					const hole = rb ? rb.x : snapX();
-					const side = b.sealSide || Math.sign(d.x - hole) || Math.sign(d.x - b.x) || 1;
-					if (Math.sign(b.x - d.x) !== side) b.x += side * 0.1;
+					const side = Math.sign(d.x - hole) || Math.sign(d.x - b.x) || 1;
 					const overlap = Math.max(.04, gap - dd + .1);
 					let pushScale = d.group === "DT" ? 1.65 : 1;
 					if (b.driveBlock) pushScale *= 1.45;
 					if (b._userCtrl > 0) pushScale *= 1.55;
 					// River / sturdy: hold the point, less lateral skating
-					if (b.sturdyBlock && !b.backsideSeal) {
+					if (b.sturdyBlock) {
 						pushScale *= 0.55;
 						d.slowed = Math.max(d.slowed, 0.78);
-					}
-					if (b.backsideSeal) {
-						pushScale *= 1.55;
-						d.slowed = Math.max(d.slowed, 0.7);
-						d.y += 0.16;
 					}
 					d.x += side * Math.min(b.sturdyBlock ? .22 : .48, (.09 + overlap * .55) * pushScale);
 					let dyPush = Math.min(b.sturdyBlock ? .28 : .58, (.12 + overlap * .7) * pushScale);
@@ -6328,21 +5858,12 @@ function remaining(group) {
 		separate(blockers, playStartYard >= 92 || rb && rb.y >= 95 ? 2.85 : 2.65);
 		separate(defenders, 2.35);
 		yieldToCarrier();
-		blockers.forEach((b) => {
-			if (!b.backsideSeal) return;
-			const side = b.sealSide || b.driveSide || 1;
-			const snap = snapX();
-			if (side > 0) b.x = Math.max(b.x, snap + 2.15);
-			else b.x = Math.min(b.x, snap - 2.15);
-		});
 		defenders.forEach((d) => {
 			if (!rb) return;
 			if (d.engageT > 0) {
 				d.engageT -= dt;
 				d.y = Math.min(d.y, 104.6);
-				// P0a: runner proximity must not pop the block. Only release
-				// once the runner has clearly cleared the engagement.
-				if (rb && d.y > rb.y + 4.2) {
+				if (rb && (d.y > rb.y + 4.2 || dist(d, rb) < 2.2)) {
 					d.engageT = 0;
 					d.state = "recover";
 					d.recoverT = .18;
@@ -6365,8 +5886,7 @@ function remaining(group) {
 				d.state = "whiff";
 				if (d.whiffT <= 0) {
 					d.state = "recover";
-					// Pancakes stay down longer so they cannot wrap on the get-up
-					d.recoverT = d.pancaked ? 0.7 : .4;
+					d.recoverT = .4;
 					d.vx *= .15;
 					d.vy *= .15;
 				}
@@ -6385,7 +5905,6 @@ function remaining(group) {
 				if (d.recoverT <= 0) {
 					d.state = "pursue";
 					d.low = false;
-					d.pancaked = false;
 				}
 				d.x = clamp(d.x, fieldLeft() + .8, fieldRight() - .8);
 				return;
@@ -6393,21 +5912,6 @@ function remaining(group) {
 			if (d.readT > 0) d.readT -= dt;
 			if (d.reactT > 0) d.reactT -= dt;
 			if (d.misfireT > 0) d.misfireT -= dt;
-			if (d.atkDecideT > 0) d.atkDecideT -= dt;
-			if (d.atkT > 0) {
-				d.atkT -= dt;
-				if (d.atkT <= 0 && (d.atkKind === "dive" || d.atkKind === "hit")) {
-					d.state = "whiff";
-					d.whiffT = d.atkKind === "dive" ? 0.62 + Math.random() * 0.18 : 0.36 + Math.random() * 0.12;
-					d.low = true;
-					d.vx = (d.atkDX || 0) * (d.atkKind === "dive" ? 7.2 : 4.4);
-					d.vy = (d.atkDY || 0) * (d.atkKind === "dive" ? 5.4 : 3.2);
-					clearAttack(d);
-					d.x = clamp(d.x, fieldLeft() + .8, fieldRight() - .8);
-					return;
-				}
-				if (d.atkT <= 0) clearAttack(d);
-			}
 			if (d.lagT > 0) {
 				d.lagT -= dt;
 				if (d.lagT <= 0) d.lagT = -1;
@@ -6422,13 +5926,10 @@ function remaining(group) {
 				d.jobX = d.x;
 				d.jobY = d.y;
 			}
-			const zoneJob = d.job === "deep" || d.job === "drop" || d.job === "flat" || d.job === "curl" || d.job === "hook" || d.job === "robber" || d.job === "contain" || d.job === "spy" || d.job === "shade";
-			const nearSideline = rb.x <= fieldLeft() + 7.2 || rb.x >= fieldRight() - 7.2;
-			const wideRun = nearSideline || Math.abs(rb.x - snapX()) > 9.5;
-			const outsideZoneX = d.jobX != null && Math.abs(rb.x - d.jobX) > (d.zoneRx || 5) * 0.52;
-			const pastZone = (d.jobY != null && rb.y > d.jobY + 2.4) || outsideZoneX || nearSideline || wideRun;
-			const atLevel = zoneJob && d.jobY != null && !pastZone && rb.y > playStartYard - 1 && rb.y > d.jobY - 8 && d.readT > 0;
-			const keepDeep = (d.job === "deep" || d.job === "robber" || d.isSafety) && !pastZone && !wideRun && distToRb > 7.2 && rb.y < (d.jobY || d.y) - 1.5 && d.readT > 0;
+			const zoneJob = d.job === "deep" || d.job === "drop" || d.job === "flat" || d.job === "curl" || d.job === "hook" || d.job === "robber" || d.job === "contain" || d.job === "spy";
+			const pastZone = d.jobY != null && rb.y > d.jobY + 2.4;
+			const atLevel = zoneJob && d.jobY != null && !pastZone && rb.y > playStartYard - 1 && rb.y > d.jobY - 8;
+			const keepDeep = (d.job === "deep" || d.job === "robber" || d.isSafety) && !pastZone && distToRb > 5.5;
 			const rbBehindLos = rb.y < playStartYard - 0.35;
 			// Close in the backfield, but not with full chase-down sprint intensity
 			d.sprintOn = !rbBehindLos && (distToRb < 8.6 && trail < 3.4 || distToRb < 4.2);
@@ -6451,12 +5952,9 @@ function remaining(group) {
 			if (d.engageT > 0) d.speed *= (d.group === "DT" ? .18 : .32);
 			if (d.lagT > 0) d.speed *= .45;
 			if (trail > 2.2 && distToRb > 3.6) d.speed *= .94;
-			chooseDefenderAttack(d, distToRb);
-			if (!(d.atkT > 0 && (d.atkKind === "dive" || d.atkKind === "hit"))) {
-				if (distToRb < 2.9) d.state = "commit";
-				else if (distToRb < 5.6) d.state = "breakdown";
-				else d.state = "pursue";
-			}
+			if (distToRb < 2.9) d.state = "commit";
+			else if (distToRb < 5.6) d.state = "breakdown";
+			else d.state = "pursue";
 			if (d.state === "commit" && d.lagT === 0 && distToRb < 4.4 && distToRb > 3.2) d.lagT = .04 + Math.random() * .05;
 			let shownJob = d.job;
 			if (d.fakeBlitz && d.reactT > 0) shownJob = d.job === "blitz" ? "drop" : "blitz";
@@ -6465,30 +5963,9 @@ function remaining(group) {
 			let tx = d.x;
 			let ty = d.y;
 			const wrong = d.misfireT > 0 && distToRb > 7 ? blockers[d.misfireIdx] : null;
-			const keepContain = d.job === "contain" && !pastZone && !wideRun && distToRb > 4 && Math.abs(rb.x - d.x) < 10;
-			const holdZone = zoneJob && !pastZone && !wideRun && d.readT > 0 && distToRb > 6.4 && (atLevel || rbBehindLos);
-			if (d.atkT > 0 && (d.atkKind === "dive" || d.atkKind === "hit")) {
-				tx = d.x + (d.atkDX || 0) * 10;
-				ty = d.y + (d.atkDY || 0) * 10;
-				d.speed *= d.atkKind === "dive" ? 1.38 : 1.2;
-			} else if (d.job === "spy") {
-				if (playAge < 0.28) {
-					tx = d.stutterX != null ? d.stutterX : d.x + 1.6;
-					ty = d.stutterY != null ? d.stutterY : d.y - 1.0;
-					d.spyPhase = "fake";
-				} else if (Math.hypot((d.jobX != null ? d.jobX : d.x) - d.x, (d.jobY != null ? d.jobY : d.y) - d.y) > 0.85 && playAge < 0.85) {
-					tx = d.jobX != null ? d.jobX : d.x;
-					ty = d.jobY != null ? d.jobY : playStartYard + 6.4;
-					d.spyPhase = "catch";
-				} else {
-					d.spyPhase = "follow";
-					d.zoneFollow = true;
-					tx = rb.x + (d.x < rb.x ? -0.8 : 0.8);
-					ty = rb.y + 0.35;
-					d.jobX = d.x;
-					d.jobY = d.y;
-				}
-			} else if (d.stutter && playAge < .5) {
+			const keepContain = d.job === "contain" && !pastZone && distToRb > 4 && Math.abs(rb.x - d.x) < 10;
+			const holdZone = atLevel || (zoneJob && !pastZone && (distToRb > 4.2 || rbBehindLos));
+			if (d.stutter && playAge < .5) {
 				tx = d.stutterX;
 				ty = d.stutterY;
 			} else if (wrong) {
@@ -6504,7 +5981,8 @@ function remaining(group) {
 				ty = clamp(rb.y + .8, (d.jobY || d.y) - ry, (d.jobY || d.y) + 2.2);
 				if (d.y >= 99 && rb.y < playStartYard + 1.2) ty = Math.max(ty, d.y - 0.4);
 			} else if (keepContain) {
-				tx = rb.x;
+				const side = d.x < (fieldLeft() + fieldRight()) / 2 ? -1 : 1;
+				tx = rb.x * .55 + (side < 0 ? fieldLeft() + 2.4 : fieldRight() - 2.4) * .45;
 				ty = Math.max(rb.y - .2, playStartYard);
 			} else if (d.blitzDelay && playAge < d.blitzDelay) {
 				// Delayed blitz: hold / soft drift until delay elapses
@@ -6526,11 +6004,10 @@ function remaining(group) {
 				// Level-based contain: don't all collapse to the same point
 				const level = d.job === "deep" || d.isSafety ? 2 : d.job === "drop" || d.job === "hook" || d.job === "robber" ? 1 : 0;
 				const lead = distToRb < 3.2 ? 0 : Math.min(2.4, distToRb * (.12 + level * .04));
-				const sideBias = wideRun ? 0 : (d.laneOffset || 0) * (0.35 + level * 0.15);
-				const containY = wideRun ? rb.y : level === 2 ? rb.y + 2.8 : level === 1 ? rb.y + 1.1 : rb.y;
+				const sideBias = (d.laneOffset || 0) * (0.35 + level * 0.15);
+				const containY = level === 2 ? rb.y + 2.8 : level === 1 ? rb.y + 1.1 : rb.y;
 				tx = rb.x + (rb.vx || 0) * lead * .12 + sideBias;
 				ty = (behindLos ? rb.y : containY) + (rb.vy || 0) * lead * .06;
-				if (wideRun) tx = rb.x;
 				// Support angle: shade toward the ball-carrier's open side relative to other defenders
 				if (level < 2 && distToRb > 4.5) {
 					let nearestAlly = null, nad = 99;
@@ -6549,19 +6026,6 @@ function remaining(group) {
 				tx = rb.x * .7 + d.x * .3;
 				ty = Math.min(98.8, Math.max(rb.y + 1.4, 96.5));
 			}
-			// P0b: unblocked DTs stay on their side of the LOS unless they are
-			// the single designated slanter. After the runner crosses they can chase.
-			if (d.group === "DT" && d.engageT <= 0 && !d.pancaked) {
-				if (!d.dtPenetrate) {
-					if (!rb || rb.y < playStartYard + 0.25) {
-						tx = d.jobX != null ? d.x * 0.35 + d.jobX * 0.65 : tx;
-						ty = Math.max(ty, d.jobY != null ? d.jobY : playStartYard + 1.6);
-						ty = Math.max(ty, playStartYard + 0.45);
-					}
-				} else {
-					ty = Math.max(ty, playStartYard - 1.05);
-				}
-			}
 			const ang = Math.atan2(ty - d.y, tx - d.x);
 			let mx = Math.cos(ang) * d.speed * dt;
 			let my = Math.sin(ang) * d.speed * dt;
@@ -6578,10 +6042,6 @@ function remaining(group) {
 			turnToward(d, ang, dt, 10);
 			d.x = clamp(d.x, fieldLeft() + .8, fieldRight() - .8);
 			d.y = Math.min(d.y, 108.5);
-			if (d.group === "DT" && d.engageT <= 0 && !d.pancaked && d.state !== "whiff") {
-				if (!d.dtPenetrate && (!rb || rb.y < playStartYard + 0.25)) d.y = Math.max(d.y, playStartYard + 0.4);
-				else if (d.dtPenetrate) d.y = Math.max(d.y, playStartYard - 1.15);
-			}
 		});
 		if (tackleAnim) {
 			tackleAnim.timer -= dt;
@@ -6594,17 +6054,14 @@ function remaining(group) {
 					if (tackleAnim.defender) {
 						tackleAnim.defender.x = rb.x - tackleAnim.fx * .55;
 						tackleAnim.defender.y = rb.y - tackleAnim.fy * .55;
-						tackleAnim.defender.low = true;
 					}
 				} else {
-					const travel = (tackleAnim.dist || 1.2) * e;
-					rb.x = tackleAnim.ox + tackleAnim.fx * travel;
-					rb.y = tackleAnim.oy + tackleAnim.fy * travel;
+					const settle = .55 * e;
+					rb.x = tackleAnim.ox + tackleAnim.fx * settle;
+					rb.y = tackleAnim.oy + tackleAnim.fy * settle * .6;
 					if (tackleAnim.defender) {
-						const hold = tackleAnim.hold != null ? tackleAnim.hold : 0.55;
-						tackleAnim.defender.x = rb.x - tackleAnim.fx * hold;
-						tackleAnim.defender.y = rb.y - tackleAnim.fy * hold;
-						tackleAnim.defender.low = true;
+						tackleAnim.defender.x = rb.x - tackleAnim.fx * .5;
+						tackleAnim.defender.y = rb.y - tackleAnim.fy * .35;
 					}
 				}
 			}
@@ -6631,15 +6088,9 @@ function remaining(group) {
 		if (handoffDone && rb && !tackleAnim) {
 			const hurdling = !!activeMove?.startsWith("hurdle");
 			for (const d of defenders) {
-				if (d.pancaked || d.state === "whiff" || d.state === "recover") continue;
+				if (d.state === "whiff" || d.state === "recover") continue;
+				if (d.engageT > 0) continue;
 				let tackleRadius = rb.radius + d.radius + .14;
-				// P0a: an engaged defender is occupied — shrink the wrap, do not
-				// skip the check entirely (runner can slip the gap).
-				if (d.engageT > 0) tackleRadius *= 0.38;
-				const divingAtk = d.atkKind === "dive" && d.atkT > 0;
-				const hittingAtk = d.atkKind === "hit" && d.atkT > 0;
-				if (divingAtk) tackleRadius *= 1.55;
-				else if (hittingAtk) tackleRadius *= 1.18;
 				if (idleCarrierT > .5) tackleRadius += .42;
 				if (rb.y - playStartYard > 10) tackleRadius *= .96;
 				if (activeMove === "spin") tackleRadius *= (moveTimer / Math.max(.01, moveDur) > .28) ? .38 : .7;
@@ -6653,59 +6104,6 @@ function remaining(group) {
 					if (rb.y >= 90 && Math.abs(d.x - rb.x) < 1.6) continue;
 				}
 				if (dist(rb, d) < tackleRadius) {
-					if (divingAtk) {
-						const toRbX = rb.x - d.x;
-						const toRbY = rb.y - d.y;
-						const span = Math.hypot(toRbX, toRbY) || 1;
-						const align = (toRbX * (d.atkDX || 0) + toRbY * (d.atkDY || 0)) / span;
-						if (align < 0.32) {
-							d.state = "whiff";
-							d.whiffT = 0.48 + Math.random() * 0.16;
-							d.low = true;
-							d.vx = (d.atkDX || 0) * 5.2;
-							d.vy = (d.atkDY || 0) * 3.4;
-							clearAttack(d);
-							continue;
-						}
-						const cd = carrierDir(rb);
-						const ygDive = Math.round(rb.y - playStartYard);
-						clearAttack(d);
-						tackleAnim = {
-							mode: "tackle",
-							timer: 0.42,
-							dur: 0.42,
-							ox: rb.x,
-							oy: rb.y,
-							fx: cd.x * 0.55 + (d.atkDX || 0) * 0.45,
-							fy: cd.y * 0.55 + (d.atkDY || 0) * 0.45,
-							dist: 1.15,
-							hold: 0.5,
-							yards: ygDive,
-							defender: d
-						};
-						const flD = Math.hypot(tackleAnim.fx, tackleAnim.fy) || 1;
-						tackleAnim.fx /= flD;
-						tackleAnim.fy /= flD;
-						return;
-					}
-					if (hittingAtk) {
-						const finesse = !!(activeMove && (activeMove === "spin" || activeMove.startsWith("juke") || activeMove.startsWith("shake") || activeMove.startsWith("deadleg")));
-						let hitWin = 0.6;
-						if (finesse) hitWin = 0.22;
-						if (trucking) hitWin = 0.78;
-						if (d.engageT > 0) hitWin *= 0.45;
-						if (Math.random() > hitWin) {
-							d.state = "recover";
-							d.recoverT = 0.48 + Math.random() * 0.16;
-							d.low = true;
-							d.vx = -(d.atkDX || Math.sign(d.x - rb.x) || 1) * 5.2;
-							d.vy = -(d.atkDY || 0) * 3.4;
-							clearAttack(d);
-							rb.x += Math.sign(rb.x - d.x || 1) * 0.45;
-							rb.y += 0.85;
-							continue;
-						}
-					}
 					if (activeMove === "dive" && dive) {
 						if (ballBrokePlane(rb)) {
 							finishDive("Dive");
@@ -6782,27 +6180,6 @@ function remaining(group) {
 					if (trucking) {
 						const carrier = rb;
 						const pile = defenders.filter((od) => od !== d && dist(carrier, od) < 2.35).length;
-						const td = carrierDir(carrier);
-						if (divingAtk && pile < 1 && !inGoal()) {
-							const yg = Math.round(rb.y - playStartYard);
-							clearAttack(d);
-							tackleAnim = {
-								mode: "tackle",
-								timer: .42,
-								dur: .42,
-								ox: rb.x,
-								oy: rb.y,
-								fx: rb.x - d.x,
-								fy: rb.y - d.y,
-								dist: 1.2,
-								yards: yg,
-								defender: d
-							};
-							const flDive = Math.hypot(tackleAnim.fx, tackleAnim.fy) || 1;
-							tackleAnim.fx /= flDive;
-							tackleAnim.fy /= flDive;
-							return;
-						}
 						if (inGoal()) {
 							if (pile >= 3 && Math.random() < .32) {
 								const yg = Math.round(rb.y - playStartYard);
@@ -6812,8 +6189,8 @@ function remaining(group) {
 									dur: .4,
 									ox: rb.x,
 									oy: rb.y,
-									fx: td.x * 0.45 + (rb.truckDir || 0) * 0.2,
-									fy: Math.max(0.35, td.y),
+									fx: (rb.truckDir || 0) * .35,
+									fy: 1,
 									dist: Math.max(1.6, 101.2 - rb.y),
 									yards: yg + 2,
 									defender: d
@@ -6824,12 +6201,12 @@ function remaining(group) {
 							d.state = "recover";
 							d.recoverT = .38;
 							d.low = true;
-							d.x += (dir || Math.sign(d.x - rb.x) || 1) * 0.7;
-							d.y += td.y * 0.55;
-							d.vx = (dir || Math.sign(d.x - rb.x) || 1) * 3.2 + td.x * 1.4;
-							d.vy = td.y * 2.4;
-							rb.y += td.y * 0.55;
-							rb.x += td.x * 0.45 + dir * .25;
+							d.x += (dir || Math.sign(d.x - rb.x) || 1) * (1.6 + Math.random());
+							d.y += 2.4 + Math.random() * 1.4;
+							d.vx = (dir || Math.sign(d.x - rb.x) || 1) * 6;
+							d.vy = 7;
+							rb.y += .85;
+							rb.x += dir * .55;
 							continue;
 						}
 						if (pile >= 1) {
@@ -6840,8 +6217,8 @@ function remaining(group) {
 								dur: .45,
 								ox: rb.x,
 								oy: rb.y,
-								fx: td.x,
-								fy: td.y,
+								fx: 0,
+								fy: 1,
 								dist: 2.2,
 								yards: yg + 2,
 								defender: d
@@ -6849,34 +6226,30 @@ function remaining(group) {
 							return;
 						}
 						const roll = Math.random();
-						// P0c: open-field truck is no longer the safe button (was 55% fall-forward)
-						if (roll < .28) {
+						if (roll < .55) {
 							const yg = Math.round(rb.y - playStartYard);
-							const extra = 1.6 + Math.random() * 2.4;
+							const extra = 3 + Math.random() * 5;
 							tackleAnim = {
 								mode: "truckDrive",
 								timer: .7,
 								dur: .7,
 								ox: rb.x,
 								oy: rb.y,
-								fx: td.x,
-								fy: td.y,
+								fx: 0,
+								fy: 1,
 								dist: extra,
 								yards: yg + Math.round(extra),
 								defender: d
 							};
 							return;
 						} else if (roll < .85) {
-							d.state = "whiff";
-							d.whiffT = 0.32 + Math.random() * 0.14;
-							d.low = true;
-							d.x += Math.sign(d.x - rb.x || 1) * (0.55 + Math.random() * 0.35);
-							d.y += td.y * 0.45;
-							d.vx = Math.sign(d.x - rb.x || 1) * 3.4 + td.x * 1.6;
-							d.vy = td.y * 2.2;
+							const knock = 5 + Math.random() * 5;
+							d.y += knock;
 							d.slowed = .7;
-							rb.x += td.x * 0.45;
-							rb.y += td.y * 0.5;
+							d.recoverT = .45;
+							d.state = "recover";
+							d.low = false;
+							rb.y += .6;
 							activeMove = null;
 							moveTimer = 0;
 							continue;
@@ -6888,51 +6261,34 @@ function remaining(group) {
 						}
 					}
 					const yg = Math.round(rb.y - playStartYard);
-					clearAttack(d);
-					const mR = playerMass(rb);
-					const mD = playerMass(d);
-					const rvx = rb.vx || 0, rvy = rb.vy || 0;
-					const dvx = clamp(d.vx || 0, -7, 7), dvy = clamp(d.vy || 0, -7, 7);
-					const comx = (mR * rvx + mD * dvx) / (mR + mD);
-					const comy = (mR * rvy + mD * dvy) / (mR + mD);
-					let comSpd = Math.hypot(comx, comy);
-					const cd = carrierDir(rb);
-					if (comSpd < 0.7) {
-						comSpd = 0.7;
-					}
-					let fx = comx / (Math.hypot(comx, comy) || 1);
-					let fy = comy / (Math.hypot(comx, comy) || 1);
-					if (Math.hypot(comx, comy) < 0.7) {
-						fx = cd.x;
-						fy = cd.y;
-					}
-					const along = rvx * fx + rvy * fy;
-					const chasedown = along > 1.2 && (d.y < rb.y - 0.15);
-					let drag = comSpd * (chasedown ? 0.26 : 0.16) * (mR / (mR + mD * 0.85));
-					drag *= clamp(breakTackle, 0.55, 1.6);
-					if (d.group === "DT") drag *= 0.72;
-					else if (d.group === "DB") drag *= 1.12;
-					drag = clamp(drag, chasedown ? 1.35 : 0.7, chasedown ? 4.4 : 2.4);
+					let fx = rb.x - d.x, fy = rb.y - d.y;
+					const flen = Math.hypot(fx, fy) || 1;
+					fx /= flen;
+					fy /= flen;
+					// Chasedown / tackle from behind → more YAC stumble forward
+					const fromBehind = d.y < rb.y - 0.35 || (rb.vy > 2 && fy > 0.25);
+					let yacBoost = fromBehind ? (2.8 + Math.random() * 3.4) : (0.4 + Math.random() * 1.1);
+					yacBoost *= clamp(breakTackle, 0.4, 2.2);
+					// High breakTackle: chance to slip the wrap and keep running
 					if (breakTackle > 1.05 && Math.random() < clamp((breakTackle - 1) * 0.35, 0, 0.55)) {
 						d.slowed = Math.max(d.slowed, 0.55);
 						d.recoverT = 0.2 + Math.random() * 0.15;
 						d.state = "recover";
-						rb.x += fx * 0.25 * breakTackle;
-						rb.y += fy * 0.25 * breakTackle;
+						rb.y += 0.35 * breakTackle;
 						continue;
 					}
-					const dur = clamp((chasedown ? 0.52 : 0.38) + drag * 0.08, 0.4, 0.88);
+					const forward = fromBehind ? Math.max(0.55, fy) : fy;
+					const flen2 = Math.hypot(fx, forward) || 1;
 					tackleAnim = {
 						mode: "tackle",
-						timer: dur,
-						dur,
+						timer: fromBehind ? 0.62 : 0.48,
+						dur: fromBehind ? 0.62 : 0.48,
 						ox: rb.x,
 						oy: rb.y,
-						fx,
-						fy,
-						dist: drag,
-						hold: chasedown ? 0.42 : 0.55,
-						yards: yg + Math.round(drag * (chasedown ? 0.7 : 0.35)),
+						fx: fx / flen2,
+						fy: forward / flen2,
+						dist: 1.4 + yacBoost,
+						yards: yg + Math.round(fromBehind ? yacBoost * 0.85 : yacBoost * 0.35),
 						defender: d
 					};
 					return;
@@ -7902,33 +7258,23 @@ function remaining(group) {
 	function artAlpha(along) {
 		if (peekHeld || peekToggle) return .92;
 		if (preSnapTimer > 0) return Math.min(1, preSnapTimer / .25) * .95;
+		// Practice: hold play art much longer so assignments stay readable
 		const practice = gameMode === "practice";
-		const hold = (practice ? 0.42 : 0.22) + clamp(along, 0, 1) * 0.12;
-		const fadeDur = practice ? 0.55 : 0.32;
+		const hold = (practice ? 3.6 : 1.0) + clamp(along, 0, 1) * (practice ? 0.8 : 0.28);
+		const fadeDur = practice ? 2.2 : 0.58;
 		const t = playAge - hold;
-		if (t <= 0) return .82;
-		return Math.max(0, .82 * (1 - t / fadeDur));
-	}
-	function artAlphaOff(along) {
-		if (peekHeld || peekToggle) return .92;
-		if (preSnapTimer > 0) return Math.min(1, preSnapTimer / .25) * .95;
-		const practice = gameMode === "practice";
-		const hold = (practice ? 0.92 : 0.72) + clamp(along, 0, 1) * 0.12;
-		const fadeDur = practice ? 0.55 : 0.32;
-		const t = playAge - hold;
-		if (t <= 0) return .82;
-		return Math.max(0, .82 * (1 - t / fadeDur));
+		if (t <= 0) return .88;
+		return Math.max(0, .88 * (1 - t / fadeDur));
 	}
 	function zoneAlpha() {
 		if (peekHeld || peekToggle) return .9;
 		if (preSnapTimer > 0) return Math.min(1, preSnapTimer / .25) * .95;
 		const practice = gameMode === "practice";
-		// Start the fade when def arrows die, then 1s to off
-		const hold = practice ? 0.97 : 0.54;
-		const fadeDur = 1.0;
+		const hold = practice ? 4.2 : 2.05;
+		const fadeDur = practice ? 2.4 : 0.75;
 		const t = playAge - hold;
-		if (t <= 0) return .62;
-		return Math.max(0, .62 * (1 - t / fadeDur));
+		if (t <= 0) return .72;
+		return Math.max(0, .72 * (1 - t / fadeDur));
 	}
 	function drawAssignmentArrow(x0, y0, x1, y1, color, a0, a1, noHead) {
 		if (a0 == null) a0 = .9;
@@ -8067,7 +7413,7 @@ function remaining(group) {
 			return;
 		}
 		el.classList.remove("hidden");
-		el.textContent = "X offense book · B defense book · Y close · A snap";
+		el.textContent = "←→ switch O/D · ↑↓ cycle plays · RT flip O · LT flip D · A snap";
 	}
 	function audibleLabelForPlay(playId) {
 		const map = getAudibleMap();
@@ -8201,10 +7547,10 @@ function drawMiniPreview(canvas, kind) {
 				return rank(a) - rank(b);
 			});
 			order.forEach((d) => {
-				const col = d.job === "blitz" ? "#ef4444" : d.job === "deep" || d.job === "robber" ? "#a78bfa" : d.job === "drop" || d.job === "spy" ? "#facc15" : d.job === "flat" || d.job === "contain" || d.job === "curl" || d.job === "shade" ? "#38bdf8" : d.job === "hook" ? "#ddd6fe" : "#e2e8f0";
+				const col = d.job === "blitz" ? "#ef4444" : d.job === "deep" || d.job === "robber" ? "#a78bfa" : d.job === "drop" || d.job === "spy" ? "#facc15" : d.job === "flat" || d.job === "contain" || d.job === "curl" ? "#38bdf8" : d.job === "hook" ? "#ddd6fe" : "#e2e8f0";
 				const tx = d.jobX != null ? d.jobX : d.x;
 				const ty = d.jobY != null ? d.jobY : d.y + 2;
-				const zoneish = d.job === "deep" || d.job === "drop" || d.job === "flat" || d.job === "curl" || d.job === "hook" || d.job === "robber" || d.job === "contain" || d.job === "spy" || d.job === "shade";
+				const zoneish = d.job === "deep" || d.job === "drop" || d.job === "flat" || d.job === "curl" || d.job === "hook" || d.job === "robber" || d.job === "contain" || d.job === "spy";
 				if (zoneish) {
 					zoneEllipse(tx, ty, d.zoneRx || 4, d.zoneRy || 2.4, col, !!d.zoneFollow);
 					// plain connector to zone center (no arrowhead)
@@ -8426,15 +7772,12 @@ function drawMiniPreview(canvas, kind) {
 		const wantOff = artOn && (playArtMode === "on" || playArtMode === "offense");
 		const wantDef = artOn && (playArtMode === "on" || playArtMode === "defense") || holdPeek;
 		const returning = !!(fumbleSeq && (fumbleSeq.phase === "return" || fumbleSeq.defender && fumbleSeq.phase !== "loose") || scoreSeq && scoreSeq.who === "def");
-		const showOff = wantOff && !!currentPlay && (preSnapTimer > 0 || playAge < 6.2 || holdPeek || (practiceAwaitSnap && practiceAudibleArm));
-		const showDef = !returning && wantDef && (holdPeek || (!practiceAwaitSnap && (revealDefThisPlay || preSnapTimer > .2 || playAge < 6.4)) || (practiceAwaitSnap && practiceDefAudibleArm));
+		const showOff = wantOff && !!currentPlay && (preSnapTimer > 0 || playAge < 6.2 || holdPeek || practiceAwaitSnap);
+		const showDef = !returning && wantDef && (holdPeek || revealDefThisPlay || preSnapTimer > .2 || playAge < 6.4 || practiceAwaitSnap);
 		if (!showOff && !showDef) return;
 		const aOrigin = artAlpha(0);
 		const aDest = artAlpha(1);
-		const oOrigin = artAlphaOff(0);
-		const oDest = artAlphaOff(1);
-		const zA = zoneAlpha();
-		if (showOff && currentPlay && (oOrigin > .02 || oDest > .02 || holdPeek)) blockers.forEach((b) => {
+		if (showOff && currentPlay && (aOrigin > .02 || aDest > .02 || holdPeek)) blockers.forEach((b) => {
 			const segs = [];
 			// Shorten art paths so "next level" blocks don't draw stadium-long arrows
 			function shortAim(tx, ty, maxDist) {
@@ -8456,30 +7799,17 @@ function drawMiniPreview(canvas, kind) {
 			} else if (b.gapAimX != null) {
 				segs.push(shortAim(b.gapAimX, b.gapAimY != null ? b.gapAimY : playStartYard + 4.5, 3.2));
 			} else segs.push(shortAim(b.x + (b.driveSide || 0) * 1.2, playStartYard + Math.min(3.2, b.levelY || 2.5), 2.6));
-			drawBlockT(b.x, b.y, segs, oOrigin, oDest);
+			drawBlockT(b.x, b.y, segs, aOrigin, aDest);
 		});
-		if (showDef && (aOrigin > .02 || aDest > .02 || zA > .02 || holdPeek)) {
+		if (showDef && (aOrigin > .02 || aDest > .02 || holdPeek)) {
 			defenders.forEach((d) => {
-				const col = d.job === "blitz" ? "#ef4444" : d.job === "spy" ? "#f97316" : d.job === "contain" || d.job === "shade" ? "#38bdf8" : d.job === "curl" ? "#67e8f9" : d.job === "hook" || d.job === "robber" ? "#c4b5fd" : d.job === "deep" ? "#a78bfa" : d.job === "drop" ? "#facc15" : d.job === "flat" ? "#7dd3fc" : "#f8fafc";
+				const col = d.job === "blitz" ? "#ef4444" : d.job === "contain" ? "#38bdf8" : d.job === "curl" ? "#67e8f9" : d.job === "hook" || d.job === "robber" ? "#c4b5fd" : d.job === "deep" ? "#a78bfa" : d.job === "drop" ? "#facc15" : d.job === "flat" ? "#7dd3fc" : "#f8fafc";
 				const fl = fieldLeft(), fr = fieldRight();
 				const tx = clamp(d.jobX != null ? d.jobX : d.x, fl + 2.6, fr - 2.6);
 				const ty = d.jobY != null ? d.jobY : d.y + 3;
-				if (d.job === "spy") {
-					const zx = d.spyPhase === "follow" ? d.x : tx;
-					const zy = d.spyPhase === "follow" ? d.y : ty;
-					if (zA > .02 || holdPeek) drawZoneCloud(zx, zy, d.zoneRx || 1.55, d.zoneRy || 1.45, col, zA * .42);
-					if (aOrigin > .02 || holdPeek) {
-						const midX = d.stutterX != null ? d.stutterX : (d.x + tx) / 2;
-						const midY = d.stutterY != null ? d.stutterY : (d.y + ty) / 2;
-						drawWorldCurve([
-							[d.x, d.y],
-							[midX, midY],
-							[tx, ty]
-						], col, 2.3, aOrigin * .9, aDest * .95);
-					}
-				} else if (d.job === "deep" || d.job === "drop" || d.job === "flat" || d.job === "curl" || d.job === "hook" || d.job === "robber" || d.job === "contain" || d.job === "shade") {
-					if (zA > .02 || holdPeek) drawZoneCloud(tx, ty, d.zoneRx || 4, d.zoneRy || 2.4, col, zA * .3);
-					if (aOrigin > .02 || holdPeek) drawAssignmentArrow(d.x, d.y, tx, ty, col, aOrigin * .9, aDest * .55, true);
+				if (d.job === "deep" || d.job === "drop" || d.job === "flat" || d.job === "curl" || d.job === "hook" || d.job === "robber" || d.job === "contain" || d.job === "spy") {
+					drawZoneCloud(tx, ty, d.zoneRx || 4, d.zoneRy || 2.4, col, zoneAlpha() * .3);
+					drawAssignmentArrow(d.x, d.y, tx, ty, col, aOrigin * .9, aDest * .55, true);
 				} else if (d.job === "blitz" && (d.artCurve || d.stutter)) {
 					const inward = tx > (fl + fr) / 2 ? -1.35 : 1.35;
 					const midX = clamp(d.stutter ? d.stutterX : (d.x + tx) / 2 + inward, fl + 3.2, fr - 3.2);
@@ -8838,7 +8168,7 @@ function drawMiniPreview(canvas, kind) {
 			ctx.strokeStyle = "#facc15";
 			ctx.lineWidth = 3.2;
 			ctx.lineCap = "round";
-			if (cameraMode === "top" || cameraMode === "topZoom") {
+			if (cameraMode === "top") {
 				const stem = 3.2;
 				const postH = 6.6;
 				strokeWorld(midX, 110, midX, 110 + stem, "#facc15", 3.2);
@@ -9048,13 +8378,6 @@ function drawMiniPreview(canvas, kind) {
 		}
 		const fatigueEl = $("fatigueToggle");
 		if (fatigueEl) {
-			const host = fatigueEl.closest("label") || fatigueEl.parentElement;
-			if (host) {
-				const nodes = [...host.childNodes];
-				nodes.forEach((n) => {
-					if (n.nodeType === 3 && /fatigue/i.test(n.textContent)) n.textContent = " Runner Fatigue";
-				});
-			}
 			fatigueOn = !!fatigueEl.checked;
 			fatigueEl.addEventListener("change", () => {
 				fatigueOn = !!fatigueEl.checked;
@@ -9309,11 +8632,10 @@ function drawMiniPreview(canvas, kind) {
 	}
 	const spdEl = $("speedSlider");
 	if (spdEl) {
-		spdEl.value = "1.00";
-		playSpeed = 1.0;
+		playSpeed = parseFloat(spdEl.value) || 1.2;
 		const lab = $("speedLabel");
 		const syncSpd = () => {
-			playSpeed = parseFloat(spdEl.value) || 1.0;
+			playSpeed = parseFloat(spdEl.value) || 1.2;
 			if (lab) lab.textContent = playSpeed.toFixed(2) + "×";
 		};
 		syncSpd();
@@ -9397,21 +8719,13 @@ function drawMiniPreview(canvas, kind) {
 	const camSel = $("cameraSelect");
 	function syncCamCornerUi() {
 		const corner = $("camCornerSelect");
-		if (corner) corner.disabled = cameraMode === "top" || cameraMode === "topZoom";
+		if (corner) corner.disabled = cameraMode === "top";
 	}
 	if (camSel) {
-		if (![...camSel.options].some((o) => o.value === "topZoom")) {
-			const opt = document.createElement("option");
-			opt.value = "topZoom";
-			opt.textContent = "Overhead Zoom";
-			const after = [...camSel.options].find((o) => o.value === "top");
-			if (after && after.nextSibling) camSel.insertBefore(opt, after.nextSibling);
-			else camSel.appendChild(opt);
-		}
-		camSel.value = "top";
-		cameraMode = "top";
+		if (!CAMERAS[camSel.value]) camSel.value = "high";
+		cameraMode = CAMERAS[camSel.value] ? camSel.value : "high";
 		camSel.onchange = () => {
-			cameraMode = CAMERAS[camSel.value] ? camSel.value : "top";
+			cameraMode = CAMERAS[camSel.value] ? camSel.value : "high";
 			syncCamCornerUi();
 			refreshScale();
 		};
