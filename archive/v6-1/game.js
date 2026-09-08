@@ -1,18 +1,8 @@
 "use strict";
 /**
- * Football Ground Attack Lab v7 engine
- * Practice lab: 6×6 books, Madden replay cameras, posed players, stadium bowl.
+ * Football Ground Attack Lab v6 engine
+ * Practice lab: 6×6 books, latched flip, no clock, stable LOS, film-sheet routes.
  */
-const GAME_ASSET_BASE = (() => {
-	const cur = document.currentScript;
-	if (cur && cur.src) return cur.src.replace(/[^/]+(?:\?.*)?$/, "");
-	const scripts = document.getElementsByTagName("script");
-	for (let i = 0; i < scripts.length; i++) {
-		const src = scripts[i].src || "";
-		if (src.indexOf("game.js") !== -1) return src.replace(/[^/]+(?:\?.*)?$/, "");
-	}
-	return "";
-})();
 /**
 * Football Ground Attack Lab — Default feel pass
 * Port of the v1 canvas sim + locked v2 mapping / AI / truck / burst / fumble.
@@ -196,7 +186,13 @@ const OFF_PLAYS = [
 	},
 	];
 const AUDIBLE_BUTTONS = [
-	// Instant-pick LB/RB shortcuts removed — 1–6 and stick browse only.
+	// A snap · B defense menu · Y cancel · LT/RT flip — not pick slots
+	{ id: "LB", label: "LB", match: (inp) => inp.jukeL },
+	{ id: "RB", label: "RB", match: (inp) => inp.jukeR },
+	{ id: "UP", label: "↑", match: (inp) => inp._dpadUp },
+	{ id: "DN", label: "↓", match: (inp) => inp._dpadDn },
+	{ id: "LEFT", label: "←", match: (inp) => inp._dpadLeft },
+	{ id: "RIGHT", label: "→", match: (inp) => inp._dpadRight }
 ];
 const DEF_SCHEMES = [
 	{
@@ -400,17 +396,6 @@ const CAMERAS = {
 		follow: 11,
 		zoom: .66,
 		sc: .82
-	},
-	free: {
-		id: "free",
-		name: "Freestyle",
-		skew: 0,
-		yScale: 1,
-		yBias: 0,
-		xLean: 0,
-		follow: 6,
-		zoom: 1,
-		sc: 1
 	}
 };
 const SPRINT_MULT = 1.38;
@@ -461,18 +446,13 @@ function $(id) {
 function startGame(canvas) {
 	const maybeCtx = canvas.getContext("2d");
 	if (!maybeCtx) return () => {};
-	let ctx = maybeCtx;
+	const ctx = maybeCtx;
 	let FIELD_WIDTH = 50;
 	let surface = "grass";
 	let ezArtMode = "mountains";
 	let ezTextMode = "ee";
 	let ezCustomText = "ELEVATION EDGE";
 	let midLogoOn = true;
-	const eeLogoImg = new Image();
-	eeLogoImg.src = GAME_ASSET_BASE + "ee-logo.png?v=4";
-	function eeLogoReady() {
-		return !!(eeLogoImg && eeLogoImg.complete && eeLogoImg.naturalWidth > 0);
-	}
 	const BASE_CANVAS_H = 620;
 	const PX_PER_YARD_X = BASE_CANVAS_H / 100;
 	const VISIBLE_YARDS = 54;
@@ -504,9 +484,6 @@ function startGame(canvas) {
 	let tdCount = 0;
 	let playActive = true;
 	let paused = false;
-	let camAdjust = false;
-	let camAdjustEdge = false;
-	let poseClock = 0;
 	let pauseTimer = 0;
 	let lastTime = performance.now();
 	let padName = "";
@@ -543,7 +520,7 @@ function startGame(canvas) {
 	let camZoom = 1;
 	let breakaway = false;
 	let tdZoom = false;
-	let cameraMode = "free";
+	let cameraMode = "top";
 	let camCorner = Math.random() < .5 ? "sw" : "nw";
 	let playArtMode = "on";
 	let padProfile = "v6";
@@ -590,20 +567,6 @@ function startGame(canvas) {
 	let playAge = 0;
 	let idleCarrierT = 0;
 	let ankleCam = null;
-	let camOp = { panX: 0, panY: 0, yaw: 0, zoom: 1, theta: 0, phi: 0.82 };
-	let viewHook = null;
-	let jumboCan = null;
-	let jumboBusy = false;
-	let camFocusX = 25;
-	let camFocusY = 55;
-	let lookX = 25;
-	let lookY = 55;
-	let replayCursorFree = false;
-	let freeLook = false;
-	let freeOrbit = { theta: 0, phi: 0.82, zoom: 1 };
-	let replayToggleEdge = false;
-	let replayLeaveEdge = false;
-	let replayHudRate = 1;
 	let peekHeld = false;
 	let peekToggle = false;
 	let revealDefThisPlay = false;
@@ -613,10 +576,8 @@ function startGame(canvas) {
 	let replayAcc = 0;
 	let playFrames = [];
 	let lastPlayFrames = [];
-	let huddleBuf = [];
-	const REPLAY_HZ = 30;
+	const REPLAY_HZ = 20;
 	const REPLAY_CAP = 1200;
-	const HUDDLE_KEEP = 15;
 	const SAVED_CLIPS_KEY = "fga_saved_clips_v1";
 	const SAVED_CLIPS_MAX = 10;
 	let ctrlLeft = null;
@@ -655,7 +616,7 @@ function startGame(canvas) {
 	let handoffBall = null; // {x,y} mid-air during pitch
 	let celebrateTimer = 0;
 	let logoFlip = 1;
-	let fieldArtSide = "off";
+	let fieldArtSide = "def";
 	let moveCooldown = 0;
 	let activeMove = null;
 	let moveTimer = 0;
@@ -813,21 +774,16 @@ function startGame(canvas) {
 		if (!banner) return;
 		const inner = banner.querySelector("div");
 		if (!inner) return;
-		if (kind === "replay") inner.innerHTML = "Instant replay<br /><span style=\"font-size:1rem;font-weight:500\">A pause/play · X/B zoom · LB/RB slow · LT/RT fast · LS pan the X · Y+LS orbit · View/R exit</span>";
-		else if (kind === "pauseFree") inner.innerHTML = "Game paused.<br /><span style=\"font-size:1rem;font-weight:500\">A resume · B restart<br />Y adjust camera · X or View instant replay</span>";
-		else inner.innerHTML = "Game paused.<br /><span style=\"font-size:1rem;font-weight:500\">Press A to resume. Press B to restart.<br />Press X or View for Instant Replay</span>";
-	}
-	function syncPauseChrome() {
-		const banner = $("pauseBanner");
-		if (banner) banner.classList.toggle("hidden", !paused || !!fullReplay || camAdjust);
-		if (paused && !fullReplay && !camAdjust) pauseBannerHTML(cameraMode === "free" ? "pauseFree" : "pause");
+		if (kind === "replay") inner.innerHTML = "Instant replay<br /><span style=\"font-size:1rem;font-weight:500\">Press A or Replay to skip</span>";
+		else inner.innerHTML = "Game paused.<br /><span style=\"font-size:1rem;font-weight:500\">Press A to resume. Press B to restart.<br />Press X for Instant Replay</span>";
 	}
 	function setPaused(on) {
 		paused = on;
-		if (!paused) camAdjust = false;
 		const pb = $("pauseBtn");
 		if (pb) pb.textContent = paused ? "Resume" : "Pause";
-		syncPauseChrome();
+		const banner = $("pauseBanner");
+		if (banner) banner.classList.toggle("hidden", !paused);
+		if (paused && !fullReplay) pauseBannerHTML("pause");
 		if (paused) canvas.focus();
 	}
 	function updateBallOn() {
@@ -843,229 +799,29 @@ function startGame(canvas) {
 			xLean: -base.xLean
 		};
 	}
-	function resetCamOp() {
-		camOp.panX = 0;
-		camOp.panY = 0;
-		camOp.yaw = 0;
-		if (cameraMode === "free") {
-			camOp.zoom = freeOrbit.zoom || 1;
-			camOp.theta = freeOrbit.theta || 0;
-			camOp.phi = freeOrbit.phi != null ? freeOrbit.phi : 0.82;
-			return;
-		}
-		camOp.zoom = 1;
-		camOp.theta = 0;
-		camOp.phi = camPhiFromMode();
-	}
-	function camPhiFromMode() {
-		if (cameraMode === "free") return freeOrbit.phi != null ? freeOrbit.phi : 0.82;
-		if (cameraMode === "top" || cameraMode === "topZoom") return Math.PI / 2;
-		if (cameraMode === "high") return 0.72;
-		if (cameraMode === "wide") return 0.52;
-		if (cameraMode === "iso") return 0.84;
-		if (cameraMode === "zoom") return 0.96;
-		return Math.PI / 2;
-	}
-	function orbitCamOn() {
-		return !!fullReplay || cameraMode === "free";
-	}
-	function camWorldFromStick(sx, sy) {
-		const th = orbitCamOn() ? (camOp.theta || 0) : 0;
-		if (Math.abs(th) < 0.001) return { x: sx, y: sy };
-		const ct = Math.cos(th), st = Math.sin(th);
-		return { x: sx * ct + sy * st, y: -sx * st + sy * ct };
-	}
-	function clampCursor(x, y) {
-		return {
-			x: clamp(x, fieldLeft(), fieldRight()),
-			y: clamp(y, -10, 110)
-		};
-	}
-	function applyLook(x, y) {
-		const c = clampCursor(x, y);
-		lookX = c.x;
-		lookY = c.y;
-		camFocusX = lookX;
-		camFocusY = lookY;
-		if (orbitCamOn()) cameraY = lookY;
-	}
-	function hexRgb(hex) {
-		let h = String(hex || "#888888").replace("#", "");
-		if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
-		if (h.length < 6) h = "888888";
-		const n = parseInt(h.slice(0, 6), 16);
-		if (Number.isNaN(n)) return { r: 136, g: 136, b: 136 };
-		return { r: n >> 16 & 255, g: n >> 8 & 255, b: n & 255 };
-	}
-	function mixHex(a, b, t) {
-		const A = hexRgb(a), B = hexRgb(b);
-		const m = clamp(t, 0, 1);
-		const r = Math.round(A.r + (B.r - A.r) * m);
-		const g = Math.round(A.g + (B.g - A.g) * m);
-		const bl = Math.round(A.b + (B.b - A.b) * m);
-		return "rgb(" + r + "," + g + "," + bl + ")";
-	}
-	function lerpNum(a, b, t) {
-		return a + (b - a) * t;
-	}
-	function lerpPose(a, b, t) {
-		if (!a) return b ? { ...b } : null;
-		if (!b) return { ...a };
-		return {
-			...b,
-			x: lerpNum(a.x, b.x, t),
-			y: lerpNum(a.y, b.y, t),
-			vx: lerpNum(a.vx || 0, b.vx || 0, t),
-			vy: lerpNum(a.vy || 0, b.vy || 0, t),
-			facing: (a.facing || 0) + wrapAng((b.facing || 0) - (a.facing || 0)) * t,
-			hop: lerpNum(a.hop || 0, b.hop || 0, t),
-			spinT: lerpNum(a.spinT || 0, b.spinT || 0, t),
-			atkT: lerpNum(a.atkT || 0, b.atkT || 0, t)
-		};
-	}
-	function lerpFrame(a, b, t) {
-		if (!a) return b;
-		if (!b || t < 0.02) return a;
-		if (t > 0.98) return b;
-		return {
-			...b,
-			cameraY: lerpNum(a.cameraY, b.cameraY, t),
-			camZoom: lerpNum(a.camZoom || 1, b.camZoom || 1, t),
-			rb: lerpPose(a.rb, b.rb, t),
-			qb: lerpPose(a.qb, b.qb, t),
-			blockers: (b.blockers || []).map((p, i) => lerpPose((a.blockers || [])[i], p, t)),
-			defenders: (b.defenders || []).map((p, i) => lerpPose((a.defenders || [])[i], p, t)),
-			scoreSeq: b.scoreSeq && a.scoreSeq ? { ...b.scoreSeq, player: lerpPose(a.scoreSeq.player, b.scoreSeq.player, t), t: lerpNum(a.scoreSeq.t || 0, b.scoreSeq.t || 0, t) } : b.scoreSeq,
-			fumbleSeq: b.fumbleSeq,
-			trail: t < 0.5 ? a.trail : b.trail,
-			activeMove: t < 0.5 ? a.activeMove : b.activeMove,
-			moveTimer: lerpNum(a.moveTimer || 0, b.moveTimer || 0, t),
-			moveDur: t < 0.5 ? a.moveDur : b.moveDur
-		};
-	}
-	function replayFrame() {
-		if (!fullReplay || !fullReplay.frames || !fullReplay.frames.length) return null;
-		const frames = fullReplay.frames;
-		const i = clamp(fullReplay.i || 0, 0, frames.length - 1);
-		const i0 = Math.floor(i);
-		const i1 = Math.min(i0 + 1, frames.length - 1);
-		return lerpFrame(frames[i0], frames[i1], i - i0);
-	}
-	function nearestContactAhead(carrier) {
-		if (!carrier) return null;
-		let best = null;
-		let nd = 7.2;
-		for (const d of defenders) {
-			if (!d || !d.active) continue;
-			const dy = d.y - carrier.y;
-			if (dy < -0.35 || dy > 6.8) continue;
-			const dd = dist(d, carrier);
-			if (dd < nd) {
-				nd = dd;
-				best = d;
-			}
-		}
-		return best;
-	}
 	function toScreenYRaw(absY) {
 		return (cameraY - absY) * SCALE_Y + canvas.height * .55;
 	}
-	function yardToPx() {
-		// Size sprites by a length-yard, not the variable field width.
-		return SCALE_Y;
-	}
-	function postGapHalf() {
-		// Shared hash / crossbar half-width. Slightly wider than NFL 18'6" (3.08 yd).
-		return clamp(FIELD_WIDTH * 0.075, 2.7, 3.85);
-	}
-	function heightToPx(h) {
-		if (!h) return 0;
-		let k = 0.4;
-		if (orbitCamOn()) {
-			const phi = camOp.phi != null ? camOp.phi : Math.PI / 2;
-			const elev = Math.sin(clamp(phi, 0, Math.PI / 2));
-			k = 0.22 + 0.78 * Math.pow(1 - elev, 1.08);
-		} else if (cameraMode === "top" || cameraMode === "topZoom") {
-			k = 0.22;
-		} else {
-			k = 0.46;
-		}
-		return h * SCALE_Y * k;
-	}
-	function project(absX, absY, h) {
-		if (viewHook) return viewHook(absX, absY, h);
-		const lift = heightToPx(h || 0);
+	function project(absX, absY) {
 		const cam = camSpec();
-		const theta = orbitCamOn() ? (camOp.theta || 0) : 0;
-		const phi = orbitCamOn() && camOp.phi != null ? camOp.phi : Math.PI / 2;
-		const useOrb = orbitCamOn() && (Math.abs(theta) > 0.002 || phi < Math.PI / 2 - 0.03);
-		if (useOrb) {
-			const fx = camFocusX != null ? camFocusX : FIELD_WIDTH / 2;
-			const fy = camFocusY != null ? camFocusY : cameraY;
-			const dx = absX - fx, dy = absY - fy;
-			const ct = Math.cos(theta), st = Math.sin(theta);
-			const rx = dx * ct - dy * st;
-			const ry = dx * st + dy * ct;
-			const elev = Math.sin(clamp(phi, 0, Math.PI / 2));
-			const yScale = 0.16 + 0.84 * elev;
-			const foreshort = 1 + (1 - elev) * (-ry) * 0.014;
-			const sc = clamp(foreshort, 0.55, 1.7) * (cam.sc || 1);
-			return {
-				sx: fx * SCALE_X + rx * SCALE_X * sc,
-				sy: (cameraY - fy) * SCALE_Y + canvas.height * 0.55 - ry * SCALE_Y * yScale - lift,
-				sc
-			};
-		}
 		const x = absX;
 		const y = absY;
 		if (cameraMode === "top" || cameraMode === "topZoom") return {
 			sx: x * SCALE_X,
-			sy: toScreenYRaw(y) - lift,
+			sy: toScreenYRaw(y),
 			sc: cam.sc
 		};
 		const depth = cameraY - y;
 		return {
 			sx: x * SCALE_X + depth * cam.skew * SCALE_X,
-			sy: toScreenYRaw(y) * cam.yScale + canvas.height * cam.yBias + (x - FIELD_WIDTH / 2) * cam.xLean - lift,
+			sy: toScreenYRaw(y) * cam.yScale + canvas.height * cam.yBias + (x - FIELD_WIDTH / 2) * cam.xLean,
 			sc: cam.sc
 		};
-	}
-	function withFieldPlane(wx, wy, fn) {
-		const o = project(wx, wy);
-		const px = project(wx + 1, wy);
-		const py = project(wx, wy + 1);
-		let a = px.sx - o.sx, b = px.sy - o.sy, c = py.sx - o.sx, d = py.sy - o.sy;
-		if (Math.abs(a * d - c * b) < 1e-4) return;
-		// Keep a proper (non-mirroring) basis so paint reads upright, left-to-right.
-		if (a * d - c * b < 0) {
-			c = -c;
-			d = -d;
-		}
-		ctx.save();
-		ctx.transform(a, b, c, d, o.sx, o.sy);
-		fn();
-		ctx.restore();
 	}
 	function toScreenY(absY, absX) {
 		return project(absX == null ? FIELD_WIDTH / 2 : absX, absY).sy;
 	}
 	function updateCamera() {
-		if (fullReplay) {
-			applyLook(lookX, lookY);
-			camZoom += (1 - camZoom) * 0.2;
-			return;
-		}
-		if (cameraMode === "free") {
-			if (!camAdjust && !freeLook) {
-				const carrier = scoreSeq ? scoreSeq.player : (fumbleSeq && fumbleSeq.phase === "return" && fumbleSeq.defender) || rb;
-				if (carrier) applyLook(carrier.x, carrier.y);
-				else applyLook(lookX, lookY);
-			} else {
-				applyLook(lookX, lookY);
-			}
-			camZoom += (1 - camZoom) * 0.2;
-			return;
-		}
 		let fy = rb ? rb.y : null;
 		let fx = rb ? rb.x : FIELD_WIDTH / 2;
 		if (fumbleSeq) {
@@ -1081,16 +837,6 @@ function startGame(canvas) {
 			fy = ankleCam.runner.y * .72 + ankleCam.defender.y * .28;
 		}
 		if (fy == null) return;
-		const carrier = scoreSeq ? scoreSeq.player : (fumbleSeq && fumbleSeq.phase === "return" && fumbleSeq.defender) || rb;
-		if (!fullReplay && carrier) {
-			const hit = nearestContactAhead(carrier);
-			if (hit) {
-				fx = carrier.x * .64 + hit.x * .36;
-				fy = carrier.y * .58 + hit.y * .42;
-			}
-		}
-		camFocusX = fx;
-		camFocusY = fy;
 		const cam = camSpec();
 		const targetY = fy + (cam.follow || 6);
 		const snapCam = fumbleSeq && fumbleSeq.phase === "return" ? .72 : (scoreSeq ? .35 : .18);
@@ -1135,7 +881,8 @@ function startGame(canvas) {
 		defenders.forEach((d) => paint(d, "def"));
 	}
 	function hashHalf() {
-		return postGapHalf();
+		// NFL hashes are 18'6" apart (~6.17 yd). Keep a true split even on a 50-yd-wide field.
+		return Math.min(3.1, FIELD_WIDTH * 0.12);
 	}
 	function hashLeft() {
 		return (fieldLeft() + fieldRight()) / 2 - hashHalf();
@@ -1331,15 +1078,7 @@ function startGame(canvas) {
 			}
 		}
 	}
-	function placeEntitiesForNewPlay(scope) {
-		scope = scope === "off" || scope === "def" ? scope : "both";
-		const restageOff = scope !== "def";
-		const restageDef = scope !== "off";
-		if (scope === "both") {
-			resetCamOp();
-			freeLook = false;
-			replayCursorFree = false;
-		}
+	function placeEntitiesForNewPlay() {
 		if (gameMode === "practice") {
 			const fixed = clamp(syncPracticeYardFromUI(), 1, 99);
 			practiceStartYard = fixed;
@@ -1348,78 +1087,68 @@ function startGame(canvas) {
 			driveStartYard = fixed;
 		}
 		revealDefThisPlay = true;
-		if (restageDef) chooseScheme();
-		if (restageOff) choosePlay();
-		else if (currentPlay) {
-			applyKeeperRoutes(currentPlay);
-			scriptSteps = (currentPlay.steps || []).map((st) => ({ ...st }));
-			scriptIndex = 0;
-			scriptTimer = 0;
-			scriptLocked = !!currentPlay.lockFirst;
-		}
+		chooseScheme();
+		choosePlay();
 		if (currentPlay) {
 			const defName = currentScheme && currentScheme.name ? currentScheme.name : "";
 			setPlayCall(currentPlay.name + (revealDefThisPlay && defName ? " · vs " + defName : ""));
 		}
-		if (scope === "both") {
-			tackleAnim = null;
-			fumbleSeq = null;
-			scoreSeq = null;
-			hurdleTarget = null;
-			hurdleOk = false;
-			hurdleDidTrip = false;
-			dive = null;
-			getUpT = 0;
-			celebrateTimer = 0;
-			sprintCharge = 1;
-			sprintHoldT = 0;
-			sprintExhausted = false;
-			celebFumbleLock = false;
-			tdZoom = false;
-		}
+		tackleAnim = null;
+		fumbleSeq = null;
+		scoreSeq = null;
+		hurdleTarget = null;
+		hurdleOk = false;
+		hurdleDidTrip = false;
+		dive = null;
+		getUpT = 0;
+		celebrateTimer = 0;
+		sprintCharge = 1;
+		sprintHoldT = 0;
+		sprintExhausted = false;
+		celebFumbleLock = false;
+		tdZoom = false;
 		const snap = snapX();
-		if (restageOff) {
-			const behind = playStartYard - 5;
-			rb = createPlayer(snap + (Math.random() - .5) * 1.4, behind, "HB", 0, "off");
-			rb.speed = 9;
-			rb.hasBall = false;
-			qb = null;
-			handoffDone = false;
-			handoffT = 0;
-			handoffPhase = "pre"; // pre | toss | done
-			if (qb) { qb.hasBall = true; rb.hasBall = false; }
-			else if (rb) { rb.hasBall = true; handoffDone = true; handoffPhase = "done"; }
-			runnerTrail = [];
-			_trailAcc = 0;
-			blockers = [];
-			for (let i = 0; i < numOL; i++) {
-				const b = createPlayer(snap + (i - (numOL - 1) / 2) * 2.6, playStartYard + 1.7, "OL", i, "off");
-				b.speed = 8.8;
-				blockers.push(b);
-			}
-			for (let i = 0; i < numTE; i++) {
-				const side = i % 2 === 0 ? -1 : 1;
-				const rank = Math.floor(i / 2);
-				const olSpan = Math.max(1, numOL) * 1.35;
-				const b = createPlayer(snap + side * (olSpan + 1.7 + rank * 1.55), playStartYard + 1.55, "TE", i, "off");
-				b.speed = 8.7;
-				blockers.push(b);
-			}
-			// QB under center (or slightly offset); FB always deeper behind QB
-			if (numQB > 0) {
-				qb = createPlayer(snap - .35, playStartYard - .35, "QB", 0, "off");
-				qb.speed = 7.35;
-				blockers.push(qb);
-			}
-			for (let i = 0; i < numFB; i++) {
-				const qbY = qb ? qb.y : playStartYard - 0.35;
-				// Stack behind QB (toward own endzone = lower yard)
-				const fbY = qbY - 1.85 - i * 0.55;
-				const b = createPlayer(snap + (i - (numFB - 1) / 2) * 1.4, fbY, "FB", i, "off");
-				b.speed = 8.95;
-				blockers.push(b);
-			}
+		const behind = playStartYard - 5;
+		rb = createPlayer(snap + (Math.random() - .5) * 1.4, behind, "HB", 0, "off");
+		rb.speed = 9;
+		rb.hasBall = false;
+		qb = null;
+		handoffDone = false;
+		handoffT = 0;
+		handoffPhase = "pre"; // pre | toss | done
+		if (qb) { qb.hasBall = true; rb.hasBall = false; }
+		else if (rb) { rb.hasBall = true; handoffDone = true; handoffPhase = "done"; }
+		runnerTrail = [];
+		_trailAcc = 0;
+		blockers = [];
+		for (let i = 0; i < numOL; i++) {
+			const b = createPlayer(snap + (i - (numOL - 1) / 2) * 2.6, playStartYard + 1.7, "OL", i, "off");
+			b.speed = 8.8;
+			blockers.push(b);
 		}
+		for (let i = 0; i < numTE; i++) {
+			const side = i % 2 === 0 ? -1 : 1;
+			const rank = Math.floor(i / 2);
+			const olSpan = Math.max(1, numOL) * 1.35;
+			const b = createPlayer(snap + side * (olSpan + 1.7 + rank * 1.55), playStartYard + 1.55, "TE", i, "off");
+			b.speed = 8.7;
+			blockers.push(b);
+		}
+		// QB under center (or slightly offset); FB always deeper behind QB
+		if (numQB > 0) {
+			qb = createPlayer(snap - .35, playStartYard - .35, "QB", 0, "off");
+			qb.speed = 7.35;
+			blockers.push(qb);
+		}
+		for (let i = 0; i < numFB; i++) {
+			const qbY = qb ? qb.y : playStartYard - 0.35;
+			// Stack behind QB (toward own endzone = lower yard)
+			const fbY = qbY - 1.85 - i * 0.55;
+			const b = createPlayer(snap + (i - (numFB - 1) / 2) * 1.4, fbY, "FB", i, "off");
+			b.speed = 8.95;
+			blockers.push(b);
+		}
+		defenders = [];
 		const sch = currentScheme;
 		const mid = snap + ((fieldLeft() + fieldRight()) / 2 - snap) * .38;
 		const flDb = fieldLeft();
@@ -1437,101 +1166,91 @@ function startGame(canvas) {
 		function clampDefAlignY(y) {
 			return clamp(y, playStartYard + 1.15, EZ_BACK);
 		}
-		if (restageDef) {
-			if (scope === "def" && defenders.length) {
-				mirrorDefenseHorizontal();
-			} else {
-			defenders = [];
-			const room = Math.max(4.2, EZ_BACK - playStartYard);
-			const depthScale = Math.min(1, room / 16);
-			for (let i = 0; i < numDT; i++) {
-				const t = numDT <= 1 ? .5 : i / (numDT - 1);
-				// Deeper alignment so DTs sit clearly on the defensive side of the OL (was ~+2.05)
-				const x = snap + (t - .5) * Math.min(FIELD_WIDTH * .32, 2.8 * numDT);
-				const d = createPlayer(x + (Math.random() - .5) * .4, clampDefAlignY(playStartYard + Math.min(3.25, room * 0.22) + (Math.random() - .5) * .3), "DT", i, "def");
-				d.baseSpeed = 7.7;
+		const room = Math.max(4.2, EZ_BACK - playStartYard);
+		const depthScale = Math.min(1, room / 16);
+		for (let i = 0; i < numDT; i++) {
+			const t = numDT <= 1 ? .5 : i / (numDT - 1);
+			// Deeper alignment so DTs sit clearly on the defensive side of the OL (was ~+2.05)
+			const x = snap + (t - .5) * Math.min(FIELD_WIDTH * .32, 2.8 * numDT);
+			const d = createPlayer(x + (Math.random() - .5) * .4, clampDefAlignY(playStartYard + Math.min(3.25, room * 0.22) + (Math.random() - .5) * .3), "DT", i, "def");
+			d.baseSpeed = 7.7;
+			d.speed = d.baseSpeed;
+			d.dtLag = true;
+			defenders.push(d);
+		}
+		for (let i = 0; i < numLBs; i++) {
+			const d = createPlayer(clusterX(i, numLBs, sch.cluster) + (Math.random() - .5) * 1.3, clampDefAlignY(playStartYard + Math.min(sch.depthLB * depthScale, room * 0.42) + (Math.random() - .5) * .4), "LB", i, "def");
+			d.baseSpeed = 8.55;
+			d.speed = d.baseSpeed;
+			defenders.push(d);
+		}
+		{
+			const Wdb = Math.max(8, frDb - flDb);
+			const cbInset = Math.min(Wdb * 0.22, 9.5);
+			const slots = [];
+			const cbL = { x: flDb + cbInset, y: playStartYard + 2.35, role: "CB", corner: true, safety: false };
+			const cbR = { x: frDb - cbInset, y: playStartYard + 2.35, role: "CB", corner: true, safety: false };
+			const fs = { x: mid + (snap - mid) * 0.12, y: playStartYard + Math.min(sch.depthDB * depthScale, 13.2), role: "FS", corner: false, safety: true };
+			const ss = { x: snap + (snap >= mid ? 1 : -1) * Math.min(Wdb * 0.12, 5.2), y: playStartYard + 8.4, role: "SS", corner: false, safety: true };
+			const nick = { x: snap - playSideSign() * Math.min(Wdb * 0.1, 4.2), y: playStartYard + 4.1, role: "NCB", corner: false, safety: false };
+			const dime = { x: snap + playSideSign() * Math.min(Wdb * 0.08, 3.4), y: playStartYard + 6.4, role: "DIME", corner: false, safety: true };
+			if (numDBs <= 1) slots.push(fs);
+			else if (numDBs === 2) slots.push(cbL, cbR);
+			else if (numDBs === 3) slots.push(cbL, cbR, fs);
+			else if (numDBs === 4) slots.push(cbL, cbR, ss, fs);
+			else if (numDBs === 5) slots.push(cbL, nick, cbR, ss, fs);
+			else {
+				slots.push(cbL, nick, dime, cbR, ss, fs);
+				for (let extra = 6; extra < numDBs; extra++) {
+					const t = (extra - 5) / Math.max(1, numDBs - 5);
+					slots.push({ x: mid + (t - 0.5) * Wdb * 0.28, y: playStartYard + 7.2 + extra * 0.4, role: "DB", corner: false, safety: false });
+				}
+			}
+			for (let i = 0; i < numDBs; i++) {
+				const slot = slots[i] || fs;
+				const d = createPlayer(slot.x + (Math.random() - .5) * 0.45, clampDefAlignY(slot.y + (Math.random() - .5) * 0.25), "DB", i, "def");
+				d.baseSpeed = 9.15;
 				d.speed = d.baseSpeed;
-				d.dtLag = true;
+				d.dbRole = slot.role;
+				d.isCorner = !!slot.corner;
+				d.isSafety = !!slot.safety;
 				defenders.push(d);
-			}
-			for (let i = 0; i < numLBs; i++) {
-				const d = createPlayer(clusterX(i, numLBs, sch.cluster) + (Math.random() - .5) * 1.3, clampDefAlignY(playStartYard + Math.min(sch.depthLB * depthScale, room * 0.42) + (Math.random() - .5) * .4), "LB", i, "def");
-				d.baseSpeed = 8.55;
-				d.speed = d.baseSpeed;
-				defenders.push(d);
-			}
-			{
-				const Wdb = Math.max(8, frDb - flDb);
-				const cbInset = Math.min(Wdb * 0.22, 9.5);
-				const slots = [];
-				const cbL = { x: flDb + cbInset, y: playStartYard + 2.35, role: "CB", corner: true, safety: false };
-				const cbR = { x: frDb - cbInset, y: playStartYard + 2.35, role: "CB", corner: true, safety: false };
-				const fs = { x: mid + (snap - mid) * 0.12, y: playStartYard + Math.min(sch.depthDB * depthScale, 13.2), role: "FS", corner: false, safety: true };
-				const ss = { x: snap + (snap >= mid ? 1 : -1) * Math.min(Wdb * 0.12, 5.2), y: playStartYard + 8.4, role: "SS", corner: false, safety: true };
-				const nick = { x: snap - playSideSign() * Math.min(Wdb * 0.1, 4.2), y: playStartYard + 4.1, role: "NCB", corner: false, safety: false };
-				const dime = { x: snap + playSideSign() * Math.min(Wdb * 0.08, 3.4), y: playStartYard + 6.4, role: "DIME", corner: false, safety: true };
-				if (numDBs <= 1) slots.push(fs);
-				else if (numDBs === 2) slots.push(cbL, cbR);
-				else if (numDBs === 3) slots.push(cbL, cbR, fs);
-				else if (numDBs === 4) slots.push(cbL, cbR, ss, fs);
-				else if (numDBs === 5) slots.push(cbL, nick, cbR, ss, fs);
-				else {
-					slots.push(cbL, nick, dime, cbR, ss, fs);
-					for (let extra = 6; extra < numDBs; extra++) {
-						const t = (extra - 5) / Math.max(1, numDBs - 5);
-						slots.push({ x: mid + (t - 0.5) * Wdb * 0.28, y: playStartYard + 7.2 + extra * 0.4, role: "DB", corner: false, safety: false });
-					}
-				}
-				for (let i = 0; i < numDBs; i++) {
-					const slot = slots[i] || fs;
-					const d = createPlayer(slot.x + (Math.random() - .5) * 0.45, clampDefAlignY(slot.y + (Math.random() - .5) * 0.25), "DB", i, "def");
-					d.baseSpeed = 9.15;
-					d.speed = d.baseSpeed;
-					d.dbRole = slot.role;
-					d.isCorner = !!slot.corner;
-					d.isSafety = !!slot.safety;
-					defenders.push(d);
-				}
-			}
-			defenders.forEach((d) => {
-				d._pushYards = 0;
-				d.pancaked = false;
-				d.atkKind = null;
-				d.atkT = 0;
-				d.atkDecideT = 0;
-			});
-			assignDefenseJobs();
-			defenders.forEach((d) => {
-				d.y = clampDefAlignY(d.y);
-				if (d.jobY != null) d.jobY = Math.min(d.jobY, EZ_BACK);
-				if (d.stutterY != null) d.stutterY = Math.min(d.stutterY, EZ_BACK);
-				// Near the goal line, coverage landmarks used to pin at y=99 while bodies
-				// aligned in the EZ — on snap they teleported back to the goal line.
-				if (d.jobY != null && d.job !== "blitz" && d.job !== "man" && d.jobY < d.y - 0.45) {
-					d.jobY = d.y;
-				}
-				if (playStartYard >= 82 && (d.job === "deep" || d.job === "robber" || d.isSafety)) {
-					d.zoneRy = Math.min(d.zoneRy || 3.4, Math.max(1.4, EZ_BACK - d.y));
-				}
-			});
-			if (practiceDefFlipped) mirrorDefenseHorizontal();
-			applyCellDefenseTweaks();
-			limitDtPenetration();
 			}
 		}
+		defenders.forEach((d) => {
+			d._pushYards = 0;
+			d.pancaked = false;
+			d.atkKind = null;
+			d.atkT = 0;
+			d.atkDecideT = 0;
+		});
+		assignDefenseJobs();
+		defenders.forEach((d) => {
+			d.y = clampDefAlignY(d.y);
+			if (d.jobY != null) d.jobY = Math.min(d.jobY, EZ_BACK);
+			if (d.stutterY != null) d.stutterY = Math.min(d.stutterY, EZ_BACK);
+			// Near the goal line, coverage landmarks used to pin at y=99 while bodies
+			// aligned in the EZ — on snap they teleported back to the goal line.
+			if (d.jobY != null && d.job !== "blitz" && d.job !== "man" && d.jobY < d.y - 0.45) {
+				d.jobY = d.y;
+			}
+			if (playStartYard >= 82 && (d.job === "deep" || d.job === "robber" || d.isSafety)) {
+				d.zoneRy = Math.min(d.zoneRy || 3.4, Math.max(1.4, EZ_BACK - d.y));
+			}
+		});
+		if (practiceDefFlipped) mirrorDefenseHorizontal();
+		applyCellDefenseTweaks();
+		limitDtPenetration();
 		assignBlockJobs();
 		applyCellBlockTweaks();
 		blockers.forEach((b) => {
 			b.sealSide = b.driveSide || playSideSign() || 1;
 		});
-		if (restageDef && scope !== "def") applyPresnapLook();
-		if (scope === "both") {
-			playAge = 0;
-			idleCarrierT = 0;
-			replayBuf.length;
-			playFrames = [];
-			huddleBuf = [];
-		}
+		applyPresnapLook();
+		playAge = 0;
+		idleCarrierT = 0;
+		replayBuf.length;
+		playFrames = [];
 		playArtAnchor = {
 			x: rb.x,
 			y: rb.y
@@ -1594,11 +1313,6 @@ function startGame(canvas) {
 		if (id.endsWith("L") || st === "wallL" || st === "pullL" || st === "zoneL" || st === "wedgeL" || st === "swingL") return -1;
 		if (id.endsWith("R") || st === "wallR" || st === "pullR" || st === "zoneR" || st === "wedgeR" || st === "swingR") return 1;
 		return 1;
-	}
-	function stockPlayId() {
-		if (practiceOffPlayId) return practiceOffPlayId;
-		if (currentPlay) return currentPlay.baseId || currentPlay.id;
-		return OFF_PLAYS[0] ? OFF_PLAYS[0].id : "";
 	}
 	function cellPlayKey() { return playBookKey(currentPlay); }
 	function cellSchemeId() { return (currentScheme && currentScheme.id) || practiceDefSchemeId || ""; }
@@ -3834,17 +3548,6 @@ function remaining(group) {
 		let padLive = false;
 		let peek = false;
 		let replayPress = false;
-		let zoomIn = false;
-		let zoomOut = false;
-		let slowBack = false;
-		let slowFwd = false;
-		let fastBack = false;
-		let fastFwd = false;
-		let camRotate = false;
-		let stickX = 0;
-		let stickY = 0;
-		let rsX = 0;
-		let rsCamY = 0;
 		let ctrlL = false;
 		let ctrlR = false;
 		let blockLdx = 0, blockLdy = 0, blockRdx = 0, blockRdy = 0;
@@ -3857,8 +3560,8 @@ function remaining(group) {
 			if (keys.has("ArrowUp") || keys.has("KeyW")) dy += 1;
 			if (keys.has("ArrowDown") || keys.has("KeyS")) dy -= 1;
 			if (keys.has("Space")) sprint = true;
-			if (!(fullReplay || camAdjust) && keys.has("KeyF")) spin = true;
-			if (!(fullReplay || camAdjust) && keys.has("KeyC")) dive = true;
+			if (keys.has("KeyF")) spin = true;
+			if (keys.has("KeyC")) dive = true;
 			if (padProfile === "v4" || padProfile === "v6") {
 				if (keys.has("KeyV") || keys.has("KeyY")) truck = true;
 			} else if (padProfile === "v3") {
@@ -3868,17 +3571,6 @@ function remaining(group) {
 			if (keys.has("KeyE")) jukeR = true;
 			if (keys.has("KeyH")) peek = true;
 			if (keys.has("KeyR")) replayPress = true;
-			if (keys.has("Equal") || keys.has("NumpadAdd")) zoomIn = true;
-			if (keys.has("Minus") || keys.has("NumpadSubtract")) zoomOut = true;
-			if (fullReplay || camAdjust) {
-				if (keys.has("KeyC") || keys.has("KeyX")) zoomIn = true;
-				if (keys.has("KeyF") || keys.has("KeyB")) zoomOut = true;
-			}
-			if (keys.has("KeyQ")) slowBack = true;
-			if (keys.has("KeyE")) slowFwd = true;
-			if (keys.has("KeyZ")) fastBack = true;
-			if (keys.has("KeyX")) fastFwd = true;
-			if (keys.has("KeyV") || keys.has("KeyY")) camRotate = true;
 			if (padTeammate()) {
 				if (keys.has("KeyZ")) ctrlL = true;
 				if (keys.has("KeyX")) ctrlR = true;
@@ -4022,10 +3714,6 @@ function remaining(group) {
 				? radialDeadzone(gp.axes[2] || 0, -(gp.axes[5] || 0), .22)   // right stick Y is on axis 5
 				: radialDeadzone(gp.axes[2] || 0, -(gp.axes[3] || 0), .22);
 				rsY = rst.y;
-			rsX = rst.x;
-			rsCamY = rst.y;
-			stickX = st.x;
-			stickY = st.y;
 			const lt = isT3
 				? (gp.buttons[8] && gp.buttons[8].value || 0)
 				: (gp.buttons[6] && gp.buttons[6].value || 0);
@@ -4080,26 +3768,14 @@ function remaining(group) {
 				}
 			}
 			if (btn(0)) sprint = true;
-			if (fullReplay || camAdjust) {
-				if (btn(2)) zoomIn = true;
-				if (btn(1)) zoomOut = true;
-			} else {
-				if (btn(1)) spin = true;
-				if (btn(2)) dive = true;
-			}
+			if (btn(1)) spin = true;
+			if (btn(2)) dive = true;
 			if (btn(3)) {
 				if (padProfile === "v3") hurdle = true;
 				else truck = true;
 			}
 			if (btn(4)) jukeL = true;
 			if (btn(5)) jukeR = true;
-			if (fullReplay || camAdjust) {
-				slowBack = slowBack || btn(4);
-				slowFwd = slowFwd || btn(5);
-				fastBack = fastBack || lt > .4;
-				fastFwd = fastFwd || rt > .4;
-				camRotate = camRotate || btn(3);
-			}
 			if (padProfile === "v6") {
 				if (btn(8)) stiffL = true;
 				if (btn(9)) stiffR = true;
@@ -4117,8 +3793,6 @@ function remaining(group) {
 			if (aNow && !prevA || (sNow && !prevStart && padProfile !== "v6")) confirm = true;
 			prevA = aNow;
 			prevStart = sNow;
-			const viewHeld = btn(8);
-			if (viewHeld && (fullReplay || paused || !playActive || practiceAwaitSnap)) replayPress = true;
 		} else {
 			padName = "";
 			prevA = false;
@@ -4149,30 +3823,6 @@ function remaining(group) {
 		}
 		if (keys.has("BracketLeft") || keys.has("PageUp")) rsY = -1;
 		if (keys.has("BracketRight") || keys.has("PageDown")) rsY = 1;
-		if (!gp || fullReplay || camAdjust) {
-			if (Math.hypot(dx, dy) > 0.1) {
-				stickX = dx;
-				stickY = dy;
-			} else if (!gp) {
-				stickX = dx;
-				stickY = dy;
-			}
-		}
-		{
-			const w = camWorldFromStick(dx, dy);
-			dx = w.x;
-			dy = w.y;
-			if (Math.hypot(blockLdx, blockLdy) > 0.02) {
-				const b = camWorldFromStick(blockLdx, blockLdy);
-				blockLdx = b.x;
-				blockLdy = b.y;
-			}
-			if (Math.hypot(blockRdx, blockRdy) > 0.02) {
-				const b = camWorldFromStick(blockRdx, blockRdy);
-				blockRdx = b.x;
-				blockRdy = b.y;
-			}
-		}
 		peekHeld = peek || peekToggle;
 		return {
 			dx,
@@ -4192,17 +3842,6 @@ function remaining(group) {
 			padLive,
 			peek,
 			replayPress,
-			zoomIn,
-			zoomOut,
-			slowBack,
-			slowFwd,
-			fastBack,
-			fastFwd,
-			camRotate,
-			stickX,
-			stickY,
-			rsX,
-			rsCamY,
 			ctrlL,
 			ctrlR,
 			blockLdx,
@@ -4211,8 +3850,6 @@ function remaining(group) {
 			blockRdy,
 			_dpadUp: !!(bits && bits.u),
 			_dpadDn: !!(bits && bits.d),
-			_dpadLeft: !!(bits && bits.l),
-			_dpadRight: !!(bits && bits.r),
 			_rsY: rsY
 		};
 	}
@@ -4399,14 +4036,7 @@ function remaining(group) {
 			low: p.low,
 			hop: p.hop,
 			spinT: p.spinT,
-			state: p.state,
-			mass: p.mass,
-			facemask: p.facemask,
-			pancaked: p.pancaked,
-			atkKind: p.atkKind,
-			atkT: p.atkT,
-			truckDir: p.truckDir,
-			spinSide: p.spinSide
+			state: p.state
 		};
 	}
 	function captureFrame() {
@@ -4428,11 +4058,7 @@ function remaining(group) {
 			fumbleSeq: fumbleSeq && { ...fumbleSeq },
 			currentPlayName: currentPlay ? currentPlay.name : "",
 			currentSchemeName: currentScheme ? currentScheme.name : "",
-			trail: showRunnerTrail && runnerTrail.length ? runnerTrail.map((p) => ({ x: p.x, y: p.y, spd: p.spd || 0 })) : null,
-			activeMove,
-			moveTimer,
-			moveDur,
-			celebrateTimer
+			trail: showRunnerTrail && runnerTrail.length ? runnerTrail.map((p) => ({ x: p.x, y: p.y, spd: p.spd || 0 })) : null
 		};
 	}
 	function triggerAnkleCam(runner, defender) {
@@ -4525,18 +4151,8 @@ function remaining(group) {
 		fullReplay = {
 			frames: clip.frames,
 			i: 0,
-			acc: 0,
-			playing: true
+			acc: 0
 		};
-		resetCamOp();
-		camOp.theta = 0;
-		camOp.phi = Math.PI / 2;
-		camOp.zoom = 1;
-		replayCursorFree = false;
-		const seed = clip.frames[0] && clip.frames[0].rb;
-		applyLook(seed ? seed.x : FIELD_WIDTH / 2, seed ? seed.y : 50);
-		replayLeaveEdge = true;
-		replayToggleEdge = true;
 		setPaused(true);
 		pauseBannerHTML("replay");
 	}
@@ -4575,31 +4191,13 @@ function remaining(group) {
 	}
 
 	function startFullReplay() {
-		const frames = lastPlayFrames && lastPlayFrames.length >= 6 ? lastPlayFrames
-			: (playFrames && playFrames.length >= 6 ? playFrames : null);
-		if (!frames) {
-			setPlayCall("No replay yet — finish a play first");
-			return;
-		}
+		const frames = lastPlayFrames && lastPlayFrames.length >= 6 ? lastPlayFrames : null;
+		if (!frames) return;
 		fullReplay = {
 			frames,
 			i: 0,
-			acc: 0,
-			playing: true
+			acc: 0
 		};
-		if (cameraMode === "free") {
-			freeOrbit = { theta: camOp.theta || 0, phi: camOp.phi != null ? camOp.phi : 0.82, zoom: camOp.zoom || 1 };
-		}
-		camAdjust = false;
-		resetCamOp();
-		camOp.theta = 0;
-		camOp.phi = Math.PI / 2;
-		camOp.zoom = 1;
-		replayCursorFree = false;
-		const seed = frames[0] && frames[0].rb;
-		applyLook(seed ? seed.x : FIELD_WIDTH / 2, seed ? seed.y : 50);
-		replayLeaveEdge = true;
-		replayToggleEdge = true;
 		setPaused(true);
 		pauseBannerHTML("replay");
 	}
@@ -4766,7 +4364,7 @@ function remaining(group) {
 		const fl = fieldLeft(), fr = fieldRight();
 		const mid = (fl + fr) / 2;
 		// Uprights ~18.5 ft apart ≈ 3.1 yd from center each side
-		const postHalf = postGapHalf();
+		const postHalf = Math.max(2.4, FIELD_WIDTH * 0.052);
 		const leftPost = mid - postHalf;
 		const rightPost = mid + postHalf;
 		const pylonW = 2.8;
@@ -4938,7 +4536,7 @@ function remaining(group) {
 			}
 		}
 		if (p.hop > 0 && !(s.spikeStyle === "force" && s.t < .68)) p.hop = Math.max(0, p.hop - 4 * dt);
-		const hold = (s.who === "def" ? s.spike ? 1.18 : .48 : s.spikeStyle === "force" ? 1.85 : s.spikeStyle === "pylon" ? 1.7 : s.spikeStyle === "punt" || s.spikeStyle === "throw" ? 1.55 : s.spikeStyle === "post" ? 1.4 : s.spike ? 1.12 : 1.55) + 0.5;
+		const hold = s.who === "def" ? s.spike ? 1.18 : .48 : s.spikeStyle === "force" ? 1.85 : s.spikeStyle === "pylon" ? 1.7 : s.spikeStyle === "punt" || s.spikeStyle === "throw" ? 1.55 : s.spikeStyle === "post" ? 1.4 : s.spike ? 1.12 : 1.55;
 		if (s.t > hold) {
 			const next = s.nextStart;
 			const who = s.who;
@@ -5373,7 +4971,7 @@ function remaining(group) {
 	}
 	function endPlay(reason, yardsGained, forcedBallYard = null) {
 		playActive = false;
-		pauseTimer = /Touchdown|Pick-six/.test(reason) ? .22 : 1.1;
+		pauseTimer = /Touchdown|Pick-six/.test(reason) ? .16 : .36;
 		const yg = clamp(yardsGained, -20, 100);
 		if (forcedBallYard !== null) ballYard = forcedBallYard;
 		else ballYard = clamp(playStartYard + yg, 0, 100);
@@ -5390,9 +4988,6 @@ function remaining(group) {
 		sprintCharge = 1;
 		sprintHoldT = 0;
 		sprintExhausted = false;
-		if (lastPlayFrames.length >= 6) {
-			setPlayCall(reason + " — Pause or R for instant replay · A snaps next");
-		}
 	}
 	function awardPlayYards(yg) {
 		if (yg > 0) score += yg;
@@ -5569,7 +5164,7 @@ function remaining(group) {
 		rebuildUniformSelects();
 		syncAbbrFromOffense();
 		logoFlip = (() => { const r = Math.random(); return r < 0.5 ? 0 : r < 0.75 ? 1 : 2; })();
-		fieldArtSide = "off";
+		fieldArtSide = Math.random() < .5 ? "off" : "def";
 		camCorner = Math.random() < .5 ? "sw" : "nw";
 		const cornerEl = $("camCornerSelect");
 		if (cornerEl) cornerEl.value = camCorner;
@@ -5701,189 +5296,34 @@ function remaining(group) {
 		modalShow("continueModal", false);
 		fullRestart();
 	}
-	function tickReplayDirector(dt, inp) {
-		if (!fullReplay || !fullReplay.frames || !fullReplay.frames.length) return false;
-		const fr = fullReplay;
-		if (fr.playing == null) fr.playing = true;
-		if (fr.i == null) fr.i = 0;
-		if (inp.pausePress && !replayLeaveEdge) {
-			fullReplay = null;
-			resetCamOp();
-			setPaused(true);
-			pauseBannerHTML("pause");
-			replayLeaveEdge = true;
-			replayHudRate = 1;
-			return true;
-		}
-		if (inp.replayPress && !replayLeaveEdge) {
-			fullReplay = null;
-			resetCamOp();
-			setPaused(true);
-			pauseBannerHTML("pause");
-			replayLeaveEdge = true;
-			replayHudRate = 1;
-			return true;
-		}
-		replayLeaveEdge = !!(inp.pausePress || inp.replayPress);
-		if ((inp.confirm || inp.sprint) && !replayToggleEdge) {
-			fr.playing = !fr.playing;
-		}
-		replayToggleEdge = !!(inp.confirm || inp.sprint);
-		let rate = 0;
-		if (inp.fastBack) rate = -2.5;
-		else if (inp.fastFwd) rate = 2.5;
-		else if (inp.slowBack) rate = -0.28;
-		else if (inp.slowFwd) rate = 0.28;
-		else if (fr.playing) rate = 1;
-		replayHudRate = rate;
-		const maxI = fr.frames.length - 1;
-		fr.i = clamp((fr.i || 0) + rate * REPLAY_HZ * dt, 0, maxI);
-		if (fr.i <= 0.02 && rate < 0) fr.playing = false;
-		if (fr.i >= maxI - 0.02 && rate > 0) fr.playing = false;
-		const rotate = !!inp.camRotate;
-		const px = inp.stickX || 0;
-		const py = inp.stickY || 0;
-		if (rotate) {
-			camOp.theta = (camOp.theta || 0) + px * dt * 2.15;
-			const phi0 = camOp.phi != null ? camOp.phi : Math.PI / 2;
-			camOp.phi = clamp(phi0 + py * dt * 1.35, 0, Math.PI / 2);
-		} else if (Math.hypot(px, py) > 0.12) {
-			replayCursorFree = true;
-			const w = camWorldFromStick(px, py);
-			applyLook(lookX + w.x * dt * 28, lookY + w.y * dt * 28);
-		} else if (!replayCursorFree) {
-			const film = replayFrame();
-			const ball = film && ((film.scoreSeq && film.scoreSeq.player) || film.rb);
-			if (ball) applyLook(ball.x, ball.y);
-		} else {
-			applyLook(lookX, lookY);
-		}
-		if (inp.zoomIn) camOp.zoom = clamp(camOp.zoom + dt * 1.15, 0.52, 2.8);
-		if (inp.zoomOut) camOp.zoom = clamp(camOp.zoom - dt * 1.15, 0.52, 2.8);
-		return true;
-	}
-	function tickFreeCam(dt, inp) {
-		if (!camAdjust || fullReplay) return;
-		const rotate = !!(inp.camRotate || inp.truck || inp.hurdle);
-		const px = inp.stickX || 0;
-		const py = inp.stickY || 0;
-		if (rotate) {
-			camOp.theta = (camOp.theta || 0) + px * dt * 2.15;
-			const phi0 = camOp.phi != null ? camOp.phi : 0.82;
-			camOp.phi = clamp(phi0 + py * dt * 1.35, 0, Math.PI / 2);
-			freeOrbit = { theta: camOp.theta, phi: camOp.phi, zoom: camOp.zoom || 1 };
-		} else if (Math.hypot(px, py) > 0.12) {
-			freeLook = true;
-			const w = camWorldFromStick(px, py);
-			applyLook(lookX + w.x * dt * 28, lookY + w.y * dt * 28);
-		} else {
-			applyLook(lookX, lookY);
-		}
-		if (inp.zoomIn) camOp.zoom = clamp(camOp.zoom + dt * 1.15, 0.52, 2.8);
-		if (inp.zoomOut) camOp.zoom = clamp(camOp.zoom - dt * 1.15, 0.52, 2.8);
-		if (inp.zoomIn || inp.zoomOut) freeOrbit.zoom = camOp.zoom;
-	}
-	function applyLiveCam(dt, inp) {
-		if (fullReplay || cameraMode === "free" || !rb) return;
-		const live = playActive && !practiceAwaitSnap;
-		if (!live) {
-			camOp.panX += (0 - camOp.panX) * Math.min(1, dt * 2.4);
-			camOp.panY += (0 - camOp.panY) * Math.min(1, dt * 2.4);
-			camOp.panX = clamp(camOp.panX, -5.5, 5.5);
-			camOp.panY = clamp(camOp.panY, -3.2, 7);
-			return;
-		}
-		if (!inp.ctrlL && !inp.ctrlR) {
-			const rsx = inp.rsX || 0;
-			const rsy = inp.rsCamY || 0;
-			if (Math.hypot(rsx, rsy) > 0.18) {
-				camOp.panX = clamp(camOp.panX + rsx * dt * 10, -5.5, 5.5);
-				camOp.panY = clamp(camOp.panY + rsy * dt * 10, -3.2, 7);
-			} else {
-				camOp.panX += (0 - camOp.panX) * Math.min(1, dt * 1.8);
-				camOp.panY += (0 - camOp.panY) * Math.min(1, dt * 1.8);
-			}
-		}
-		const kbZoomIn = keys.has("Equal") || keys.has("NumpadAdd") || keys.has("BracketRight");
-		const kbZoomOut = keys.has("Minus") || keys.has("NumpadSubtract") || keys.has("BracketLeft");
-		if (kbZoomIn) camOp.zoom = clamp(camOp.zoom + dt * 0.9, 0.72, 1.85);
-		if (kbZoomOut) camOp.zoom = clamp(camOp.zoom - dt * 0.9, 0.72, 1.85);
-		camOp.panX = clamp(camOp.panX, -5.5, 5.5);
-		camOp.panY = clamp(camOp.panY, -3.2, 7);
-		camOp.yaw = clamp(camOp.yaw, -0.35, 0.35);
-	}
 	let replayEdge = false;
 	let peekEdge = false;
 	function update(dt) {
-		if (!paused && !fullReplay) poseClock += dt;
 		const inp = getInput(dt);
+		if (inp.replayPress && !replayEdge) startFullReplay();
+		replayEdge = !!inp.replayPress;
 		if (inp.peek && !peekEdge) peekToggle = !peekToggle;
 		peekEdge = !!inp.peek;
 		if (fullReplay) {
-			tickReplayDirector(dt, inp);
-			return;
-		}
-		if (inp.replayPress && !replayEdge) {
-			camAdjust = false;
-			startFullReplay();
-			replayEdge = true;
-			if (fullReplay) return;
-		}
-		replayEdge = !!inp.replayPress;
-		if (inp.pausePress && !pauseEdge && !sessionOver) setPaused(!paused);
-		pauseEdge = !!inp.pausePress;
-		if (paused) {
-			const yCam = !!(inp.camRotate || inp.truck || inp.hurdle);
-			if (camAdjust) {
-				tickFreeCam(dt, inp);
-				if (inp.confirm && !confirmEdge) {
-					camAdjust = false;
-					freeLook = false;
-					freeOrbit = { theta: camOp.theta || 0, phi: camOp.phi != null ? camOp.phi : 0.82, zoom: camOp.zoom || 1 };
-					syncPauseChrome();
+			if (inp.confirm || inp.replayPress || inp.pausePress) {
+				fullReplay = null;
+				setPaused(true);
+				pauseBannerHTML("pause");
+			} else {
+				fullReplay.acc += dt * 1.05;
+				const step = 1 / REPLAY_HZ;
+				while (fullReplay && fullReplay.acc >= step) {
+					fullReplay.acc -= step;
+					fullReplay.i += 1;
+					if (fullReplay.i >= fullReplay.frames.length) {
+						fullReplay = null;
+						setPaused(true);
+						pauseBannerHTML("pause");
+					}
 				}
-				confirmEdge = inp.confirm;
-				spinPauseEdge = true;
-				divePauseEdge = true;
-				camAdjustEdge = yCam;
-				return;
 			}
-			if (yCam && !camAdjustEdge && cameraMode === "free") {
-				camAdjust = true;
-				freeLook = true;
-				const focus = scoreSeq?.player || rb || { x: FIELD_WIDTH / 2, y: playStartYard || 50 };
-				applyLook(focus.x, focus.y);
-				syncPauseChrome();
-				camAdjustEdge = true;
-				confirmEdge = inp.confirm;
-				spinPauseEdge = inp.spin;
-				divePauseEdge = inp.dive;
-				return;
-			}
-			if (inp.confirm && !confirmEdge) setPaused(false);
-			if ((inp.dive || keys.has("KeyX")) && !divePauseEdge) startFullReplay();
-			if (inp.spin && !spinPauseEdge) {
-				setPaused(false);
-				fullRestart();
-				confirmEdge = inp.confirm;
-				spinPauseEdge = true;
-				divePauseEdge = true;
-				return;
-			}
-			confirmEdge = inp.confirm;
-			spinPauseEdge = inp.spin;
-			divePauseEdge = inp.dive;
-			camAdjustEdge = yCam;
 			return;
 		}
-		camAdjustEdge = false;
-		if (!playActive && !practiceAwaitSnap && lastPlayFrames.length >= 6 && (inp.dive || keys.has("KeyX")) && !divePauseEdge) {
-			startFullReplay();
-			divePauseEdge = true;
-			if (fullReplay) return;
-		}
-		divePauseEdge = !!inp.dive;
-		applyLiveCam(dt, inp);
 		if (pipReplay) {
 			pipReplay.acc += dt;
 			const step = 1 / REPLAY_HZ;
@@ -5912,8 +5352,7 @@ function remaining(group) {
 				const rmag = Math.hypot(rx, ry);
 				if (rmag > 0.18) {
 					const scale = Math.min(1, (rmag - 0.18) / 0.82) / rmag;
-					const aligned = camWorldFromStick(rx * scale, ry * scale);
-					const rdx = aligned.x, rdy = aligned.y;
+					const rdx = rx * scale, rdy = ry * scale;
 					if (inp.ctrlL) { inp.blockLdx = rdx; inp.blockLdy = rdy; }
 					if (inp.ctrlR) { inp.blockRdx = rdx; inp.blockRdy = rdy; }
 				}
@@ -5990,10 +5429,10 @@ function remaining(group) {
 
 			function cycleOffense(step) {
 				practiceFocusSide = "off";
-				const idx = Math.max(0, OFF_PLAYS.findIndex((p) => p.id === stockPlayId()));
+				const idx = Math.max(0, OFF_PLAYS.findIndex((p) => p.id === (practiceOffPlayId || (currentPlay && currentPlay.id))));
 				const ni = (idx + step + OFF_PLAYS.length) % OFF_PLAYS.length;
-				if (OFF_PLAYS[ni].id !== stockPlayId()) {
-					practiceOffPlayIdPrev = practiceOffPlayId || stockPlayId() || null;
+				if (OFF_PLAYS[ni].id !== (practiceOffPlayId || (currentPlay && currentPlay.id))) {
+					practiceOffPlayIdPrev = practiceOffPlayId || (currentPlay && currentPlay.id) || null;
 				}
 				practiceOffPlayId = OFF_PLAYS[ni].id;
 				const sel = $("practiceOffPlay");
@@ -6036,8 +5475,8 @@ function remaining(group) {
 					renderPracticeDefList();
 				} else {
 					if (!OFF_PLAYS[i]) return;
-					if (OFF_PLAYS[i].id !== stockPlayId()) {
-						practiceOffPlayIdPrev = practiceOffPlayId || stockPlayId() || null;
+					if (OFF_PLAYS[i].id !== (practiceOffPlayId || (currentPlay && currentPlay.id))) {
+						practiceOffPlayIdPrev = practiceOffPlayId || (currentPlay && currentPlay.id) || null;
 					}
 					practiceOffPlayId = OFF_PLAYS[i].id;
 					const sel = $("practiceOffPlay");
@@ -6071,15 +5510,14 @@ function remaining(group) {
 			} else if (!bookLeft && !bookRight) practiceBookLatch = false;
 
 			// Left stick / ↑↓ browse only while X or B menu is open
-			const navY = (inp.dy || 0) + (inp._dpadUp && !inp._dpadDn ? 1 : 0) + (inp._dpadDn && !inp._dpadUp ? -1 : 0);
-			if (bookOpen && !inp.ctrlL && !inp.ctrlR && stickUp(navY)) {
+			if (bookOpen && !inp.ctrlL && !inp.ctrlR && stickUp(sy)) {
 				if (practiceStickLatch === 0) {
-					const step = navY > 0 ? -1 : 1;
+					const step = sy > 0 ? -1 : 1;
 					if (practiceDefAudibleArm || practiceFocusSide === "def") cycleDefense(step);
 					else cycleOffense(step);
-					practiceStickLatch = navY > 0 ? 1 : -1;
+					practiceStickLatch = sy > 0 ? 1 : -1;
 				}
-			} else if (!stickUp(navY) || inp.ctrlL || inp.ctrlR) practiceStickLatch = 0;
+			} else if (!stickUp(sy) || inp.ctrlL || inp.ctrlR) practiceStickLatch = 0;
 
 			// Right stick cycles defense only in the B menu
 			if (practiceDefAudibleArm && !inp.ctrlL && !inp.ctrlR && stickUp(rsy)) {
@@ -6127,14 +5565,14 @@ function remaining(group) {
 
 			if (inp.ctrlR && !practiceFlipEdge) {
 				practiceFlipped = !practiceFlipped;
-				try { placeEntitiesForNewPlay("off"); } catch (err) { console.error(err); }
+				try { placeEntitiesForNewPlay(); } catch (err) { console.error(err); }
 				setPlayCall((currentPlay ? currentPlay.name : "Practice") + (practiceFlipped ? " ⇄" : "") + " — press A to snap");
 			}
 			practiceFlipEdge = !!inp.ctrlR;
-			// LT flips defensive alignment / jobs horizontally — offense stays put
+			// LT flips defensive alignment / jobs horizontally
 			if (inp.ctrlL && !practiceDefFlipEdge) {
 				practiceDefFlipped = !practiceDefFlipped;
-				try { placeEntitiesForNewPlay("def"); } catch (err) { console.error(err); }
+				try { placeEntitiesForNewPlay(); } catch (err) { console.error(err); }
 				setPlayCall((currentPlay ? currentPlay.name : "Play") + (currentScheme ? " · vs " + currentScheme.name : "") + (practiceDefFlipped ? " (D⇄)" : "") + " — press A to snap");
 				if (typeof refreshPracticePreviews === "function") refreshPracticePreviews();
 			}
@@ -6183,9 +5621,6 @@ function remaining(group) {
 				practiceDefAudibleArm = false;
 				practiceAwaitSnap = false;
 				playActive = true;
-				playFrames = huddleBuf.slice();
-				huddleBuf = [];
-				replayAcc = 0;
 				const defName = currentScheme && currentScheme.name ? currentScheme.name : "";
 				setPlayCall((currentPlay ? currentPlay.name : "Play") + (defName ? " · vs " + defName : ""));
 				updateAudibleHint();
@@ -6196,6 +5631,24 @@ function remaining(group) {
 		}
 		practiceAudibleArm = false;
 		practiceFlipEdge = false;
+		if (inp.pausePress && !pauseEdge && !sessionOver) setPaused(!paused);
+		pauseEdge = inp.pausePress;
+		if (paused) {
+			if (inp.confirm && !confirmEdge) setPaused(false);
+			if ((inp.dive || keys.has("KeyX")) && !divePauseEdge) startFullReplay();
+			if (inp.spin && !spinPauseEdge) {
+				setPaused(false);
+				fullRestart();
+				confirmEdge = inp.confirm;
+				spinPauseEdge = true;
+				divePauseEdge = true;
+				return;
+			}
+			confirmEdge = inp.confirm;
+			spinPauseEdge = inp.spin;
+			divePauseEdge = inp.dive;
+			return;
+		}
 		confirmEdge = false;
 		spinPauseEdge = inp.spin;
 		divePauseEdge = inp.dive;
@@ -6253,7 +5706,7 @@ function remaining(group) {
 					practiceAwaitSnap = true;
 					practiceAudibleArm = false;
 					practiceDefAudibleArm = false;
-					setPlayCall((currentPlay ? currentPlay.name : "Practice") + " — X/B book · A snap · R replay");
+					setPlayCall((currentPlay ? currentPlay.name : "Practice") + " — X/B book · A snap");
 					updateBallOn();
 				} else {
 					playActive = true;
@@ -7712,39 +7165,9 @@ function remaining(group) {
 		}
 		ctx.restore();
 	}
-	function volumeEllipse(x, y, rx, ry, rot, color) {
-		const light = mixHex(color, "#ffffff", 0.3);
-		const dark = mixHex(color, "#050505", 0.4);
-		ctx.save();
-		ctx.translate(x, y);
-		ctx.rotate(rot || 0);
-		const g = ctx.createLinearGradient(-rx, -ry * 0.85, rx * 0.72, ry);
-		g.addColorStop(0, light);
-		g.addColorStop(0.46, color);
-		g.addColorStop(1, dark);
-		ctx.beginPath();
-		ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
-		ctx.fillStyle = g;
-		ctx.fill();
-		ctx.globalAlpha = 0.22;
-		ctx.fillStyle = "#ffffff";
-		ctx.beginPath();
-		ctx.ellipse(-rx * 0.28, -ry * 0.36, rx * 0.36, ry * 0.2, -0.45, 0, Math.PI * 2);
-		ctx.fill();
-		ctx.restore();
-	}
-	function visualBulk(p) {
-		const g = p && p.group;
-		if (g === "OL" || g === "DT") return 1.2;
-		if (g === "FB" || g === "TE" || g === "LB") return 1.07;
-		if (g === "QB") return 0.98;
-		return 0.95;
-	}
 	function drawPlayer(p, isBallCarrier) {
-		if (!p) return;
 		const pr = project(p.x, p.y);
-		const r = p.radius * yardToPx() * (pr.sc || 1) * .92;
-		const bulk = visualBulk(p);
+		const r = p.radius * SCALE_X * (pr.sc || 1) * .92;
 		const celebrating = isBallCarrier && celebrateTimer > 0 && p.hasBall;
 		const tdSpike = !!(scoreSeq && scoreSeq.player === p && scoreSeq.spike);
 		const st = tdSpike ? scoreSeq.t : 0;
@@ -7754,42 +7177,66 @@ function remaining(group) {
 		const forceSpike = spikeStyle === "force";
 		const postSpike = spikeStyle === "post";
 		const dunkSpike = spikeStyle === "dunk";
-		const t = poseClock * 1000;
+		const t = performance.now();
 		const shuffle = forceSpike && st < .28;
-		const moveId = isBallCarrier ? activeMove : null;
-		const moveU = isBallCarrier && moveDur > 0 ? 1 - moveTimer / Math.max(.01, moveDur) : 0;
-		const diving = moveId === "dive" || (p.atkKind === "dive" && p.atkT > 0);
-		const trucking = moveId === "truck" || moveId === "truckL" || moveId === "truckR";
-		const stiffL = moveId === "stiffL";
-		const stiffR = moveId === "stiffR";
-		const jukeL = moveId === "jukeL" || moveId === "shakeL" || moveId === "deadlegL";
-		const jukeR = moveId === "jukeR" || moveId === "shakeR" || moveId === "deadlegR";
-		const hurdling = !!(moveId && String(moveId).startsWith("hurdle"));
-		const hitting = p.atkKind === "hit" && p.atkT > 0;
-		const walkAmp = celebrating || shuffle ? 1.05 : (diving || p.pancaked ? 0.08 : .35);
-		const legSwing = Math.sin(t / (celebrating || shuffle ? 68 : 90) + p.x * 3) * walkAmp;
-		const hopPx = (p.hop || 0) * SCALE_Y * .85 + (celebrating ? Math.abs(legSwing) * r * .28 : 0) + (spiking ? r * .16 : 0) + (hurdling ? r * 0.55 * Math.sin(Math.min(1, moveU) * Math.PI) : 0);
-		const sx = pr.sx + (shuffle ? spikeDir * r * .42 * Math.sin(st / .28 * Math.PI) : 0) + (jukeL ? -r * 0.18 : 0) + (jukeR ? r * 0.18 : 0);
+		const legSwing = Math.sin(t / (celebrating || shuffle ? 68 : 90) + p.x * 3) * (celebrating || shuffle ? 1.05 : .35);
+		const hopPx = (p.hop || 0) * SCALE_Y * .85 + (celebrating ? Math.abs(legSwing) * r * .28 : 0) + (spiking ? r * .16 : 0);
+		const sx = pr.sx + (shuffle ? spikeDir * r * .42 * Math.sin(st / .28 * Math.PI) : 0);
 		const sy = pr.sy - hopPx;
 		const sector = facingToPreset(p);
 		const pose = TORSO_POSES[sector] || TORSO_POSES[6];
 		const d = [
-			{ lx: .55, ly: .5, rx: .55, ry: -.15 },
-			{ lx: .4, ly: .55, rx: .35, ry: -.35 },
-			{ lx: .25, ly: .55, rx: -.25, ry: .55 },
-			{ lx: -.35, ly: .35, rx: -.4, ry: -.55 },
-			{ lx: -.55, ly: .15, rx: -.55, ry: -.5 },
-			{ lx: -.4, ly: -.35, rx: -.35, ry: .55 },
-			{ lx: -.25, ly: -.55, rx: .25, ry: -.55 },
-			{ lx: .35, ly: -.55, rx: .4, ry: .35 }
+			{
+				lx: .55,
+				ly: .5,
+				rx: .55,
+				ry: -.15
+			},
+			{
+				lx: .4,
+				ly: .55,
+				rx: .35,
+				ry: -.35
+			},
+			{
+				lx: .25,
+				ly: .55,
+				rx: -.25,
+				ry: .55
+			},
+			{
+				lx: -.35,
+				ly: .35,
+				rx: -.4,
+				ry: -.55
+			},
+			{
+				lx: -.55,
+				ly: .15,
+				rx: -.55,
+				ry: -.5
+			},
+			{
+				lx: -.4,
+				ly: -.35,
+				rx: -.35,
+				ry: .55
+			},
+			{
+				lx: -.25,
+				ly: -.55,
+				rx: .25,
+				ry: -.55
+			},
+			{
+				lx: .35,
+				ly: -.55,
+				rx: .4,
+				ry: .35
+			}
 		][sector];
 		ctx.save();
-		if (p.pancaked) {
-			ctx.translate(sx, sy + r * .42);
-			ctx.rotate(1.05 * (p.x >= FIELD_WIDTH / 2 ? 1 : -1));
-			ctx.scale(1.34, .36);
-			ctx.translate(-sx, -(sy + r * .42));
-		} else if (isBallCarrier && activeMove === "spin") {
+		if (isBallCarrier && activeMove === "spin") {
 			const u = moveDur > 0 ? 1 - moveTimer / Math.max(.01, moveDur) : 1;
 			const side = p.spinSide || 1;
 			if (u < .26) {
@@ -7806,47 +7253,16 @@ function remaining(group) {
 			ctx.rotate(p.spinT * 16);
 			if (p.low) ctx.scale(1.2, .55);
 			ctx.translate(-sx, -sy);
-		} else if (diving && !p.low) {
-			ctx.translate(sx, sy + r * .16);
-			ctx.rotate(((p.facing || 0) - Math.PI / 2) * 0.35);
-			ctx.scale(1.28, .5);
-			ctx.translate(-sx, -(sy + r * .16));
 		} else if (p.low) {
 			ctx.translate(sx, sy + r * .15);
 			ctx.scale(1.08, .72);
 			ctx.translate(-sx, -(sy + r * .15));
-		} else if (trucking) {
-			ctx.translate(sx, sy + r * .12);
-			ctx.scale(1.14, .76);
-			ctx.translate(-sx, -(sy + r * .12));
-		} else if (hitting) {
-			ctx.translate(sx, sy);
-			ctx.rotate(0.2 * (rb && rb.x < p.x ? -1 : 1));
-			ctx.scale(1.1, .8);
-			ctx.translate(-sx, -sy);
-		} else if (jukeL) {
-			ctx.translate(sx, sy);
-			ctx.rotate(-0.3);
-			ctx.translate(-sx, -sy);
-		} else if (jukeR) {
-			ctx.translate(sx, sy);
-			ctx.rotate(0.3);
-			ctx.translate(-sx, -sy);
 		}
-		const legW = Math.max(2, r * .35 * bulk);
-		ctx.strokeStyle = mixHex(p.pants, "#000000", 0.28);
-		ctx.lineWidth = legW + 1.15;
+		ctx.strokeStyle = p.pants;
+		ctx.lineWidth = Math.max(2, r * .35);
 		ctx.lineCap = "round";
 		ctx.beginPath();
-		const knee = celebrating ? .55 : diving ? 1.05 : .85;
-		ctx.moveTo(sx + pose.hip * r, sy + r * .2);
-		ctx.lineTo(sx + d.lx * r * (.9 + legSwing * .3), sy + r * knee);
-		ctx.moveTo(sx + pose.hip * r, sy + r * .2);
-		ctx.lineTo(sx + d.rx * r * (.9 - legSwing * .3), sy + r * (celebrating ? .95 : .85));
-		ctx.stroke();
-		ctx.strokeStyle = p.pants;
-		ctx.lineWidth = legW;
-		ctx.beginPath();
+		const knee = celebrating ? .55 : .85;
 		ctx.moveTo(sx + pose.hip * r, sy + r * .2);
 		ctx.lineTo(sx + d.lx * r * (.9 + legSwing * .3), sy + r * knee);
 		ctx.moveTo(sx + pose.hip * r, sy + r * .2);
@@ -7855,114 +7271,90 @@ function remaining(group) {
 		ctx.save();
 		ctx.translate(sx + pose.hip * r, sy + r * .25);
 		ctx.rotate(pose.rot * .45);
-		volumeEllipse(0, 0, r * .7 * (.75 + pose.rx * .3) * bulk, r * .45 * bulk, pose.rot * .3, p.pants);
+		ctx.beginPath();
+		ctx.ellipse(0, 0, r * .7 * (.75 + pose.rx * .3), r * .45, pose.rot * .3, 0, Math.PI * 2);
+		ctx.fillStyle = p.pants;
+		ctx.fill();
 		ctx.restore();
-		ctx.strokeStyle = mixHex(p.color, "#000000", 0.22);
-		ctx.lineWidth = Math.max(2, r * .28 * bulk) + 1;
+		ctx.strokeStyle = p.color;
+		ctx.lineWidth = Math.max(2, r * .28);
 		const armSwing = celebrating ? .15 : legSwing * .8;
 		const armL = sector <= 4 ? -1 : 1;
 		const puntSpike = spiking && scoreSeq && scoreSeq.spikeStyle === "punt";
 		const throwSpike = spiking && scoreSeq && scoreSeq.spikeStyle === "throw";
-		function strokeArms() {
-			ctx.beginPath();
-			if (!forceSpike && !puntSpike && !dunkSpike && !postSpike && !stiffL && !stiffR && !trucking) {
-				ctx.moveTo(sx - r * (.45 - pose.rot * .2), sy - r * .1);
-				ctx.lineTo(sx - r * .9 + armSwing * r * .3 * armL, sy + r * .35);
-			}
-			if (forceSpike) {
-				ctx.moveTo(sx - r * .35, sy - r * .05);
-				ctx.lineTo(sx - r * .55, sy + r * .25);
-				if (st < .28) {
-					ctx.moveTo(sx + r * .2, sy - r * .12);
-					ctx.lineTo(sx + spikeDir * r * .7, sy - r * .28);
-				} else if (!scoreSeq.ballOut) {
-					const ang = -Math.PI * .15 + spikeDir * ((st - .28) / .34) * Math.PI * 2.15;
-					const reach = r * 0.78;
-					ctx.moveTo(sx + spikeDir * r * .1, sy - r * .08);
-					ctx.lineTo(sx + Math.cos(ang) * reach, sy + Math.sin(ang) * reach);
-				} else {
-					ctx.moveTo(sx + spikeDir * r * .12, sy - r * .08);
-					ctx.lineTo(sx + spikeDir * r * .55, sy + r * .35);
-				}
-			} else if (dunkSpike) {
-				if (st < .48) {
-					ctx.moveTo(sx - r * .22, sy - r * .2);
-					ctx.lineTo(sx - r * .08, sy - r * 1.72);
-					ctx.moveTo(sx + r * .24, sy - r * .2);
-					ctx.lineTo(sx + r * .1, sy - r * 1.78);
-				} else {
-					ctx.moveTo(sx - r * .18, sy - r * .12);
-					ctx.lineTo(sx + r * .04, sy + r * .62);
-					ctx.moveTo(sx + r * .22, sy - r * .12);
-					ctx.lineTo(sx + r * .16, sy + r * .68);
-				}
-			} else if (postSpike) {
-				ctx.moveTo(sx - r * .15, sy - r * .2);
-				ctx.lineTo(sx - r * .05, sy - r * 1.15);
-				ctx.moveTo(sx + r * .2, sy - r * .2);
-				ctx.lineTo(sx + r * .12, sy - r * 1.18);
-			} else if (puntSpike) {
-				ctx.moveTo(sx - r * .4, sy - r * .05);
-				ctx.lineTo(sx - r * .65, sy + r * .2);
-				ctx.moveTo(sx + r * .15, sy + r * .15);
-				ctx.lineTo(sx + r * .35, sy + r * .55);
-			} else if (throwSpike) {
-				ctx.moveTo(sx - r * .35, sy - r * .05);
-				ctx.lineTo(sx - r * .55, sy + r * .22);
-				ctx.moveTo(sx + r * .2, sy - r * .2);
-				ctx.lineTo(sx + r * .65, sy - r * .75);
-			} else if (celebrating) {
-				ctx.moveTo(sx + r * .35, sy - r * .2);
-				ctx.lineTo(sx + r * .85, sy - r * .55);
-			} else if (stiffL) {
-				ctx.moveTo(sx + r * .35, sy - r * .08);
-				ctx.lineTo(sx + r * .55, sy + r * .28);
-				ctx.moveTo(sx - r * .2, sy - r * .12);
-				ctx.lineTo(sx - r * 1.22, sy - r * .05);
-			} else if (stiffR) {
-				ctx.moveTo(sx - r * .35, sy - r * .08);
-				ctx.lineTo(sx - r * .55, sy + r * .28);
-				ctx.moveTo(sx + r * .2, sy - r * .12);
-				ctx.lineTo(sx + r * 1.22, sy - r * .05);
-			} else if (trucking) {
-				ctx.moveTo(sx - r * .4, sy - r * .05);
-				ctx.lineTo(sx - r * .85, sy + r * .42);
-				ctx.moveTo(sx + r * .28, sy - r * .18);
-				ctx.lineTo(sx + r * .95, sy - r * .62);
-			} else if (diving) {
-				ctx.moveTo(sx - r * .2, sy - r * .05);
-				ctx.lineTo(sx - r * .15, sy - r * .85);
-				ctx.moveTo(sx + r * .22, sy - r * .05);
-				ctx.lineTo(sx + r * .18, sy - r * .9);
-			} else if (hitting) {
-				ctx.moveTo(sx - r * .3, sy - r * .1);
-				ctx.lineTo(sx - r * .55, sy + r * .35);
-				ctx.moveTo(sx + r * .2, sy - r * .22);
-				ctx.lineTo(sx + r * 1.05, sy - r * .55);
-			} else {
-				ctx.moveTo(sx + r * (.45 + pose.rot * .2), sy - r * .1);
-				ctx.lineTo(sx + r * .9 - armSwing * r * .3 * armL, sy + r * .35);
-			}
-			ctx.stroke();
+		ctx.beginPath();
+		// Skip the default free arm during special spike poses so it doesn't read as a third limb
+		if (!forceSpike && !puntSpike && !dunkSpike && !postSpike) {
+			ctx.moveTo(sx - r * (.45 - pose.rot * .2), sy - r * .1);
+			ctx.lineTo(sx - r * .9 + armSwing * r * .3 * armL, sy + r * .35);
 		}
-		strokeArms();
-		ctx.strokeStyle = p.color;
-		ctx.lineWidth = Math.max(2, r * .28 * bulk);
-		strokeArms();
+		if (forceSpike) {
+			// Windmill: shorter arc, opposite arm tucked
+			ctx.moveTo(sx - r * .35, sy - r * .05);
+			ctx.lineTo(sx - r * .55, sy + r * .25);
+			if (st < .28) {
+				ctx.moveTo(sx + r * .2, sy - r * .12);
+				ctx.lineTo(sx + spikeDir * r * .7, sy - r * .28);
+			} else if (!scoreSeq.ballOut) {
+				const ang = -Math.PI * .15 + spikeDir * ((st - .28) / .34) * Math.PI * 2.15;
+				const reach = r * 0.78;
+				ctx.moveTo(sx + spikeDir * r * .1, sy - r * .08);
+				ctx.lineTo(sx + Math.cos(ang) * reach, sy + Math.sin(ang) * reach);
+			} else {
+				ctx.moveTo(sx + spikeDir * r * .12, sy - r * .08);
+				ctx.lineTo(sx + spikeDir * r * .55, sy + r * .35);
+			}
+		} else if (dunkSpike) {
+			if (st < .48) {
+				ctx.moveTo(sx - r * .22, sy - r * .2);
+				ctx.lineTo(sx - r * .08, sy - r * 1.72);
+				ctx.moveTo(sx + r * .24, sy - r * .2);
+				ctx.lineTo(sx + r * .1, sy - r * 1.78);
+			} else {
+				ctx.moveTo(sx - r * .18, sy - r * .12);
+				ctx.lineTo(sx + r * .04, sy + r * .62);
+				ctx.moveTo(sx + r * .22, sy - r * .12);
+				ctx.lineTo(sx + r * .16, sy + r * .68);
+			}
+		} else if (postSpike) {
+			ctx.moveTo(sx - r * .15, sy - r * .2);
+			ctx.lineTo(sx - r * .05, sy - r * 1.15);
+			ctx.moveTo(sx + r * .2, sy - r * .2);
+			ctx.lineTo(sx + r * .12, sy - r * 1.18);
+		} else if (puntSpike) {
+			// Plant arm + short kicking leg extension (not a long arm through the body)
+			ctx.moveTo(sx - r * .4, sy - r * .05);
+			ctx.lineTo(sx - r * .65, sy + r * .2);
+			ctx.moveTo(sx + r * .15, sy + r * .15);
+			ctx.lineTo(sx + r * .35, sy + r * .55);
+		} else if (throwSpike) {
+			ctx.moveTo(sx - r * .35, sy - r * .05);
+			ctx.lineTo(sx - r * .55, sy + r * .22);
+			ctx.moveTo(sx + r * .2, sy - r * .2);
+			ctx.lineTo(sx + r * .65, sy - r * .75);
+		} else if (celebrating) {
+			ctx.moveTo(sx + r * .35, sy - r * .2);
+			ctx.lineTo(sx + r * .85, sy - r * .55);
+		} else {
+			ctx.moveTo(sx + r * (.45 + pose.rot * .2), sy - r * .1);
+			ctx.lineTo(sx + r * .9 - armSwing * r * .3 * armL, sy + r * .35);
+		}
+		ctx.stroke();
 		ctx.save();
 		ctx.translate(sx, sy - r * .15);
 		ctx.rotate(pose.rot);
-		volumeEllipse(0, 0, r * pose.rx * bulk, r * pose.ry * (0.92 + (bulk - 1) * 0.4), 0, p.color);
-		if (bulk > 1.05) {
-			ctx.globalAlpha = 0.35;
-			volumeEllipse(0, -r * 0.06, r * pose.rx * bulk * 1.12, r * 0.22, 0, mixHex(p.color, "#111", 0.15));
-			ctx.globalAlpha = 1;
-		}
+		ctx.beginPath();
+		ctx.ellipse(0, 0, r * pose.rx, r * pose.ry, 0, 0, Math.PI * 2);
+		ctx.fillStyle = p.color;
+		ctx.fill();
 		ctx.restore();
-		volumeEllipse(sx + pose.hx * r, sy + pose.hy * r - r * .04, r * .46 * (0.96 + (bulk - 1) * 0.2), r * .4, pose.rot * .25, p.helmet);
+		ctx.beginPath();
+		ctx.ellipse(sx + pose.hx * r, sy + pose.hy * r - r * .04, r * .46, r * .4, pose.rot * .25, 0, Math.PI * 2);
+		ctx.fillStyle = p.helmet;
+		ctx.fill();
 		ctx.beginPath();
 		ctx.ellipse(sx + pose.hx * r, sy + pose.hy * r - r * .16, r * .34, r * .16, pose.rot * .25, 0, Math.PI * 2);
-		ctx.fillStyle = "rgba(0,0,0,0.22)";
+		ctx.fillStyle = "rgba(0,0,0,0.18)";
 		ctx.fill();
 		const visor = [
 			{ hx: .22, hy: -.04 },
@@ -8058,16 +7450,6 @@ function remaining(group) {
 		ctx.fill();
 		ctx.restore();
 	}
-	function strokeWorldLine(x0, y0, x1, y1, color, width) {
-		const a = project(x0, y0), b = project(x1, y1);
-		ctx.strokeStyle = color;
-		ctx.lineWidth = width;
-		ctx.lineCap = "butt";
-		ctx.beginPath();
-		ctx.moveTo(a.sx, a.sy);
-		ctx.lineTo(b.sx, b.sy);
-		ctx.stroke();
-	}
 	function fillTurfRange(y0, y1) {
 		const lo = Math.min(y0, y1), hi = Math.max(y0, y1);
 		const fl = fieldLeft(), fr = fieldRight();
@@ -8130,7 +7512,7 @@ function remaining(group) {
 		fillTurfRange(yGoal, yBack);
 	}
 	function drawMountainEndzoneWorld(yGoal, yBack, primary, secondary) {
-		const uni = getUni("off");
+		const uni = getUni(fieldArtSide);
 		fillEzBackground(yGoal, yBack);
 		if (ezArtMode === "off") {
 			drawEzText(yGoal, yBack);
@@ -8190,44 +7572,72 @@ function remaining(group) {
 		if (ezTextMode === "off") return;
 		let label = ezTextMode === "custom" ? String(ezCustomText || "").trim() : "ELEVATION EDGE";
 		if (!label) return;
+		// Allow letters, numbers, spaces, punctuation, symbols, emoji — no forced case
 		label = Array.from(label).slice(0, 48).join("");
 		const fl = fieldLeft(), fr = fieldRight();
 		const midY = yGoal + (yBack - yGoal) * .52;
-		const cx = (fl + fr) / 2;
-		const fieldW = Math.max(8, fr - fl);
-		withFieldPlane(cx, midY, () => {
-			if (midY < 50) ctx.rotate(Math.PI);
-			const fs = Math.min(fieldW * 0.105, 4.6) * Math.min(1, 16 / Math.max(8, label.length));
-			ctx.font = "bold " + fs + "px Barlow Condensed, sans-serif";
-			ctx.textAlign = "center";
-			ctx.textBaseline = "middle";
-			ctx.lineJoin = "round";
-			ctx.lineWidth = Math.max(0.16, fs * 0.12);
-			ctx.strokeStyle = "rgba(0,0,0,0.7)";
-			ctx.strokeText(label, 0, 0);
-			ctx.fillStyle = "#FFFFFF";
-			ctx.globalAlpha = .95;
-			ctx.fillText(label, 0, 0);
-			ctx.globalAlpha = 1;
-		});
+		const mid = project((fl + fr) / 2, midY);
+		const left = project(fl + 1.2, midY);
+		const right = project(fr - 1.2, midY);
+		const ang = Math.atan2(right.sy - left.sy, right.sx - left.sx);
+		const span = Math.hypot(right.sx - left.sx, right.sy - left.sy);
+		ctx.save();
+		ctx.translate(mid.sx, mid.sy);
+		ctx.rotate(ang);
+		const fs = Math.max(14, Math.min(span * .13, 56) * Math.min(1, 16 / Math.max(8, label.length)));
+		ctx.font = "bold " + fs + "px Barlow Condensed, sans-serif";
+		ctx.textAlign = "center";
+		ctx.textBaseline = "middle";
+		ctx.lineJoin = "round";
+		ctx.lineWidth = Math.max(4, fs * .12);
+		ctx.strokeStyle = "rgba(0,0,0,0.7)";
+		ctx.strokeText(label, 0, 0);
+		ctx.fillStyle = "#FFFFFF";
+		ctx.globalAlpha = .95;
+		ctx.fillText(label, 0, 0);
+		ctx.restore();
+		ctx.globalAlpha = 1;
 	}
 
 
 	function drawMidfieldLogo() {
 		if (!midLogoOn) return;
 		const fl = fieldLeft(), fr = fieldRight();
-		const cx = (fl + fr) / 2;
-		const cy = 50;
-		const midP = project(cx, cy);
-		if (midP.sy < -160 || midP.sy > canvas.height + 160) return;
-		const img = eeLogoReady() ? eeLogoImg : null;
-		if (!img) return;
-		const radY = 5;
-		const radX = radY * (img.naturalWidth / Math.max(1, img.naturalHeight));
-		withFieldPlane(cx, cy, () => {
-			ctx.globalAlpha = 0.96;
-			ctx.drawImage(img, -radX, -radY, radX * 2, radY * 2);
-		});
+		const midP = project(fl + FIELD_WIDTH / 2, 50);
+		if (midP.sy < -120 || midP.sy > canvas.height + 120) return;
+		const left = project(fl, 50);
+		const right = project(fr, 50);
+		const ang = Math.atan2(right.sy - left.sy, right.sx - left.sx);
+		const uni = getUni(fieldArtSide);
+		const span = Math.hypot(right.sx - left.sx, right.sy - left.sy);
+		const radX = Math.min(span * .11, FIELD_WIDTH * .15 * SCALE_X);
+		const radY = radX * .72;
+		ctx.save();
+		ctx.translate(midP.sx, midP.sy);
+		ctx.rotate(ang + (logoFlip === 1 ? Math.PI / 2 : logoFlip === 2 ? -Math.PI / 2 : 0));
+		ctx.fillStyle = uni.logoFill || uni.helmet;
+		ctx.globalAlpha = .86;
+		ctx.beginPath();
+		ctx.moveTo(-radX * 1.3, radY * .7);
+		ctx.lineTo(-radX * .5, -radY * .55);
+		ctx.lineTo(-radX * .05, radY * .15);
+		ctx.lineTo(radX * .45, -radY * .75);
+		ctx.lineTo(radX * 1.3, radY * .7);
+		ctx.closePath();
+		ctx.fill();
+		ctx.globalAlpha = .95;
+		ctx.beginPath();
+		ctx.ellipse(0, 0, radX, radY * .85, 0, 0, Math.PI * 2);
+		ctx.strokeStyle = uni.logoMark || uni.jersey;
+		ctx.lineWidth = Math.max(2.5, radY * .08);
+		ctx.stroke();
+		ctx.globalAlpha = .92;
+		ctx.fillStyle = uni.logoMark || uni.jersey;
+		ctx.font = "bold " + Math.max(20, radY * .85) + "px Barlow Condensed, sans-serif";
+		ctx.textAlign = "center";
+		ctx.textBaseline = "middle";
+		ctx.fillText("EE", 0, 0);
+		ctx.restore();
 		ctx.globalAlpha = 1;
 	}
 	function stepsToWorldPts(steps, ax, ay, sx, sy) {
@@ -8657,7 +8067,7 @@ function remaining(group) {
 			return;
 		}
 		el.classList.remove("hidden");
-		el.textContent = "X offense book · B defense book · Y close · A snap · R replay";
+		el.textContent = "X offense book · B defense book · Y close · A snap";
 	}
 	function audibleLabelForPlay(playId) {
 		const map = getAudibleMap();
@@ -8689,18 +8099,25 @@ function remaining(group) {
 			if (numEl) numEl.textContent = scheme ? String(idx + 1) : "";
 			if (label) label.textContent = scheme ? scheme.name + (practiceDefFlipped ? " ⇄" : "") : "Defense";
 			if (btn) {
-				btn.textContent = "";
-				btn.style.display = "none";
+				const hit = getDefAudibleMap().find((m) => m.scheme && scheme && m.scheme.id === scheme.id);
+				btn.textContent = hit ? hit.label : "";
+				btn.style.display = hit ? "" : "none";
 			}
 		} else {
-			const stockId = stockPlayId();
+			const stockId = practiceOffPlayId || (currentPlay && currentPlay.baseId) || (currentPlay && currentPlay.id) || "";
 			const idx = Math.max(0, OFF_PLAYS.findIndex((p) => p.id === stockId));
 			const play = OFF_PLAYS[idx] || currentPlay;
 			if (numEl) numEl.textContent = play ? String(idx + 1) : "";
 			if (label) label.textContent = play ? play.name + (practiceFlipped ? " ⇄" : "") : "Offense";
 			if (btn) {
-				btn.textContent = "";
-				btn.style.display = "none";
+				let lab = play ? audibleLabelForPlay(play.id) : "";
+				if (!lab && play) {
+					const base = String(play.id).replace(/[LR]$/, "");
+					const hit = getAudibleMap().find((m) => m.play.id.replace(/[LR]$/, "") === base);
+					lab = hit ? hit.label : "";
+				}
+				btn.textContent = lab || "";
+				btn.style.display = lab ? "" : "none";
 			}
 		}
 	}
@@ -8883,6 +8300,7 @@ function drawMiniPreview(canvas, kind) {
 		const list = $("practiceDefList");
 		if (!list) return;
 		const cur = practiceDefSchemeId || (currentScheme && currentScheme.id);
+		const btnMap = getDefAudibleMap();
 		list.innerHTML = "";
 		DEF_SCHEMES.forEach((s, i) => {
 			const row = document.createElement("div");
@@ -8894,8 +8312,13 @@ function drawMiniPreview(canvas, kind) {
 			const name = document.createElement("span");
 			name.className = "play-name";
 			name.textContent = s.name;
+			const btn = document.createElement("span");
+			btn.className = "play-btn";
+			const hit = btnMap.find((m) => m.scheme && m.scheme.id === s.id);
+			btn.textContent = hit ? hit.label : "";
 			row.appendChild(num);
 			row.appendChild(name);
+			row.appendChild(btn);
 			row.onclick = () => {
 				practiceDefSchemeId = s.id;
 				const sel = $("practiceDefScheme");
@@ -8911,7 +8334,8 @@ function drawMiniPreview(canvas, kind) {
 	function renderPracticePlayList() {
 		const list = $("practicePlayList");
 		if (!list) return;
-		const cur = stockPlayId();
+		const cur = practiceOffPlayId || (currentPlay && currentPlay.id);
+		const btnMap = getAudibleMap();
 		list.innerHTML = "";
 		OFF_PLAYS.forEach((p, i) => {
 			const row = document.createElement("div");
@@ -8923,8 +8347,13 @@ function drawMiniPreview(canvas, kind) {
 			const name = document.createElement("span");
 			name.className = "play-name";
 			name.textContent = p.name;
+			const btn = document.createElement("span");
+			btn.className = "play-btn";
+			const hit = btnMap.find((m) => m.play && m.play.id === p.id);
+			btn.textContent = hit ? hit.label : "";
 			row.appendChild(num);
 			row.appendChild(name);
+			row.appendChild(btn);
 			row.onclick = () => {
 				practiceOffPlayId = p.id;
 				const sel = $("practiceOffPlay");
@@ -9181,680 +8610,35 @@ function drawMiniPreview(canvas, kind) {
 		ctx.fillStyle = g;
 		ctx.fillRect(0, 0, canvas.width, canvas.height);
 	}
-	function drawSidelineFigure(wx, wy, uni, kind) {
-		const p = project(wx, wy);
-		if (p.sy < -30 || p.sy > canvas.height + 30) return;
-		const sc = Math.max(0.7, p.sc || 1);
-		const r = 8.4 * sc * (kind === "coach" ? 1.1 : kind === "ref" ? 1 : 1);
-		ctx.save();
-		volumeEllipse(p.sx, p.sy + r * 0.15, r * 0.72, r * 0.42, 0, kind === "ref" ? "#f5f0e6" : uni.pants);
-		volumeEllipse(p.sx, p.sy - r * 0.12, r * 0.7, r * 0.55, 0, kind === "ref" ? "#111111" : uni.jersey);
-		volumeEllipse(p.sx, p.sy - r * 0.78, r * 0.38, r * 0.34, 0, kind === "ref" ? "#f5f0e6" : uni.helmet);
-		if (kind === "ref") {
-			ctx.strokeStyle = "#f5f0e6";
-			ctx.lineWidth = 1.1 * sc;
-			ctx.beginPath();
-			ctx.moveTo(p.sx - r * 0.22, p.sy - r * 0.05);
-			ctx.lineTo(p.sx + r * 0.22, p.sy + r * 0.2);
-			ctx.moveTo(p.sx + r * 0.22, p.sy - r * 0.05);
-			ctx.lineTo(p.sx - r * 0.22, p.sy + r * 0.2);
-			ctx.stroke();
-		}
-		ctx.restore();
-	}
-	function crowdDotInfo(wx, wy, side, rng) {
-		const off = getUni("off"), defu = getUni("def");
-		const visitor = side > 0 && wy < 50;
-		if (visitor) return { color: mixHex(defu.jersey, defu.helmet, rng() * 0.35), home: false };
-		const home = rng() < 0.88;
-		return {
-			color: home ? mixHex(off.jersey, off.helmet, rng() * 0.35) : mixHex(defu.jersey, defu.helmet, rng() * 0.35),
-			home
-		};
-	}
-	function crowdCheerH(isHome, salt) {
-		if (!scoreSeq) return 0;
-		const homeTd = scoreSeq.who === "off";
-		if (homeTd !== !!isHome) return 0;
-		return 0.45 + 1.55 * Math.abs(Math.sin(performance.now() / 82 + salt));
-	}
-	function drawCrowdFan(wx, wy, h, rng, side) {
-		const info = crowdDotInfo(wx, wy, side, rng);
-		const hop = crowdCheerH(info.home, wx * 2.7 + wy * 1.4);
-		const pt = project(wx, wy, (h || 0) + hop);
-		ctx.fillStyle = info.color;
-		const rr = 1.22 + rng() * 0.95;
-		ctx.beginPath();
-		ctx.ellipse(pt.sx, pt.sy, rr, rr * 0.7, 0, 0, Math.PI * 2);
-		ctx.fill();
-	}
-	function fillWorldPoly(pts, fill, stroke) {
-		if (!pts || pts.length < 3) return;
-		ctx.beginPath();
-		ctx.moveTo(pts[0].sx, pts[0].sy);
-		for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].sx, pts[i].sy);
-		ctx.closePath();
-		ctx.fillStyle = fill;
-		ctx.fill();
-		if (stroke) {
-			ctx.strokeStyle = stroke;
-			ctx.lineWidth = 1.15;
-			ctx.stroke();
-		}
-	}
-	function endzoneDeckSpec(dir) {
-		const RUN = 2.7 * 1.25;
-		const RISE = RUN;
-		const WALK = 0.24;
-		const fills = ["#2a3338", "#232b30", "#1c2428"];
-		const walls = ["#5e6c74", "#546168", "#414c53"];
-		const decks = [];
-		let y = dir > 0 ? 110.4 : -10.4;
-		let h = 1.05 * 1.25;
-		let pad = 5.1;
-		for (let i = 0; i < 3; i++) {
-			const y0 = y;
-			const y1 = y + dir * RUN;
-			decks.push({
-				y0,
-				y1,
-				h0: h,
-				h1: h + RISE,
-				pad0: pad,
-				pad1: pad + 4.1,
-				fill: fills[i],
-				wall: walls[i],
-				rows: 7
-			});
-			y = y1 + dir * WALK;
-			h += RISE + 0.12;
-			pad += 4.1;
-		}
-		return decks;
-	}
-	function drawEndzoneStands(dir, seed) {
-		const fl = fieldLeft(), fr = fieldRight();
-		const decks = endzoneDeckSpec(dir);
-		const rng = mulberry32(hashSeed("ezcrowd" + seed + String(dir)));
-		const top = decks[decks.length - 1];
-		fillWorldPoly([
-			project(fl - top.pad1, top.y1, 0),
-			project(fr + top.pad1, top.y1, 0),
-			project(fr + top.pad1, top.y1, top.h1),
-			project(fl - top.pad1, top.y1, top.h1)
-		], "#12181b", "rgba(8,12,14,0.5)");
-		for (let di = decks.length - 1; di >= 0; di--) {
-			const deck = decks[di];
-			const hBelow = di === 0 ? 0 : decks[di - 1].h1;
-			fillWorldPoly([
-				project(fl - deck.pad0, deck.y0, deck.h0),
-				project(fr + deck.pad0, deck.y0, deck.h0),
-				project(fr + deck.pad1, deck.y1, deck.h1),
-				project(fl - deck.pad1, deck.y1, deck.h1)
-			], deck.fill, "rgba(8,12,14,0.45)");
-			fillWorldPoly([
-				project(fl - deck.pad0, deck.y0, hBelow),
-				project(fr + deck.pad0, deck.y0, hBelow),
-				project(fr + deck.pad0, deck.y0, deck.h0),
-				project(fl - deck.pad0, deck.y0, deck.h0)
-			], deck.wall, "rgba(8,12,14,0.4)");
-			fillWorldPoly([
-				project(fl - deck.pad0, deck.y0, 0),
-				project(fl - deck.pad0, deck.y0, deck.h0),
-				project(fl - deck.pad1, deck.y1, deck.h1),
-				project(fl - deck.pad1, deck.y1, 0)
-			], mixHex(deck.fill, "#0a0e10", 0.28));
-			fillWorldPoly([
-				project(fr + deck.pad0, deck.y0, 0),
-				project(fr + deck.pad0, deck.y0, deck.h0),
-				project(fr + deck.pad1, deck.y1, deck.h1),
-				project(fr + deck.pad1, deck.y1, 0)
-			], mixHex(deck.fill, "#0a0e10", 0.18));
-			const nSec = 7;
-			for (let s = 0; s < nSec; s++) {
-				if (s > 0) {
-					const t = s / nSec;
-					const x0 = fl - deck.pad0 + (fr - fl + deck.pad0 * 2) * t;
-					const x1 = fl - deck.pad1 + (fr - fl + deck.pad1 * 2) * t;
-					const a = project(x0, deck.y0, deck.h0), b = project(x1, deck.y1, deck.h1);
-					ctx.strokeStyle = "rgba(210,220,225,0.24)";
-					ctx.lineWidth = 1.7;
-					ctx.beginPath();
-					ctx.moveTo(a.sx, a.sy);
-					ctx.lineTo(b.sx, b.sy);
-					ctx.stroke();
-				}
-				const t0 = s / nSec, t1 = (s + 1) / nSec;
-				for (let row = 0; row < deck.rows; row++) {
-					const rt = (row + 0.45) / deck.rows;
-					const wy = deck.y0 + (deck.y1 - deck.y0) * rt;
-					const hh = deck.h0 + (deck.h1 - deck.h0) * rt + 0.05;
-					const pad = deck.pad0 + (deck.pad1 - deck.pad0) * rt;
-					const n = 13 + (s % 2);
-					for (let k = 0; k < n; k++) {
-						const xt = t0 + (t1 - t0) * ((k + 0.38 + rng() * 0.24) / n);
-						const wx = fl - pad + (fr - fl + pad * 2) * xt + (rng() - 0.5) * 0.08;
-						drawCrowdFan(wx, wy, hh, rng, 0);
-					}
-				}
-			}
-		}
-	}
-	function drawCrowdDeck(y0, y1, pad0, pad1, fill, seed) {
-		const fl = fieldLeft(), fr = fieldRight();
-		const a = project(fl - pad0, y0), b = project(fr + pad0, y0);
-		const c = project(fr + pad1, y1), d = project(fl - pad1, y1);
-		fillWorldPoly([a, b, c, d], fill, "rgba(8,12,14,0.4)");
-		const rng = mulberry32(hashSeed("crowd" + seed + String(y0)));
-		const sections = 7;
-		for (let s = 0; s < sections; s++) {
-			const t0 = s / sections, t1 = (s + 1) / sections;
-			if (s > 0) {
-				const x0 = fl - pad0 + (fr - fl + pad0 * 2) * t0;
-				const x1 = fl - pad1 + (fr - fl + pad1 * 2) * t0;
-				const p0 = project(x0, y0), p1 = project(x1, y1);
-				ctx.strokeStyle = "rgba(210,220,225,0.22)";
-				ctx.lineWidth = 1.8;
-				ctx.beginPath();
-				ctx.moveTo(p0.sx, p0.sy);
-				ctx.lineTo(p1.sx, p1.sy);
-				ctx.stroke();
-			}
-			const rows = 5;
-			for (let row = 0; row < rows; row++) {
-				const rt = (row + 0.5) / rows;
-				const y = y0 + (y1 - y0) * rt;
-				const pad = pad0 + (pad1 - pad0) * rt;
-				const n = 8 + (s % 2);
-				for (let k = 0; k < n; k++) {
-					const xt = t0 + (t1 - t0) * ((k + 0.35 + rng() * 0.3) / n);
-					const wx = fl - pad + (fr - fl + pad * 2) * xt + (rng() - 0.5) * 0.28;
-					const wy = y + (rng() - 0.5) * ((y1 - y0) * 0.1);
-					drawCrowdFan(wx, wy, 0, rng, 0);
-				}
-			}
-		}
-	}
-	function sidelineDeckSpec() {
-		const RUN = 1.58 * 1.25;
-		const RISE = RUN * Math.tan(Math.PI / 3);
-		const WALK = 0.22;
-		const fills = ["#2f3940", "#2a3338", "#252e32", "#20282c", "#1b2226"];
-		const walls = ["#6a787f", "#5e6c74", "#546168", "#4a575e", "#414c53"];
-		const decks = [];
-		let x = 1.12, h = 1.15 * 1.25;
-		for (let i = 0; i < 5; i++) {
-			decks.push({
-				a: x,
-				b: x + RUN,
-				h0: h,
-				h1: h + RISE,
-				fill: fills[i],
-				wall: walls[i],
-				rows: 7
-			});
-			x += RUN + WALK;
-			h += RISE + 0.14;
-		}
-		return decks;
-	}
-	function drawSidelineCrowd(side, seed) {
-		const fl = fieldLeft(), fr = fieldRight();
-		const edge = side < 0 ? fl : fr;
-		const sign = side < 0 ? -1 : 1;
-		const yNear = 0, yFar = 100;
-		const decks = sidelineDeckSpec();
-		const rng = mulberry32(hashSeed("sidecrowd" + seed + String(side)));
-		const topDeck = decks[decks.length - 1];
-		const xo = edge + sign * topDeck.b;
-		fillWorldPoly([
-			project(xo, yNear, 0),
-			project(xo, yNear, topDeck.h1),
-			project(xo, yFar, topDeck.h1),
-			project(xo, yFar, 0)
-		], "#12181b", "rgba(8,12,14,0.5)");
-		for (let di = decks.length - 1; di >= 0; di--) {
-			const deck = decks[di];
-			const x0 = edge + sign * deck.a;
-			const x1 = edge + sign * deck.b;
-			const hBelow = di === 0 ? 0 : decks[di - 1].h1;
-			fillWorldPoly([
-				project(x0, yNear, deck.h0),
-				project(x1, yNear, deck.h1),
-				project(x1, yFar, deck.h1),
-				project(x0, yFar, deck.h0)
-			], deck.fill, "rgba(8,12,14,0.45)");
-			fillWorldPoly([
-				project(x0, yNear, hBelow),
-				project(x0, yNear, deck.h0),
-				project(x0, yFar, deck.h0),
-				project(x0, yFar, hBelow)
-			], deck.wall, "rgba(8,12,14,0.4)");
-			fillWorldPoly([
-				project(x0, yNear, hBelow),
-				project(x0, yNear, deck.h0),
-				project(x1, yNear, deck.h1),
-				project(x1, yNear, 0)
-			], mixHex(deck.fill, "#0a0e10", 0.3));
-			fillWorldPoly([
-				project(x0, yFar, hBelow),
-				project(x0, yFar, deck.h0),
-				project(x1, yFar, deck.h1),
-				project(x1, yFar, 0)
-			], mixHex(deck.fill, "#0a0e10", 0.16));
-			const nSec = 10;
-			for (let sec = 0; sec < nSec; sec++) {
-				if (sec > 0) {
-					const wy = yNear + (yFar - yNear) * (sec / nSec);
-					const pa = project(x0, wy, deck.h0), pb = project(x1, wy, deck.h1);
-					ctx.strokeStyle = "rgba(210,220,225,0.24)";
-					ctx.lineWidth = 1.7;
-					ctx.beginPath();
-					ctx.moveTo(pa.sx, pa.sy);
-					ctx.lineTo(pb.sx, pb.sy);
-					ctx.stroke();
-				}
-				const yt0 = sec / nSec, yt1 = (sec + 1) / nSec;
-				for (let row = 0; row < deck.rows; row++) {
-					const rt = (row + 0.45) / deck.rows;
-					const wx = x0 + (x1 - x0) * rt + (rng() - 0.5) * 0.05;
-					const hh = deck.h0 + (deck.h1 - deck.h0) * rt + 0.05;
-					const n = 13;
-					for (let k = 0; k < n; k++) {
-						const wy = yNear + (yFar - yNear) * (yt0 + (yt1 - yt0) * ((k + 0.28 + rng() * 0.44) / n));
-						drawCrowdFan(wx, wy, hh, rng, side);
-					}
-				}
-			}
-		}
-		if (side < 0) drawPressBox(edge, sign, topDeck);
-	}
-	function drawPressBox(edge, sign, topDeck) {
-		const x0 = edge + sign * (topDeck.a - 0.15);
-		const x1 = edge + sign * (topDeck.b + 0.55);
-		const y0 = 38, y1 = 62;
-		const h0 = topDeck.h1;
-		const h1 = topDeck.h1 + 4.75;
-		fillWorldPoly([
-			project(x0, y0, h0),
-			project(x1, y0, h0),
-			project(x1, y0, h1),
-			project(x0, y0, h1)
-		], "#2a3238");
-		fillWorldPoly([
-			project(x0, y1, h0),
-			project(x1, y1, h0),
-			project(x1, y1, h1),
-			project(x0, y1, h1)
-		], "#232b30");
-		fillWorldPoly([
-			project(x0, y0, h1),
-			project(x1, y0, h1),
-			project(x1, y1, h1),
-			project(x0, y1, h1)
-		], "#3a444c", "rgba(200,210,215,0.25)");
-		fillWorldPoly([
-			project(x0, y0, h0),
-			project(x0, y0, h1),
-			project(x0, y1, h1),
-			project(x0, y1, h0)
-		], "#4a555c");
-		for (let i = 0; i < 6; i++) {
-			const wy0 = y0 + 1.2 + i * 3.6;
-			const wy1 = wy0 + 2.4;
-			const hx0 = h0 + 0.7, hx1 = h1 - 0.55;
-			fillWorldPoly([
-				project(x0 + sign * 0.08, wy0, hx0),
-				project(x0 + sign * 0.08, wy1, hx0),
-				project(x0 + sign * 0.08, wy1, hx1),
-				project(x0 + sign * 0.08, wy0, hx1)
-			], "#9ec4d8");
-		}
-		const lab = project((x0 + x1) / 2, (y0 + y1) / 2, h1 + 0.15);
-		ctx.fillStyle = "rgba(232,236,230,0.9)";
-		ctx.font = "bold " + Math.max(8, 10 * (lab.sc || 1)) + "px Barlow Condensed, sans-serif";
-		ctx.textAlign = "center";
-		ctx.textBaseline = "middle";
-		ctx.fillText("PRESS", lab.sx, lab.sy);
-	}
-	function showReplayLights() {
-		return !!fullReplay && (camOp.zoom || 1) <= 0.86;
-	}
-	function drawLightPost(wx, wy, hBase) {
-		const poleH = 5.4;
-		const a = project(wx, wy, hBase);
-		const b = project(wx, wy, hBase + poleH);
-		ctx.strokeStyle = "#c8d0d4";
-		ctx.lineWidth = 2.15;
-		ctx.beginPath();
-		ctx.moveTo(a.sx, a.sy);
-		ctx.lineTo(b.sx, b.sy);
-		ctx.stroke();
-		const sc = Math.max(0.65, b.sc || 1);
-		const cell = 4.6 * sc;
-		const panelW = cell * 3.15, panelH = cell * 2.15;
-		const px = b.sx - panelW / 2, py = b.sy - panelH - 2 * sc;
-		ctx.fillStyle = "#2c3438";
-		ctx.fillRect(px - 1.5 * sc, py - 1.5 * sc, panelW + 3 * sc, panelH + 3 * sc);
-		ctx.strokeStyle = "#8b9698";
-		ctx.lineWidth = 1;
-		ctx.strokeRect(px - 1.5 * sc, py - 1.5 * sc, panelW + 3 * sc, panelH + 3 * sc);
-		for (let row = 0; row < 2; row++) {
-			for (let col = 0; col < 3; col++) {
-				const lx = px + (col + 0.5) * cell;
-				const ly = py + (row + 0.5) * (panelH / 2);
-				ctx.beginPath();
-				ctx.arc(lx, ly, 1.65 * sc, 0, Math.PI * 2);
-				ctx.fillStyle = "#f3e6a4";
-				ctx.fill();
-				ctx.strokeStyle = "#d2c070";
-				ctx.lineWidth = 0.7;
-				ctx.stroke();
-			}
-		}
-	}
-	function strokeWorld3(x0, y0, h0, x1, y1, h1, color, width) {
-		const a = project(x0, y0, h0), b = project(x1, y1, h1);
-		ctx.strokeStyle = color;
-		ctx.lineWidth = width;
-		ctx.lineCap = "round";
-		ctx.lineJoin = "round";
-		ctx.beginPath();
-		ctx.moveTo(a.sx, a.sy);
-		ctx.lineTo(b.sx, b.sy);
-		ctx.stroke();
-	}
-	function drawGoalPostAt(endY) {
-		const fl = fieldLeft(), fr = fieldRight();
-		const midX = (fl + fr) / 2;
-		const postHalf = postGapHalf();
-		const crossH = 3.4;
-		const upH = 10.2;
-		const behind = endY > 50 ? 1.15 : -1.15;
-		const baseY = endY + behind;
-		function tube(x0, y0, h0, x1, y1, h1, w) {
-			strokeWorld3(x0, y0, h0, x1, y1, h1, "#9a6d08", w + 2.1);
-			strokeWorld3(x0, y0, h0, x1, y1, h1, "#f5d445", w);
-		}
-		tube(midX, baseY, 0, midX, baseY, crossH, 3.6);
-		tube(midX, baseY, crossH, midX, endY, crossH, 3.3);
-		tube(midX - postHalf, endY, crossH, midX + postHalf, endY, crossH, 3.5);
-		tube(midX - postHalf, endY, crossH, midX - postHalf, endY, crossH + upH, 3.2);
-		tube(midX + postHalf, endY, crossH, midX + postHalf, endY, crossH + upH, 3.2);
-		const capL = project(midX - postHalf, endY, crossH + upH);
-		const capR = project(midX + postHalf, endY, crossH + upH);
-		ctx.fillStyle = "#f5d445";
-		ctx.beginPath();
-		ctx.arc(capL.sx, capL.sy, 2.4, 0, Math.PI * 2);
-		ctx.fill();
-		ctx.beginPath();
-		ctx.arc(capR.sx, capR.sy, 2.4, 0, Math.PI * 2);
-		ctx.fill();
-	}
-	function drawGoalPosts() {
-		drawGoalPostAt(110);
-		drawGoalPostAt(-10);
-	}
-	function drawSidelineLights() {
-		if (!showReplayLights()) return;
-		const fl = fieldLeft(), fr = fieldRight();
-		const decks = sidelineDeckSpec();
-		const top = decks[decks.length - 1];
-		const h = top.h1 + 0.2;
-		const yards = [0, 25, 75, 100];
-		const xW = fl - (top.a + (top.b - top.a) * 0.55);
-		const xE = fr + (top.a + (top.b - top.a) * 0.55);
-		const pressH = h + 4.75;
-		yards.forEach((yy) => {
-			const westH = (yy >= 38 && yy <= 62) ? pressH : h;
-			drawLightPost(xW, yy, westH);
-			drawLightPost(xE, yy, h);
-		});
-	}
-	function drawVideoBoard(x, y, w, h) {
-		ctx.fillStyle = "#05080a";
-		ctx.fillRect(x, y, w, h);
-		ctx.strokeStyle = "#2a3d32";
-		ctx.lineWidth = 1.1;
-		ctx.strokeRect(x, y, w, h);
-		if (jumboCan) {
-			ctx.save();
-			ctx.beginPath();
-			ctx.rect(x + 2, y + 2, w - 4, h - 4);
-			ctx.clip();
-			ctx.imageSmoothingEnabled = true;
-			ctx.drawImage(jumboCan, x + 2, y + 2, w - 4, h - 4);
-			ctx.restore();
-		} else {
-			ctx.fillStyle = "#0e1a14";
-			ctx.fillRect(x + 2, y + 2, w - 4, h - 4);
-		}
-		ctx.strokeStyle = "rgba(255,255,255,0.12)";
-		ctx.lineWidth = 0.8;
-		ctx.strokeRect(x + 2, y + 2, w - 4, h - 4);
-	}
-	function jumboFocus() {
-		if (scoreSeq && scoreSeq.player) return scoreSeq.player;
-		if (fumbleSeq && fumbleSeq.phase === "return" && fumbleSeq.defender) return fumbleSeq.defender;
-		if (rb) return rb;
-		return qb || null;
-	}
-	function updateJumboFeed() {
-		if (jumboBusy) return;
-		if (!jumboCan) {
-			jumboCan = document.createElement("canvas");
-			jumboCan.width = 320;
-			jumboCan.height = 160;
-		}
-		const j = jumboCan;
-		const jctx = j.getContext("2d");
-		if (!jctx) return;
-		const w = j.width, h = j.height;
-		const focus = jumboFocus();
-		const fx = focus ? focus.x : FIELD_WIDTH / 2;
-		const fy = focus ? focus.y : (playStartYard || 50);
-		const yardsW = 8.0;
-		const px = w / yardsW;
-		jumboBusy = true;
-		const prev = ctx;
-		ctx = jctx;
-		viewHook = (ax, ay, hh) => {
-			const dx = ax - fx, dy = ay - fy;
-			return {
-				sx: w * 0.5 + dx * px,
-				sy: h * 0.6 - dy * px * 0.64 - (hh || 0) * px * 0.4,
-				sc: px / Math.max(1, yardToPx())
-			};
-		};
-		try {
-			jctx.setTransform(1, 0, 0, 1, 0, 0);
-			jctx.fillStyle = "#082010";
-			jctx.fillRect(0, 0, w, h);
-			const fl = fieldLeft(), fr = fieldRight();
-			const uni = getUni("off");
-			const x0 = fx - 4.6, x1 = fx + 4.6;
-			const yA = fy - 3.4, yB = fy + 4.6;
-			fillTurfRange(yA, yB);
-			if (yA < 0) drawMountainEndzoneWorld(0, -10, uni.endPrimary, uni.endSecondary);
-			if (yB > 100) drawMountainEndzoneWorld(100, 110, uni.endPrimary, uni.endSecondary);
-			drawMidfieldLogo();
-			const lw = Math.max(2.2, px * 0.055);
-			for (let yd = Math.ceil((yA - 1) / 5) * 5; yd <= yB + 1; yd += 5) {
-				if (yd < -10 || yd > 110) continue;
-				const ten = yd % 10 === 0;
-				strokeWorldLine(fl, yd, fr, yd, ten ? "rgba(236,240,230,0.62)" : "rgba(236,240,230,0.34)", ten ? lw * 1.2 : lw * 0.85);
-			}
-			strokeWorldLine(fl, -10, fl, 110, "rgba(255,255,255,0.5)", lw * 1.35);
-			strokeWorldLine(fr, -10, fr, 110, "rgba(255,255,255,0.5)", lw * 1.35);
-			strokeWorldLine(fl, 20, fl, 80, "rgba(236,240,230,0.95)", lw * 2.5);
-			strokeWorldLine(fr, 20, fr, 80, "rgba(236,240,230,0.95)", lw * 2.5);
-			const innerTick = postGapHalf() * 0.16;
-			const midHash = (fl + fr) / 2;
-			const hashXs = [fl, hashLeft(), hashRight(), fr];
-			for (let decade = 0; decade < 100; decade += 10) {
-				for (const off of [1, 2, 3, 4, 6, 7, 8, 9]) {
-					const y = decade + off;
-					if (y < yA - 0.4 || y > yB + 0.4) continue;
-					for (const hx of hashXs) {
-						if (hx < x0 - 1.2 || hx > x1 + 1.2) continue;
-						const dx = hx === fl ? 0.85 : hx === fr ? -0.85 : (hx < midHash ? -innerTick : innerTick);
-						strokeWorldLine(hx, y, hx + dx, y, "rgba(236,240,230,0.55)", lw * 0.9);
-					}
-				}
-			}
-			function jumboPylon(yardY, side) {
-				const pxon = side === "L" ? fl : fr;
-				if (Math.abs(pxon - fx) > 5.5 || Math.abs(yardY - fy) > 5.5) return;
-				const base = project(pxon, yardY, 0);
-				const top = project(pxon, yardY, 1.35);
-				const sc = Math.max(3.2, 0.22 * px);
-				ctx.fillStyle = "#f97316";
-				ctx.fillRect(base.sx - sc * 0.32, top.sy, sc * 0.64, base.sy - top.sy);
-				ctx.fillStyle = "#fdba74";
-				ctx.fillRect(base.sx - sc * 0.32, top.sy - sc * 0.28, sc * 0.64, sc * 0.28);
-			}
-			jumboPylon(0, "L"); jumboPylon(0, "R");
-			jumboPylon(-10, "L"); jumboPylon(-10, "R");
-			jumboPylon(100, "L"); jumboPylon(100, "R");
-			jumboPylon(110, "L"); jumboPylon(110, "R");
-			const pack = [];
-			if (qb && qb.active) pack.push(qb);
-			(blockers || []).forEach((p) => { if (p && p.active) pack.push(p); });
-			(defenders || []).forEach((p) => { if (p && p.active) pack.push(p); });
-			if (rb && rb.active) pack.push(rb);
-			pack.sort((a, b) => b.y - a.y);
-			pack.forEach((p) => {
-				if (Math.abs(p.x - fx) > 5.2 || Math.abs(p.y - fy) > 4.6) return;
-				drawPlayer(p, !!(focus && p === focus));
-			});
-		} finally {
-			viewHook = null;
-			ctx = prev;
-			jumboBusy = false;
-		}
-	}
-	function drawEeLogoAd(x, y, w, h) {
-		ctx.fillStyle = "#fef8ec";
-		ctx.fillRect(x, y, w, h);
-		ctx.strokeStyle = "#1b3a6b";
-		ctx.lineWidth = 1.2;
-		ctx.strokeRect(x, y, w, h);
-		const img = eeLogoReady() ? eeLogoImg : null;
-		if (!img) {
-			ctx.fillStyle = "#fb4f14";
-			ctx.font = "bold " + Math.max(8, h * 0.28) + "px Barlow Condensed, sans-serif";
-			ctx.textAlign = "center";
-			ctx.textBaseline = "middle";
-			ctx.fillText("EE", x + w / 2, y + h / 2);
-			return;
-		}
-		const pad = Math.max(1.5, Math.min(w, h) * 0.07);
-		const boxW = w - pad * 2, boxH = h - pad * 2;
-		const s = Math.min(boxW / img.naturalWidth, boxH / img.naturalHeight);
-		const dw = img.naturalWidth * s, dh = img.naturalHeight * s;
-		ctx.drawImage(img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
-	}
-	function drawDrinkWaterAd(x, y, w, h) {
-		ctx.fillStyle = "#d7eef7";
-		ctx.fillRect(x, y, w, h);
-		ctx.strokeStyle = "#6aa3b8";
-		ctx.lineWidth = 1.1;
-		ctx.strokeRect(x, y, w, h);
-		ctx.fillStyle = "#1a5f78";
-		ctx.font = "bold " + Math.max(7, h * 0.22) + "px Barlow Condensed, sans-serif";
-		ctx.textAlign = "center";
-		ctx.textBaseline = "middle";
-		ctx.fillText("Drink", x + w / 2, y + h * 0.38);
-		ctx.fillText("Water!", x + w / 2, y + h * 0.66);
-	}
-	function boardClockText() {
-		return formatClock(Math.max(0, clock));
-	}
-	function drawBowlScoreboard(dir, size) {
-		const decks = endzoneDeckSpec(dir);
-		const top = decks[decks.length - 1];
-		const midX = (fieldLeft() + fieldRight()) / 2;
-		const bwYd = 22 * size;
-		const bhYd = 7.2 * size;
-		const thick = 1.2 * size;
-		const tilt = 2.4 * size;
-		const yInner = top.y1 - dir * (tilt + 0.35);
-		const yOuter = top.y1 + dir * 0.12;
-		const hBase = top.h1 + 0.08;
-		const hTop = hBase + bhYd;
-		const x0 = midX - bwYd / 2, x1 = midX + bwYd / 2;
-		const yBInner = yInner + dir * thick, yBOuter = yOuter + dir * thick;
-		const TL = project(x0, yOuter, hTop);
-		const TR = project(x1, yOuter, hTop);
-		const BL = project(x0, yInner, hBase);
-		const BR = project(x1, yInner, hBase);
-		if ([TL, TR, BL, BR].every((p) => p.sy < -160 || p.sy > canvas.height + 100 || p.sx < -220 || p.sx > canvas.width + 220)) return;
-		fillWorldPoly([
-			project(x0, yBInner, hBase), project(x1, yBInner, hBase),
-			project(x1, yBOuter, hTop), project(x0, yBOuter, hTop)
-		], "#070b0d");
-		fillWorldPoly([
-			project(x0, yOuter, hTop), project(x1, yOuter, hTop),
-			project(x1, yBOuter, hTop), project(x0, yBOuter, hTop)
-		], "#1c252c");
-		fillWorldPoly([
-			project(x0, yInner, hBase), project(x0, yOuter, hTop),
-			project(x0, yBOuter, hTop), project(x0, yBInner, hBase)
-		], "#10161a");
-		fillWorldPoly([
-			project(x1, yInner, hBase), project(x1, yOuter, hTop),
-			project(x1, yBOuter, hTop), project(x1, yBInner, hBase)
-		], "#161d22");
-		fillWorldPoly([TL, TR, BR, BL], "#0d1216", "#fb4f14");
-		const locW = 352, locH = 156;
-		function beginFace(pTL, pTR, pBL) {
-			const a = (pTR.sx - pTL.sx) / locW, b = (pTR.sy - pTL.sy) / locW;
-			const c = (pBL.sx - pTL.sx) / locH, d = (pBL.sy - pTL.sy) / locH;
-			const det = a * d - c * b;
-			if (Math.abs(det) < 0.04) return false;
-			ctx.save();
-			if (det > 0) ctx.transform(a, b, c, d, pTL.sx, pTL.sy);
-			else ctx.transform(-a, -b, c, d, pTR.sx, pTR.sy);
-			return true;
-		}
-		if (!beginFace(TL, TR, BL)) {
-			const bTL = project(x0, yBOuter, hTop), bTR = project(x1, yBOuter, hTop), bBR = project(x1, yBInner, hBase);
-			if (!beginFace(bTR, bTL, bBR)) return;
-		}
-		const bw = locW, bh = locH;
-		ctx.beginPath();
-		ctx.rect(0, 0, bw, bh);
-		ctx.clip();
-		ctx.fillStyle = "#0d1216";
-		ctx.fillRect(0, 0, bw, bh);
-		ctx.strokeStyle = "#fb4f14";
-		ctx.lineWidth = 2.3;
-		ctx.strokeRect(0, 0, bw, bh);
-		ctx.fillStyle = "#fb4f14";
-		ctx.font = "bold 14px Barlow Condensed, sans-serif";
-		ctx.textAlign = "center";
-		ctx.textBaseline = "middle";
-		ctx.fillText("FOOTBALL GROUND ATTACK LAB", bw * 0.39, bh * 0.11);
-		const adX = bw * 0.78, adW = bw * 0.2;
-		drawEeLogoAd(adX, bh * 0.05, adW, bh * 0.28);
-		drawDrinkWaterAd(adX, bh * 0.36, adW, bh * 0.26);
-		ctx.fillStyle = "#1a2228";
-		ctx.fillRect(7, bh * 0.2, bw * 0.72, bh * 0.3);
-		ctx.fillStyle = "#8b9688";
-		ctx.font = "10px IBM Plex Sans, sans-serif";
-		ctx.textAlign = "left";
-		ctx.fillText("GAME TIME", 16, bh * 0.3);
-		ctx.fillText("SCORE", bw * 0.4, bh * 0.3);
-		ctx.fillStyle = "#e8ece6";
-		ctx.font = "bold 24px Barlow Condensed, sans-serif";
-		ctx.fillText(boardClockText(), 16, bh * 0.43);
-		ctx.fillText(String(score), bw * 0.4, bh * 0.43);
-		drawVideoBoard(7, bh * 0.54, bw * 0.72, bh * 0.4);
-		ctx.restore();
-	}
 	function drawVenueBehind() {
 		const fl = fieldLeft(), fr = fieldRight();
 		const midX = (fl + fr) / 2;
+		function deck(y0, y1, pad0, pad1, fill) {
+			const a = project(fl - pad0, y0), b = project(fr + pad0, y0);
+			const c = project(fr + pad1, y1), d = project(fl - pad1, y1);
+			ctx.beginPath();
+			ctx.moveTo(a.sx, a.sy);
+			ctx.lineTo(b.sx, b.sy);
+			ctx.lineTo(c.sx, c.sy);
+			ctx.lineTo(d.sx, d.sy);
+			ctx.closePath();
+			ctx.fillStyle = fill;
+			ctx.fill();
+			ctx.strokeStyle = "rgba(8,12,14,0.35)";
+			ctx.lineWidth = 1;
+			ctx.stroke();
+			ctx.strokeStyle = "rgba(255,255,255,0.06)";
+			for (let i = 1; i <= 3; i++) {
+				const t = i / 4;
+				const y = y0 + (y1 - y0) * t;
+				const p = pad0 + (pad1 - pad0) * t;
+				const l = project(fl - p, y), r = project(fr + p, y);
+				ctx.beginPath();
+				ctx.moveTo(l.sx, l.sy);
+				ctx.lineTo(r.sx, r.sy);
+				ctx.stroke();
+			}
+		}
 		ctx.save();
 		const hill = [
 			[0, 16], [12, 34], [24, 20], [38, 46], [52, 22], [66, 52], [80, 26], [92, 40], [100, 18]
@@ -9871,35 +8655,32 @@ function drawMiniPreview(canvas, kind) {
 		ctx.closePath();
 		ctx.fillStyle = "#1a2832";
 		ctx.fill();
-		drawEndzoneStands(1, "n");
-		drawEndzoneStands(-1, "s");
-		drawSidelineCrowd(-1, "west");
-		drawSidelineCrowd(1, "east");
-		drawSidelineLights();
-		drawBowlScoreboard(1, 1.18);
-		drawBowlScoreboard(-1, 0.72);
-		const off = getUni("off"), defu = getUni("def");
-		const los = playStartYard || 50;
-		const nBench = 7;
-		const spacing = 2.4;
-		const span = (nBench - 1) * spacing;
-		let y0 = los - span / 2;
-		if (y0 < 20) y0 = 20;
-		if (y0 + span > 80) y0 = 80 - span;
-		for (let i = 0; i < nBench; i++) {
-			const wy = y0 + i * spacing;
-			drawSidelineFigure(fl - 1.15, wy, off, i === 3 ? "coach" : "player");
-			drawSidelineFigure(fr + 1.15, wy, defu, i === 2 ? "coach" : "player");
+		deck(111.2, 122.5, 6, 11, "#2a3338");
+		deck(122.5, 135, 11, 16, "#232b30");
+		deck(-11.2, -20.5, 5, 9, "#252c30");
+		deck(-20.5, -29, 9, 13, "#1e2528");
+		const board = project(midX, 141);
+		if (board.sy > -80 && board.sy < canvas.height + 40) {
+			const sc = Math.max(0.7, board.sc || 1);
+			const bw = 168 * sc, bh = 42 * sc;
+			ctx.fillStyle = "#12181c";
+			ctx.fillRect(board.sx - bw / 2, board.sy - bh, bw, bh);
+			ctx.strokeStyle = "#fb4f14";
+			ctx.lineWidth = 1.6 * sc;
+			ctx.strokeRect(board.sx - bw / 2, board.sy - bh, bw, bh);
+			ctx.fillStyle = "#e8ece6";
+			ctx.font = "bold " + Math.max(11, 15 * sc) + "px Barlow Condensed, sans-serif";
+			ctx.textAlign = "center";
+			ctx.textBaseline = "middle";
+			const clk = gameMode === "practice" ? "OFF" : formatClock(clock);
+			ctx.fillText("EE  " + score + "     " + clk, board.sx, board.sy - bh * 0.52);
 		}
-		drawSidelineFigure(midX - 4.2, los - 1.6, { jersey: "#111", pants: "#eee", helmet: "#f5f0e6" }, "ref");
-		drawSidelineFigure(midX + 6.5, los + 6.5, { jersey: "#111", pants: "#eee", helmet: "#f5f0e6" }, "ref");
-		drawSidelineFigure(fl + 3.2, los + 18, { jersey: "#111", pants: "#eee", helmet: "#f5f0e6" }, "ref");
 		ctx.restore();
 	}
 	function draw() {
 		let savedLive = null;
-		const film = replayFrame();
-		if (film) {
+		if (fullReplay && fullReplay.frames[fullReplay.i]) {
+			const f = fullReplay.frames[fullReplay.i];
 			savedLive = {
 				rb,
 				qb,
@@ -9909,27 +8690,16 @@ function drawMiniPreview(canvas, kind) {
 				camZoom,
 				celebrateTimer,
 				scoreSeq,
-				fumbleSeq,
-				activeMove,
-				moveTimer,
-				moveDur
+				fumbleSeq
 			};
-			rb = film.rb;
-			qb = film.qb;
-			blockers = film.blockers || [];
-			defenders = film.defenders || [];
-			cameraY = film.cameraY;
-			camZoom = film.camZoom;
-			scoreSeq = film.scoreSeq;
-			fumbleSeq = film.fumbleSeq;
-			celebrateTimer = film.celebrateTimer || 0;
-			activeMove = film.activeMove || null;
-			moveTimer = film.moveTimer || 0;
-			moveDur = film.moveDur || 0;
-			if (rb) {
-				camFocusX = rb.x;
-				camFocusY = rb.y;
-			}
+			rb = f.rb;
+			qb = f.qb;
+			blockers = f.blockers || [];
+			defenders = f.defenders || [];
+			cameraY = f.cameraY;
+			camZoom = f.camZoom;
+			scoreSeq = f.scoreSeq;
+			fumbleSeq = f.fumbleSeq;
 		}
 		ctx.setTransform(1, 0, 0, 1, 0, 0);
 		drawSky();
@@ -9963,46 +8733,21 @@ function drawMiniPreview(canvas, kind) {
 			ctx.scale(s, s);
 		}
 		ctx.save();
-		{
-			let fx, fy;
-			if (fullReplay || cameraMode === "free") {
-				fx = lookX;
-				fy = lookY;
-			} else {
-				let focus = scoreSeq?.player || fumbleSeq && fumbleSeq.phase === "return" && fumbleSeq.defender || rb;
-				fx = focus ? focus.x : (camFocusX != null ? camFocusX : FIELD_WIDTH / 2);
-				fy = focus ? focus.y : (camFocusY != null ? camFocusY : cameraY);
-				if (ankleCam && ankleCam.runner && ankleCam.defender && !fullReplay) {
-					fx = ankleCam.runner.x * .72 + ankleCam.defender.x * .28;
-					fy = ankleCam.runner.y * .72 + ankleCam.defender.y * .28;
-				}
-				if (!fullReplay && focus) {
-					const hit = nearestContactAhead(focus);
-					if (hit) {
-						fx = focus.x * .64 + hit.x * .36;
-						fy = focus.y * .58 + hit.y * .42;
-					}
-				}
-				fx += camOp.panX;
-				fy += camOp.panY;
-				if (!fullReplay && focus) {
-					fx = clamp(fx, focus.x - 5.5, focus.x + 5.5);
-					fy = clamp(fy, focus.y - 3.2, focus.y + 7);
-				}
+		if (Math.abs(camZoom - 1) > .02) {
+			let focus = scoreSeq?.player || fumbleSeq && fumbleSeq.phase === "return" && fumbleSeq.defender || rb;
+			let fx = focus ? focus.x : FIELD_WIDTH / 2;
+			let fy = focus ? focus.y : cameraY;
+			if (ankleCam && ankleCam.runner && ankleCam.defender) {
+				fx = ankleCam.runner.x * .72 + ankleCam.defender.x * .28;
+				fy = ankleCam.runner.y * .72 + ankleCam.defender.y * .28;
 			}
 			const z = project(fx, fy);
-			const zoom = camZoom * (camOp.zoom || 1);
-			const opOn = Math.abs(zoom - 1) > .02 || (!fullReplay && Math.abs(camOp.yaw) > .008) || Math.abs(camOp.panX) > .04 || Math.abs(camOp.panY) > .04 || (cameraMode === "free" && Math.abs((camOp.zoom || 1) - 1) > .01);
-			if (opOn) {
-				ctx.translate(z.sx, z.sy);
-				if (camOp.yaw && !fullReplay && cameraMode !== "free") ctx.rotate(camOp.yaw);
-				ctx.scale(zoom, zoom);
-				ctx.translate(-z.sx, -z.sy);
-			}
+			ctx.translate(z.sx, z.sy);
+			ctx.scale(camZoom, camZoom);
+			ctx.translate(-z.sx, -z.sy);
 		}
-		const uni = getUni("off");
+		const uni = getUni(fieldArtSide);
 		const fl = fieldLeft(), fr = fieldRight();
-		updateJumboFeed();
 		drawVenueBehind();
 		function fillBand(y0, y1, color) {
 			fillWorldQuad(fl, y0, fr, y1, color, 1);
@@ -10067,9 +8812,7 @@ function drawMiniPreview(canvas, kind) {
 			9
 		]) {
 			const y = decade + off;
-			const innerTick = postGapHalf() * 0.16;
-			const midX = (fl + fr) / 2;
-			for (const hx of hashXs) strokePaint(hx, y, hx + (hx === fl ? .85 : hx === fr ? -.85 : (hx < midX ? -innerTick : innerTick)), y, "rgba(236,240,230,0.48)", 1.15);
+			for (const hx of hashXs) strokePaint(hx, y, hx + (hx === fl ? .7 : hx === fr ? -.7 : .35), y, "rgba(236,240,230,0.48)", 1.15);
 		}
 		drawMidfieldLogo();
 		function drawPylon(yardY, side) {
@@ -10089,7 +8832,36 @@ function drawMiniPreview(canvas, kind) {
 		drawPylon(100, "R");
 		drawPylon(110, "L");
 		drawPylon(110, "R");
-		drawGoalPosts();
+		{
+			const midX = (fl + fr) / 2;
+			const postHalf = FIELD_WIDTH * .11;
+			ctx.strokeStyle = "#facc15";
+			ctx.lineWidth = 3.2;
+			ctx.lineCap = "round";
+			if (cameraMode === "top" || cameraMode === "topZoom") {
+				const stem = 3.2;
+				const postH = 6.6;
+				strokeWorld(midX, 110, midX, 110 + stem, "#facc15", 3.2);
+				strokeWorld(midX - postHalf, 110 + stem, midX + postHalf, 110 + stem, "#facc15", 3.2);
+				strokeWorld(midX - postHalf, 110 + stem, midX - postHalf, 110 + stem + postH, "#facc15", 3.2);
+				strokeWorld(midX + postHalf, 110 + stem, midX + postHalf, 110 + stem + postH, "#facc15", 3.2);
+			} else {
+				const base = project(midX, 110);
+				const leftU = project(midX - postHalf, 110);
+				const rightU = project(midX + postHalf, 110);
+				const h = 74 * (base.sc || 1);
+				ctx.beginPath();
+				ctx.moveTo(base.sx, base.sy);
+				ctx.lineTo(base.sx, base.sy - h * .5);
+				ctx.moveTo(leftU.sx, leftU.sy - h * .5);
+				ctx.lineTo(rightU.sx, rightU.sy - h * .5);
+				ctx.moveTo(leftU.sx, leftU.sy - h * .5);
+				ctx.lineTo(leftU.sx, leftU.sy - h * 1.38);
+				ctx.moveTo(rightU.sx, rightU.sy - h * .5);
+				ctx.lineTo(rightU.sx, rightU.sy - h * 1.38);
+				ctx.stroke();
+			}
+		}
 		strokeWorld(fl, playStartYard, fr, playStartYard, "#3b82f6", 2.6);
 		strokeWorld(fl, 0, fl, 100, "rgba(255,255,255,0.4)", 2.5);
 		strokeWorld(fr, 0, fr, 100, "rgba(255,255,255,0.4)", 2.5);
@@ -10102,23 +8874,22 @@ function drawMiniPreview(canvas, kind) {
 		defenders.forEach((d) => drawPlayer(d, false));
 		if (rb) drawPlayer(rb, rb.hasBall);
 		if (fumbleSeq && fumbleSeq.phase === "loose") {
-			const br = .9 * yardToPx();
+			const br = .9 * SCALE_X;
 			const bp = project(fumbleSeq.ballX, fumbleSeq.ballY);
 			drawFootball(bp.sx, bp.sy - fumbleSeq.ballHop * SCALE_Y * .45, br, fumbleSeq.t * 11);
 		}
 		if (scoreSeq && scoreSeq.ballOut) {
-			const br = .9 * yardToPx();
+			const br = .9 * SCALE_X;
 			const bp = project(scoreSeq.ballX, scoreSeq.ballY);
 			drawFootball(bp.sx, bp.sy - scoreSeq.ballHop * SCALE_Y * .45, br, scoreSeq.t * 8);
 		}
 		drawHandoffBall();
 		drawRunnerTrail();
-		if (film && film.trail) {
-			strokeTrailWorld(film.trail);
+		if (fullReplay && fullReplay.frames[fullReplay.i] && fullReplay.frames[fullReplay.i].trail) {
+			strokeTrailWorld(fullReplay.frames[fullReplay.i].trail);
 		}
 		drawRouteArrow();
 		drawPlayArt();
-		drawReplayCursor();
 		ctx.restore();
 		if (splitOn) ctx.restore();
 		if (savedLive) {
@@ -10131,124 +8902,15 @@ function drawMiniPreview(canvas, kind) {
 			celebrateTimer = savedLive.celebrateTimer;
 			scoreSeq = savedLive.scoreSeq;
 			fumbleSeq = savedLive.fumbleSeq;
-			activeMove = savedLive.activeMove;
-			moveTimer = savedLive.moveTimer;
-			moveDur = savedLive.moveDur;
 		}
 		drawPip();
 		drawSprintMeter();
-		drawReplayHud();
-		drawFreeCamHud();
 		if (ctrlLeft || ctrlRight) {
 			ctx.fillStyle = "rgba(251,79,20,0.85)";
 			ctx.font = "bold 12px Barlow Condensed, sans-serif";
 			ctx.textAlign = "right";
 			ctx.fillText(ctrlLeft && ctrlRight ? "DUAL CONTROL" : "BLOCKER", canvas.width - 12, 18);
 		}
-	}
-	function drawReplayCursor() {
-		if (!fullReplay && !camAdjust) return;
-		const col = jerseyRingColor();
-		withFieldPlane(lookX, lookY, () => {
-			const s = 0.32;
-			ctx.lineCap = "round";
-			ctx.lineJoin = "round";
-			ctx.strokeStyle = "rgba(0,0,0,0.78)";
-			ctx.lineWidth = 0.08;
-			ctx.beginPath();
-			ctx.moveTo(-s, -s);
-			ctx.lineTo(s, s);
-			ctx.moveTo(-s, s);
-			ctx.lineTo(s, -s);
-			ctx.stroke();
-			ctx.strokeStyle = col;
-			ctx.lineWidth = 0.045;
-			ctx.beginPath();
-			ctx.moveTo(-s, -s);
-			ctx.lineTo(s, s);
-			ctx.moveTo(-s, s);
-			ctx.lineTo(s, -s);
-			ctx.stroke();
-			ctx.fillStyle = col;
-			ctx.globalAlpha = 0.45;
-			ctx.beginPath();
-			ctx.arc(0, 0, 0.07, 0, Math.PI * 2);
-			ctx.fill();
-			ctx.globalAlpha = 1;
-		});
-	}
-	function drawFreeCamHud() {
-		if (fullReplay) return;
-		if (!camAdjust && cameraMode !== "free") return;
-		ctx.save();
-		ctx.setTransform(1, 0, 0, 1, 0, 0);
-		ctx.fillStyle = "rgba(8,12,10,0.78)";
-		ctx.strokeStyle = "rgba(251,79,20,0.75)";
-		ctx.lineWidth = 1.2;
-		const x = 12, y = 10;
-		const w = Math.min(camAdjust ? 520 : 400, canvas.width * 0.62);
-		const h = camAdjust ? 86 : 44;
-		ctx.beginPath();
-		if (typeof ctx.roundRect === "function") ctx.roundRect(x, y, w, h, 8);
-		else ctx.rect(x, y, w, h);
-		ctx.fill();
-		ctx.stroke();
-		ctx.fillStyle = "#fb4f14";
-		ctx.font = "bold 13px Barlow Condensed, sans-serif";
-		ctx.textAlign = "left";
-		ctx.textBaseline = "alphabetic";
-		ctx.fillText(camAdjust ? "ADJUST CAMERA" : "FREESTYLE CAMERA", x + 12, y + 18);
-		ctx.fillStyle = "#e8ece6";
-		ctx.font = "10px IBM Plex Sans, sans-serif";
-		if (camAdjust) {
-			ctx.fillText("X / B  zoom in / out", x + 12, y + 36);
-			ctx.fillText("Arrows / left stick  recenter    ·    Y + arrows / left stick  rotate (L/R theta, U/D phi)", x + 12, y + 52);
-			ctx.fillText("A  confirm camera angle", x + 12, y + 68);
-		} else {
-			ctx.fillStyle = "#c5cec4";
-			ctx.font = "9px IBM Plex Sans, sans-serif";
-			ctx.fillText(paused ? "Y adjust camera · A resume · X/View replay · B restart" : "Pause, then Y to set angle", x + 12, y + 34);
-		}
-		ctx.restore();
-	}
-	function drawReplayHud() {
-		if (!fullReplay || !fullReplay.frames || !fullReplay.frames.length) return;
-		const n = fullReplay.frames.length;
-		const i = fullReplay.i || 0;
-		const playing = !!fullReplay.playing;
-		ctx.save();
-		ctx.setTransform(1, 0, 0, 1, 0, 0);
-		const x = 12, y = 10, w = Math.min(460, canvas.width * 0.56), h = 72;
-		ctx.fillStyle = "rgba(8,12,10,0.8)";
-		ctx.strokeStyle = "rgba(251,79,20,0.88)";
-		ctx.lineWidth = 1.5;
-		ctx.beginPath();
-		if (typeof ctx.roundRect === "function") ctx.roundRect(x, y, w, h, 8);
-		else ctx.rect(x, y, w, h);
-		ctx.fill();
-		ctx.stroke();
-		ctx.fillStyle = "#fb4f14";
-		ctx.font = "bold 14px Barlow Condensed, sans-serif";
-		ctx.textAlign = "left";
-		ctx.textBaseline = "alphabetic";
-		ctx.fillText("INSTANT REPLAY", x + 12, y + 20);
-		ctx.fillStyle = "#e8ece6";
-		ctx.font = "11px IBM Plex Sans, sans-serif";
-		const rate = replayHudRate;
-		let rateTxt = "PAUSE";
-		if (Math.abs(rate) < 0.02 && !playing) rateTxt = "PAUSE";
-		else if (playing && Math.abs(rate - 1) < 0.05) rateTxt = "PLAY  1.00×";
-		else rateTxt = (rate >= 0 ? "▶ " : "◀ ") + Math.abs(rate || 0).toFixed(2) + "×";
-		ctx.fillText(rateTxt + "   " + Math.round(i) + " / " + n, x + 12, y + 38);
-		ctx.fillStyle = "#8b9688";
-		ctx.font = "9px IBM Plex Sans, sans-serif";
-		ctx.fillText("A pause/play · X/B zoom · LB/RB slow · LT/RT fast · LS pan the X · Y+LS orbit · View/R exit", x + 12, y + 52);
-		const bx = x + 12, by = y + 60, bw = w - 24, bh = 4;
-		ctx.fillStyle = "rgba(255,255,255,0.14)";
-		ctx.fillRect(bx, by, bw, bh);
-		ctx.fillStyle = "#fb4f14";
-		ctx.fillRect(bx, by, bw * (n > 1 ? i / (n - 1) : 0), bh);
-		ctx.restore();
 	}
 	function drawSprintMeter() {
 		const x = 14;
@@ -10278,16 +8940,10 @@ function drawMiniPreview(canvas, kind) {
 				if (replayAcc >= 1 / REPLAY_HZ) {
 					replayAcc = 0;
 					const frame = captureFrame();
-					const live = playActive && !practiceAwaitSnap && preSnapTimer <= 0;
-					if (live) {
-						replayBuf.push(frame);
-						playFrames.push(frame);
-						if (replayBuf.length > REPLAY_CAP) replayBuf.shift();
-						if (playFrames.length > REPLAY_CAP) playFrames.shift();
-					} else {
-						huddleBuf.push(frame);
-						if (huddleBuf.length > HUDDLE_KEEP) huddleBuf.shift();
-					}
+					replayBuf.push(frame);
+					playFrames.push(frame);
+					if (replayBuf.length > REPLAY_CAP) replayBuf.shift();
+					if (playFrames.length > REPLAY_CAP) playFrames.shift();
 				}
 			}
 			draw();
@@ -10316,9 +8972,7 @@ function drawMiniPreview(canvas, kind) {
 			if (!(document.activeElement instanceof HTMLInputElement || document.activeElement instanceof HTMLSelectElement)) startFullReplay();
 		}
 		if (e.code === "KeyR" && !e.repeat) {
-			if (!(document.activeElement instanceof HTMLInputElement || document.activeElement instanceof HTMLSelectElement)) {
-				if (!fullReplay) startFullReplay();
-			}
+			if (!(document.activeElement instanceof HTMLInputElement || document.activeElement instanceof HTMLSelectElement)) startFullReplay();
 		}
 		if (e.key === "Enter") {
 			const nameModal = $("nameModal");
@@ -10743,7 +9397,7 @@ function drawMiniPreview(canvas, kind) {
 	const camSel = $("cameraSelect");
 	function syncCamCornerUi() {
 		const corner = $("camCornerSelect");
-		if (corner) corner.disabled = cameraMode === "top" || cameraMode === "topZoom" || cameraMode === "free";
+		if (corner) corner.disabled = cameraMode === "top" || cameraMode === "topZoom";
 	}
 	if (camSel) {
 		if (![...camSel.options].some((o) => o.value === "topZoom")) {
@@ -10754,33 +9408,10 @@ function drawMiniPreview(canvas, kind) {
 			if (after && after.nextSibling) camSel.insertBefore(opt, after.nextSibling);
 			else camSel.appendChild(opt);
 		}
-		if (![...camSel.options].some((o) => o.value === "free")) {
-			const opt = document.createElement("option");
-			opt.value = "free";
-			opt.textContent = "Freestyle";
-			camSel.appendChild(opt);
-		}
-		camSel.value = "free";
-		cameraMode = "free";
-		camOp.theta = freeOrbit.theta || 0;
-		camOp.phi = freeOrbit.phi != null ? freeOrbit.phi : 0.82;
-		camOp.zoom = freeOrbit.zoom || 1;
+		camSel.value = "top";
+		cameraMode = "top";
 		camSel.onchange = () => {
-			const next = CAMERAS[camSel.value] ? camSel.value : "top";
-			if (cameraMode === "free" && next !== "free") {
-				freeOrbit = { theta: camOp.theta || 0, phi: camOp.phi != null ? camOp.phi : 0.82, zoom: camOp.zoom || 1 };
-			}
-			cameraMode = next;
-			if (cameraMode === "free") {
-				camOp.theta = freeOrbit.theta || 0;
-				camOp.phi = freeOrbit.phi != null ? freeOrbit.phi : 0.82;
-				camOp.zoom = freeOrbit.zoom || 1;
-				freeLook = false;
-				const focus = rb || { x: FIELD_WIDTH / 2, y: playStartYard || 50 };
-				applyLook(focus.x, focus.y);
-			} else {
-				resetCamOp();
-			}
+			cameraMode = CAMERAS[camSel.value] ? camSel.value : "top";
 			syncCamCornerUi();
 			refreshScale();
 		};
@@ -10849,12 +9480,11 @@ function drawMiniPreview(canvas, kind) {
 	refreshAllNumbers();
 	if (defUni === offUni) defUni = randChoice(UNIFORMS.filter((u) => u.id !== offUni)).id;
 	logoFlip = (() => { const r = Math.random(); return r < 0.5 ? 0 : r < 0.75 ? 1 : 2; })();
-	fieldArtSide = "off";
+	fieldArtSide = Math.random() < .5 ? "off" : "def";
 	syncAbbrFromOffense();
 	randomizeSurface();
 	ballX = (hashLeft() + hashRight()) / 2;
 	placeEntitiesForNewPlay();
-	if (cameraMode === "free" && rb) applyLook(rb.x, rb.y);
 	updateBallOn();
 	renderScores();
 	canvas.tabIndex = 0;
@@ -10878,40 +9508,6 @@ function drawMiniPreview(canvas, kind) {
 		getPlayArt: () => playArtMode,
 		getReplayReady: () => lastPlayFrames.length,
 		getCamera: () => cameraMode,
-		getCamAdjust: () => !!camAdjust,
-		setCamAdjust: (on) => {
-			camAdjust = !!on;
-			if (camAdjust) {
-				setPaused(true);
-				freeLook = true;
-				const focus = rb || { x: FIELD_WIDTH / 2, y: playStartYard || 50 };
-				applyLook(focus.x, focus.y);
-			}
-			syncPauseChrome();
-			return camAdjust;
-		},
-		setCamera: (m) => {
-			if (!CAMERAS[m]) return cameraMode;
-			cameraMode = m;
-			if (m === "free") {
-				camOp.theta = freeOrbit.theta || 0;
-				camOp.phi = freeOrbit.phi != null ? freeOrbit.phi : 0.82;
-				camOp.zoom = freeOrbit.zoom || 1;
-			}
-			return cameraMode;
-		},
-		getCamOp: () => ({ panX: camOp.panX, panY: camOp.panY, yaw: camOp.yaw, zoom: camOp.zoom, theta: camOp.theta || 0, phi: camOp.phi, focusX: camFocusX, focusY: camFocusY, lookX, lookY }),
-		setCamOp: (o) => {
-			if (!o) return;
-			if (o.panX != null) camOp.panX = o.panX;
-			if (o.panY != null) camOp.panY = o.panY;
-			if (o.yaw != null) camOp.yaw = o.yaw;
-			if (o.zoom != null) camOp.zoom = o.zoom;
-			if (o.theta != null) camOp.theta = o.theta;
-			if (o.phi != null) camOp.phi = clamp(o.phi, 0, Math.PI / 2);
-			if (o.lookX != null || o.lookY != null) applyLook(o.lookX != null ? o.lookX : lookX, o.lookY != null ? o.lookY : lookY);
-		},
-		getReplay: () => fullReplay ? { i: fullReplay.i, n: fullReplay.frames.length, playing: !!fullReplay.playing, rate: replayHudRate } : null,
 		getCamDebug: () => ({
 			mode: cameraMode,
 			skew: camSpec().skew,
@@ -10934,26 +9530,9 @@ function drawMiniPreview(canvas, kind) {
 			sprintExhausted,
 			fatigue: fatigueOn,
 			defYs: (defenders || []).map((d) => +Number(d.y).toFixed(2)),
-			defXs: (defenders || []).map((d) => +Number(d.x).toFixed(2)),
 			jobYs: (defenders || []).map((d) => d.jobY == null ? null : +Number(d.jobY).toFixed(2)),
-			hash: [hashLeft(), hashRight()].map((v) => +Number(v).toFixed(2)),
-			post: +Number(postGapHalf() * 2).toFixed(2),
-			oFlip: !!practiceFlipped,
-			dFlip: !!practiceDefFlipped,
-			yardPx: +Number(yardToPx()).toFixed(2),
-			scaleX: +Number(SCALE_X).toFixed(2),
-			playFrames: playFrames.length
+			hash: [hashLeft(), hashRight()].map((v) => +Number(v).toFixed(2))
 		}),
-		flipOffense: () => {
-			practiceFlipped = !practiceFlipped;
-			placeEntitiesForNewPlay("off");
-			return !!practiceFlipped;
-		},
-		flipDefense: () => {
-			practiceDefFlipped = !practiceDefFlipped;
-			placeEntitiesForNewPlay("def");
-			return !!practiceDefFlipped;
-		},
 		getSpikeStyle: () => scoreSeq?.spikeStyle || null,
 		getEzArt: () => ezArtMode,
 		setEzArt: (v) => {

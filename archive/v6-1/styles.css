@@ -1,4 +1,4 @@
-/* Football Ground Attack Lab v7 */
+/* Football Ground Attack Lab v6 */
 :root {
   --color-bg: #0c1410;
   --color-surface: #161c18;
@@ -10,7 +10,6 @@
   --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Barlow Condensed", "IBM Plex Sans", sans-serif;
 }
-
 * { box-sizing: border-box; }
 html, body {
   overflow-x: hidden;
@@ -19,6 +18,19 @@ html, body {
   font-family: var(--font-sans);
 }
 button:not(:disabled), [role="button"]:not(:disabled) { cursor: pointer; }
+html,
+  body {
+    margin: 0;
+    min-height: 100%;
+    background: var(--color-bg);
+    color: var(--color-fg);
+    font-family: var(--font-sans);
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+}
 
 .lab-main {
   display: flex;
@@ -582,9 +594,9 @@ details[open] > summary span {
   background: #0a1210;
 }
 .prev-banner {
-  display: grid;
-  grid-template-columns: 2.2rem 1fr;
+  display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 6px;
   padding: 5px 8px;
   min-height: 28px;
@@ -596,12 +608,21 @@ details[open] > summary span {
   text-shadow: 0 1px 2px rgba(0,0,0,0.55);
 }
 .prev-banner span:first-child {
+  flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .prev-btn-icon {
-  display: none;
+  flex-shrink: 0;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(0,0,0,0.35);
+  border: 1px solid rgba(255,255,255,0.35);
+  color: #fff;
 }
 #prevDefCanvas,
 #prevOffCanvas {
@@ -693,7 +714,7 @@ details[open] > summary span {
 }
 .practice-play-list .play-item {
   display: grid;
-  grid-template-columns: 2.2rem 1fr;
+  grid-template-columns: 3.6rem 1fr 3.6rem;
   align-items: center;
   gap: 4px;
   padding: 3px 4px;
@@ -719,6 +740,26 @@ details[open] > summary span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.practice-play-list .play-btn {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 1px 4px;
+  border-radius: 3px;
+  border: 1px solid rgba(255,255,255,0.25);
+  background: rgba(0,0,0,0.35);
+  color: #e8ece6;
+  width: 3.6rem;
+  box-sizing: border-box;
+  text-align: center;
+  justify-self: end;
+}
+.prev-banner {
+  display: grid;
+  grid-template-columns: 3.6rem 1fr 3.6rem;
+  align-items: center;
+  gap: 6px;
 }
 .prev-num {
   font-weight: 700;

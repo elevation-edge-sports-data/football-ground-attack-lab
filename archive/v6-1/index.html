@@ -15,7 +15,7 @@
   <main class="lab-main">
     <header class="lab-header">
       <div>
-        <p class="lab-eyebrow">Elevation Edge · v7</p>
+        <p class="lab-eyebrow">Elevation Edge · v6</p>
         <h1>Football Ground Attack Lab</h1>
       </div>
             <nav class="lab-versions" aria-label="Version archive">
@@ -25,9 +25,8 @@
         <a href="https://elevation-edge-sports-data.github.io/football-ground-attack-lab/archive/v2.html" target="_blank" rel="noreferrer">v2</a>
         <a href="https://elevation-edge-sports-data.github.io/football-ground-attack-lab/archive/v3/index.html" target="_blank" rel="noreferrer">v3</a>
         <a href="https://elevation-edge-sports-data.github.io/football-ground-attack-lab/archive/v4/index.html" target="_blank" rel="noreferrer">v4</a>
-        <a href="https://elevation-edge-sports-data.github.io/football-ground-attack-lab/archive/v5/index.html" target="_blank" rel="noreferrer">v5</a>
-        <a href="https://elevation-edge-sports-data.github.io/football-ground-attack-lab/archive/v6-1/index.html" target="_blank" rel="noreferrer">v6</a>
-        <a href="index.html" aria-current="page">v7</a>
+        <a href="https://elevation-edge-sports-data.github.io/football-ground-attack-lab/index.html" target="_blank" rel="noreferrer">v5</a>
+        <a href="index.html" aria-current="page">v6</a>
         <a href="https://github.com/elevation-edge-sports-data/football-ground-attack-lab" target="_blank" rel="noreferrer">GitHub</a>
       </nav>
     </header>
@@ -100,7 +99,7 @@
               <select id="practiceDefScheme"></select>
             </label>
             <div class="lab-muted" style="font-size:11px;margin-top:4px;line-height:1.35">
-              Practice: 6×6 books · ←→ switch books · ↑↓ / click browse · RT flip O only · LT flip D only · A snap
+              Practice: 6×6 books · ←→ switch · ↑↓ / click browse · RT flip O · LT flip D · A snap
             </div>
           </div>
         </div>
@@ -156,10 +155,9 @@
             <select id="cameraSelect">
               <option value="iso">Angled 2D</option>
               <option value="top">Overhead</option>
-              <option value="high">High Angle</option>
+              <option value="high" selected>High Angle</option>
               <option value="zoom">Zoom</option>
               <option value="wide">Wide</option>
-              <option value="free" selected>Freestyle</option>
             </select>
           </label>
           <label class="lab-row">
@@ -317,7 +315,7 @@
             Game paused.<br />
             <span style="font-size:1rem;font-weight:500">
               Press A to resume. Press B to restart.<br />
-              Press X or View for Instant Replay
+              Press X for Instant Replay
             </span>
           </div>
         </div>
@@ -332,6 +330,7 @@
           <div class="prev-banner" id="prevDefBanner">
             <span class="prev-num" id="prevDefNum"></span>
             <span id="prevDefLabel">Defense</span>
+            <span class="prev-btn-icon" id="prevDefBtn"></span>
           </div>
           <canvas id="prevDefCanvas" width="220" height="160"></canvas>
           <div id="practiceDefList" class="practice-play-list" aria-label="Defense schemes"></div>
@@ -340,6 +339,7 @@
           <div class="prev-banner" id="prevOffBanner">
             <span class="prev-num" id="prevOffNum"></span>
             <span id="prevOffLabel">Offense</span>
+            <span class="prev-btn-icon" id="prevOffBtn"></span>
           </div>
           <canvas id="prevOffCanvas" width="220" height="160"></canvas>
           <div id="practicePlayList" class="practice-play-list" aria-label="Offense plays"></div>
@@ -351,7 +351,7 @@
 
     <div class="lab-foot">
       <div id="help">
-        <strong>v6 Practice:</strong> 6 offense × 6 defense. RT flips offense only; LT flips defense only. No clock. LOS is the Practice control every snap.
+        <strong>v6 Practice:</strong> 6 offense × 6 defense. Flip latches on both books. No clock. LOS is the Practice control every snap.
         <br />
         <strong>Profiles:</strong> Basic (v1) = D-pad steers, LT/RT stiff, Start pause.
         Expanded (v2) = D-pad is eight extra moves, click RS pause.
@@ -366,12 +366,6 @@
         <br />
         <strong>Goal line (inside 5):</strong> D-pad up / up-left / up-right plow a lane · X dive ducks under
         a pile or into a crease · Y truck powers through contact · D-pad up hurdle leaps or glances off the stack.
-        <br />
-        <strong>Replay:</strong> After a play, Pause (or P / click RS) then X, or press View / R for instant replay of that play. Clip starts at the snap.
-        <br />
-        <strong>Replay camera:</strong> A pause/play · X / B zoom · LB / RB slow-mo · LT / RT fast · left stick pan the X · hold Y + left stick orbit (left/right spin, up overhead, down field level) · View or R exit.
-        <br />
-        <strong>Freestyle camera:</strong> Default view. Pause, then press Y to adjust: X/B zoom, arrows/left stick recenter, Y+arrows/left stick rotate (L/R theta, U/D phi), A confirm.
         <br />
         <strong>Keys:</strong> WASD run · Space burst · Q/E juke · IJKL miss-pad (I+J / I+L stiff) ·
         F spin · C dive · V truck (Independent/Classic) / hurdle (Wings) · Z/X teammates (Wings+) or stiff (Basic/Expanded) · G celebrate (off on Classic) · H peek ·
