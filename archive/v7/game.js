@@ -1,6 +1,6 @@
 "use strict";
 /**
- * Football Ground Attack Lab v8 engine
+ * Football Ground Attack Lab v7 engine
  * Practice lab: 6×6 books, Madden replay cameras, posed players, stadium bowl.
  */
 const GAME_ASSET_BASE = (() => {
@@ -558,36 +558,9 @@ function startGame(canvas) {
 		return PROFILE_LABELS[id] || id;
 	}
 	let gameMode = "practice"; // "game" | "practice"
-	let userSide = "off"; // "off" | "def"
-	let userDefender = null;
-	let userDefHuddleKey = null;
-	let defAHoldT = 0;
-	let defAHoldArmed = false;
-	let defCycleEdge = false;
-	let defPointLatch = false;
-	let defBPointed = false;
-	let defSwitchEdge = false;
-	let defStartEdge = false;
-	let defWrapPhase = "none";
-	let defWrapT = 0;
-	let defWrapFrom = null;
-	let defHitLatch = false;
-	let defHitCool = 0;
-	let defDive = null;
-	let defMoveId = null;
-	let defMoveT = 0;
-	let defDiveEdge = false;
-	let defWrapLEdge = false;
-	let defWrapREdge = false;
-	let defShedEdge = false;
-	let defYSnapEdge = false;
-	let qaNoCpuTackle = false;
 	let nextPlayOnSnap = true; // practice default: wait for A
-	let gameAutoSnapT = 0;
 	let practiceOffPlayId = null;
 	let practiceDefSchemeId = null;
-	let huddleOffPickId = null;
-	let huddleDefPickId = null;
 	let practiceOffPlayIdPrev = null;
 	let practiceDefSchemeIdPrev = null;
 	let practiceYCancelEdge = false;
@@ -800,8 +773,7 @@ function startGame(canvas) {
 		try { placeEntitiesForNewPlay(); } catch (err) { console.error(err); }
 		updateBallOn();
 		if (typeof refreshPracticePreviews === "function") refreshPracticePreviews();
-		setPlayCall((currentPlay ? currentPlay.name : "Practice") + " @ " + yardLabel(fixed) + huddleWaitHint());
-		if (typeof armGameDefAutoSnap === "function") armGameDefAutoSnap();
+		setPlayCall((currentPlay ? currentPlay.name : "Practice") + " @ " + yardLabel(fixed) + " — press A to snap");
 	}
 	function updateConfigPanelForMode() {
 		const title = $("configPanelTitle");
@@ -811,50 +783,6 @@ function startGame(canvas) {
 		if (title) title.innerHTML = (isPrac ? "Practice Config" : "Game Config") + ' <span aria-hidden>▾</span>';
 		if (gameBody) gameBody.classList.toggle("hidden", isPrac);
 		if (pracBody) pracBody.classList.toggle("hidden", !isPrac);
-	}
-	function syncNextPlayDefault() {
-		const np = $("nextPlaySelect");
-		if (gameMode === "game") {
-			if (np) np.value = "auto";
-			nextPlayOnSnap = false;
-		} else {
-			if (np) np.value = "snap";
-			nextPlayOnSnap = true;
-		}
-	}
-	function huddleWaitHint() {
-		if (!nextPlayOnSnap) return " — auto snap";
-		if (gameMode === "practice") return " — X/B book · A snap · R replay";
-		return " — A snap · R replay";
-	}
-	function armGameDefAutoSnap() {
-		gameAutoSnapT = 0;
-		if (playingDefense() && !nextPlayOnSnap && practiceAwaitSnap) {
-			// Uniform 2–3s huddle to switch / shade (Practice and Game).
-			gameAutoSnapT = 2 + Math.random();
-		}
-	}
-	function wantsDefHuddle() {
-		return nextPlayOnSnap || gameMode === "practice" || (gameMode === "game" && playingDefense());
-	}
-	function nudgeUserDefenderPresnap(dt, inp) {
-		const me = userDefender;
-		if (!me || !inp) return;
-		if (inp.spin && Math.hypot(inp.dx, inp.dy) > 0.4) return;
-		const mag = Math.hypot(inp.dx, inp.dy);
-		if (mag < 0.16) {
-			me.vx = 0;
-			me.vy = 0;
-			return;
-		}
-		const spd = (me.baseSpeed || 8.6) * 0.7 * playSpeed;
-		me.vx = inp.dx * spd;
-		me.vy = inp.dy * spd;
-		me.x += me.vx * dt;
-		me.y += me.vy * dt;
-		me.x = clamp(me.x, fieldLeft() + 2.2, fieldRight() - 2.2);
-		me.y = clamp(me.y, playStartYard + 1.15, Math.min(108.5, playStartYard + 18));
-		me.facing = Math.atan2(inp.dy, inp.dx);
 	}
 	function yardLabel(y) {
 		if (y >= 100) return "TD";
@@ -1129,11 +1057,7 @@ function startGame(canvas) {
 		}
 		if (cameraMode === "free") {
 			if (!camAdjust && !freeLook) {
-				let carrier = scoreSeq ? scoreSeq.player : (fumbleSeq && fumbleSeq.phase === "return" && fumbleSeq.defender) || rb;
-				if (playingDefense() && userDefender && !scoreSeq && !(fumbleSeq && fumbleSeq.phase === "return")) {
-					if (practiceAwaitSnap) carrier = userDefender;
-					else if (rb) carrier = { x: rb.x * 0.58 + userDefender.x * 0.42, y: rb.y * 0.52 + userDefender.y * 0.48 };
-				}
+				const carrier = scoreSeq ? scoreSeq.player : (fumbleSeq && fumbleSeq.phase === "return" && fumbleSeq.defender) || rb;
 				if (carrier) applyLook(carrier.x, carrier.y);
 				else applyLook(lookX, lookY);
 			} else {
@@ -1144,15 +1068,6 @@ function startGame(canvas) {
 		}
 		let fy = rb ? rb.y : null;
 		let fx = rb ? rb.x : FIELD_WIDTH / 2;
-		if (playingDefense() && userDefender && !scoreSeq && !fumbleSeq) {
-			if (practiceAwaitSnap) {
-				fx = userDefender.x;
-				fy = userDefender.y;
-			} else if (rb) {
-				fx = rb.x * 0.58 + userDefender.x * 0.42;
-				fy = rb.y * 0.52 + userDefender.y * 0.48;
-			}
-		}
 		if (fumbleSeq) {
 			fy = fumbleSeq.ballY;
 			fx = fumbleSeq.ballX;
@@ -1380,16 +1295,10 @@ function startGame(canvas) {
 	}
 	function choosePlay() {
 		let pool = OFF_PLAYS;
-		const lockId = gameMode === "practice" ? practiceOffPlayId : huddleOffPickId;
-		if (lockId) {
-			const found = OFF_PLAYS.find((p) => p.id === lockId) || pool[0];
+		if (gameMode === "practice" && practiceOffPlayId) {
+			const found = OFF_PLAYS.find((p) => p.id === practiceOffPlayId) || pool[0];
 			currentPlay = practiceFlipped ? mirrorPlay(found) : { ...found, steps: (found.steps || []).map((st) => ({ ...st })), baseId: found.id };
 		} else {
-			const prev = currentPlay && (currentPlay.baseId || currentPlay.id);
-			if (gameMode === "game" && prev && pool.length > 1) {
-				const fresh = pool.filter((p) => p.id !== prev);
-				if (fresh.length) pool = fresh;
-			}
 			currentPlay = randChoice(pool);
 			currentPlay = { ...currentPlay, steps: (currentPlay.steps || []).map((st) => ({ ...st })), baseId: currentPlay.id };
 		}
@@ -1402,21 +1311,13 @@ function startGame(canvas) {
 		const defName = currentScheme && currentScheme.name ? currentScheme.name : "";
 		setPlayCall(currentPlay.name + (revealDefThisPlay && defName ? " · vs " + defName : ""));
 		if (typeof refreshPracticePreviews === "function") refreshPracticePreviews();
-		if (typeof syncCallSelects === "function") syncCallSelects();
 	}
 	function chooseScheme() {
-		const lockId = gameMode === "practice" ? practiceDefSchemeId : huddleDefPickId;
-		if (lockId) {
-			currentScheme = DEF_SCHEMES.find((s) => s.id === lockId) || DEF_SCHEMES[0];
-			if (typeof syncCallSelects === "function") syncCallSelects();
+		if (gameMode === "practice" && practiceDefSchemeId) {
+			currentScheme = DEF_SCHEMES.find((s) => s.id === practiceDefSchemeId) || DEF_SCHEMES[0];
 			return;
 		}
-		const prevId = currentScheme && currentScheme.id;
-		let pool = DEF_SCHEMES.slice();
-		if (gameMode === "game" && prevId && pool.length > 1) {
-			const fresh = pool.filter((s) => s.id !== prevId);
-			if (fresh.length) pool = fresh;
-		}
+		const pool = DEF_SCHEMES.slice();
 		const weights = pool.map((s) => s.id === "prevent" || s.id === "cover4Quarters" ? 2 : 1);
 		let total = weights.reduce((a, b) => a + b, 0);
 		let r = Math.random() * total;
@@ -1429,7 +1330,6 @@ function startGame(canvas) {
 				break;
 			}
 		}
-		if (typeof syncCallSelects === "function") syncCallSelects();
 	}
 	function placeEntitiesForNewPlay(scope) {
 		scope = scope === "off" || scope === "def" ? scope : "both";
@@ -1476,17 +1376,6 @@ function startGame(canvas) {
 			sprintExhausted = false;
 			celebFumbleLock = false;
 			tdZoom = false;
-			defHitCool = 0;
-			defHitLatch = false;
-			defWrapPhase = "none";
-			defYSnapEdge = false;
-			defPointLatch = false;
-			defBPointed = false;
-			defWrapT = 0;
-			defWrapFrom = null;
-			defDive = null;
-			defMoveId = null;
-			defMoveT = 0;
 		}
 		const snap = snapX();
 		if (restageOff) {
@@ -1573,23 +1462,16 @@ function startGame(canvas) {
 			}
 			{
 				const Wdb = Math.max(8, frDb - flDb);
-				const fieldMid = (flDb + frDb) / 2;
 				const cbInset = Math.min(Wdb * 0.22, 9.5);
 				const slots = [];
 				const cbL = { x: flDb + cbInset, y: playStartYard + 2.35, role: "CB", corner: true, safety: false };
 				const cbR = { x: frDb - cbInset, y: playStartYard + 2.35, role: "CB", corner: true, safety: false };
-				const fs = { x: fieldMid, y: playStartYard + Math.min(sch.depthDB * depthScale, 13.2), role: "FS", corner: false, safety: true };
+				const fs = { x: mid + (snap - mid) * 0.12, y: playStartYard + Math.min(sch.depthDB * depthScale, 13.2), role: "FS", corner: false, safety: true };
 				const ss = { x: snap + (snap >= mid ? 1 : -1) * Math.min(Wdb * 0.12, 5.2), y: playStartYard + 8.4, role: "SS", corner: false, safety: true };
 				const nick = { x: snap - playSideSign() * Math.min(Wdb * 0.1, 4.2), y: playStartYard + 4.1, role: "NCB", corner: false, safety: false };
 				const dime = { x: snap + playSideSign() * Math.min(Wdb * 0.08, 3.4), y: playStartYard + 6.4, role: "DIME", corner: false, safety: true };
 				if (numDBs <= 1) slots.push(fs);
-				else if (numDBs === 2) {
-					const spread = Math.min(Wdb * 0.11, 5.6);
-					slots.push(
-						{ x: fieldMid - spread, y: playStartYard + Math.min(sch.depthDB * depthScale, 12.4), role: "SS", corner: false, safety: true },
-						{ x: fieldMid + spread, y: playStartYard + Math.min(sch.depthDB * depthScale, 13.0), role: "FS", corner: false, safety: true }
-					);
-				}
+				else if (numDBs === 2) slots.push(cbL, cbR);
 				else if (numDBs === 3) slots.push(cbL, cbR, fs);
 				else if (numDBs === 4) slots.push(cbL, cbR, ss, fs);
 				else if (numDBs === 5) slots.push(cbL, nick, cbR, ss, fs);
@@ -1602,10 +1484,7 @@ function startGame(canvas) {
 				}
 				for (let i = 0; i < numDBs; i++) {
 					const slot = slots[i] || fs;
-					const jitter = numDBs <= 2 ? 0 : (Math.random() - .5) * 0.45;
-					const yJit = numDBs <= 2 ? 0 : (Math.random() - .5) * 0.25;
-					const px = numDBs === 1 ? fieldMid : slot.x + jitter;
-					const d = createPlayer(px, clampDefAlignY(slot.y + yJit), "DB", i, "def");
+					const d = createPlayer(slot.x + (Math.random() - .5) * 0.45, clampDefAlignY(slot.y + (Math.random() - .5) * 0.25), "DB", i, "def");
 					d.baseSpeed = 9.15;
 					d.speed = d.baseSpeed;
 					d.dbRole = slot.role;
@@ -1646,8 +1525,6 @@ function startGame(canvas) {
 			b.sealSide = b.driveSide || playSideSign() || 1;
 		});
 		if (restageDef && scope !== "def") applyPresnapLook();
-		alignLoneDb();
-		alignTwoDbs();
 		if (scope === "both") {
 			playAge = 0;
 			idleCarrierT = 0;
@@ -1662,12 +1539,6 @@ function startGame(canvas) {
 		peekToggle = false;
 		ctrlLeft = null;
 		ctrlRight = null;
-		if (playingDefense()) {
-			ensureUserDefender();
-			if (userDefender && (!playActive || practiceAwaitSnap)) {
-				setPlayCall(huddleCallLabel() + " — A/B switch · B+stick point · Y snap/shed");
-			}
-		} else userDefender = null;
 		updateCamera();
 		if (typeof refreshPracticePreviews === "function") refreshPracticePreviews();
 	}
@@ -1820,10 +1691,10 @@ function startGame(canvas) {
 		}
 
 		if (sch === "cover4Quarters" || sch === "goalLine") {
-			const deepFracs = dbs.length === 2 ? [0.375, 0.625] : [0.125, 0.375, 0.625, 0.875];
+			const deepFracs = [0.125, 0.375, 0.625, 0.875];
 			const deepY = sch === "goalLine" ? 10.4 : 11.6;
-			dbs.slice(0, deepFracs.length).forEach((d, i) => plantDeep(d, deepFracs[i], deepY, W * 0.16));
-			dbs.slice(deepFracs.length).forEach((d, i) => {
+			dbs.slice(0, 4).forEach((d, i) => plantDeep(d, deepFracs[i], deepY, W * 0.16));
+			dbs.slice(4).forEach((d, i) => {
 				d.x = snap + (i % 2 === 0 ? -1 : 1) * (4.2 + i);
 				d.y = playStartYard + 4.6 + i * 0.6;
 				if (d.job === "deep") d.job = "curl";
@@ -1844,9 +1715,9 @@ function startGame(canvas) {
 				});
 			}
 		} else if (sch === "prevent") {
-			const deepFracs = dbs.length === 2 ? [0.375, 0.625] : [0.10, 0.30, 0.50, 0.70, 0.90];
-			dbs.slice(0, deepFracs.length).forEach((d, i) => plantDeep(d, deepFracs[i], 12.2, W * 0.14));
-			dbs.slice(deepFracs.length).forEach((d) => {
+			const deepFracs = [0.10, 0.30, 0.50, 0.70, 0.90];
+			dbs.slice(0, 5).forEach((d, i) => plantDeep(d, deepFracs[i], 12.2, W * 0.14));
+			dbs.slice(5).forEach((d) => {
 				d.x = mid + 6.2;
 				d.y = playStartYard + 6.6;
 				d.job = "curl";
@@ -1882,7 +1753,7 @@ function startGame(canvas) {
 				d.y = playStartYard + 2.85;
 			});
 		} else if (sch === "wide") {
-			if (dbs.length >= 3) {
+			if (dbs.length >= 2) {
 				const L = dbs[0], R = dbs[dbs.length - 1];
 				L.x = clamp(L.x - 2.6, fl + 2.4, snap - 7);
 				R.x = clamp(R.x + 2.6, snap + 7, fr - 2.4);
@@ -1911,18 +1782,6 @@ function startGame(canvas) {
 				if (d.jobY != null && d.job !== "blitz") d.jobY = Math.max(d.jobY, d.y);
 			});
 		} else if (sch === "overloadBlitz") {
-			if (dbs.length <= 2) {
-				dbs.forEach((d, i) => {
-					d.x = mid + (dbs.length === 1 ? 0 : (i === 0 ? -2.55 : 2.55));
-					d.y = playStartYard + 11.3;
-					d.job = "deep";
-					d.jobX = d.x;
-					d.jobY = d.y + 1.4;
-					d.isSafety = true;
-					d.isCorner = false;
-					d.zoneFollow = false;
-				});
-			} else {
 			const corners = dbs.length >= 2 ? [dbs[0], dbs[dbs.length - 1]] : [];
 			const rest = dbs.filter((d) => !corners.includes(d)).sort((a, b) => a.x - b.x);
 			if (rest.length >= 2) {
@@ -1937,7 +1796,6 @@ function startGame(canvas) {
 					d.isSafety = true;
 					d.zoneFollow = false;
 				});
-			}
 			}
 		}
 
@@ -1959,11 +1817,6 @@ function startGame(canvas) {
 			d.y = clamp(d.y, playStartYard + 1.15, 108.5);
 			if (d.jobX != null && Math.abs(d.jobX - d.x) < 1.4) d.jobX = d.x;
 		});
-		if (dbs.length === 1) plantDeep(dbs[0], 0.5, 11.4, W * 0.22);
-		else if (dbs.length === 2) {
-			plantDeep(dbs[0], 0.375, 11.6, W * 0.18);
-			plantDeep(dbs[1], 0.625, 11.6, W * 0.18);
-		}
 	}
 	function applyCellDefenseTweaks() {
 		const key = cellPlayKey();
@@ -3069,7 +2922,7 @@ function startGame(canvas) {
 			const delay = delays[di++ % delays.length];
 			claimBlitz(d, gap + (_rnd() - 0.5) * 0.6, playStartYard - 0.3, delay, true);
 		});
-		const spyDb = dbs.length === 1 ? null : dbs[0];
+		const spyDb = dbs[0];
 		if (spyDb) {
 			spyDb.job = "spy";
 			spyDb.fakeBlitz = true;
@@ -3136,7 +2989,7 @@ function startGame(canvas) {
 			claimZone(d, "drop", d.x, playStartYard + 7.5, W * 0.1, 2.3, true);
 		});
 		// Priority: 2 deep halves — 1 DB, 1 LB if available
-		if (dbs[0]) claimZone(dbs[0], "deep", dbs.length === 1 ? mid : fl + W * 0.32, playStartYard + 15, dbs.length === 1 ? W * 0.22 : W * 0.18, 5, false);
+		if (dbs[0]) claimZone(dbs[0], "deep", fl + W * 0.32, playStartYard + 15, W * 0.18, 5, false);
 		if (lbs[0]) claimZone(lbs[0], "deep", fr - W * 0.32, playStartYard + 15, W * 0.18, 5, false);
 		else if (dbs[1]) claimZone(dbs[1], "deep", fr - W * 0.32, playStartYard + 15, W * 0.18, 5, false);
 		// 1 DB drop
@@ -3205,7 +3058,7 @@ function startGame(canvas) {
 		if (n >= 4) deepSlots.push(...midQuarters, ...outerQuarters);
 		else if (n === 3) deepSlots.push(...midQuarters, outerQuarters[0]);
 		else if (n === 2) deepSlots.push(...midQuarters);
-		else if (n === 1) deepSlots.push({ id: "qMid", job: "deep", x: mid, y: deepY, rx: W * 0.22, ry: 5.6 });
+		else if (n === 1) deepSlots.push(midQuarters[0]);
 
 		const deepPool = freePool(true);
 		deepSlots.forEach((slot, i) => {
@@ -3366,7 +3219,7 @@ function remaining(group) {
 		// Assign DBs to deep first
 		const dbDeepBudget = Math.min(4, dbs.length);
 		if (dbDeepBudget === 1) {
-			claim(dbs[0], { id: "qMid", job: "deep", x: mid, y: deepY, rx: W * 0.22, ry: 5.2 });
+			claim(dbs[0], dbs[0].x < mid ? quarters[1] : quarters[2]);
 		} else if (dbDeepBudget > 0) {
 			const slots = pickDeepSlotList(dbDeepBudget);
 			for (let i = 0; i < dbDeepBudget; i++) claim(dbs[i], slots[i]);
@@ -3545,16 +3398,6 @@ function remaining(group) {
 			d.blitzDelay = job === "blitz" ? 0.05 + _rnd() * 0.2 : 0;
 			d.laneOffset = (i - (n - 1) / 2) * 1.2;
 		});
-		if (dbs.length === 1 && dbs[0]) {
-			const d = dbs[0];
-			d.x = cx;
-			d.jobX = cx;
-			d.job = "deep";
-			d.jobY = playStartYard + 14;
-			d.isSafety = true;
-			d.isCorner = false;
-			d.stutter = false;
-		}
 	}
 
 	function assignDefenseJobs() {
@@ -3665,9 +3508,13 @@ function remaining(group) {
 		});
 		let corners = [];
 		let safeties = [];
-		if (dbs.length <= 2) {
-			safeties = dbs.slice();
-		} else {
+		if (dbs.length <= 1) {
+			if (dbs[0]) {
+				if (_rnd() < .5) corners = dbs;
+				else safeties = dbs;
+			}
+		} else if (dbs.length === 2) corners = dbs;
+		else {
 			corners = [dbs[0], dbs[dbs.length - 1]];
 			safeties = dbs.slice(1, -1);
 		}
@@ -3724,11 +3571,7 @@ function remaining(group) {
 			if (job === "deep" || job === "robber") d.isSafety = true;
 		}
 		const poolDb = [...safeties, ...corners.filter((c) => c.job !== "contain")];
-		if (dbs.length === 1 && dbs[0]) {
-			deepAt(dbs[0], mid, playStartYard + 14.8, 7.4, 5.6, "deep");
-			dbs[0].x = mid;
-			dbs[0].jobX = mid;
-		} else if (shell === "cover2") {
+		if (shell === "cover2") {
 			const two = (safeties.length >= 2 ? safeties : poolDb).slice(0, 2);
 			two.forEach((d, i) => deepAt(d, mid + (i === 0 ? -1 : 1) * FIELD_WIDTH * .2, playStartYard + 14.5 + _rnd() * 2.4, 8.4, 5.2, "deep"));
 		} else if (shell === "cover3") {
@@ -3982,9 +3825,6 @@ function remaining(group) {
 		let truck = false;
 		let jukeL = false;
 		let jukeR = false;
-		let wrapL = false;
-		let wrapR = false;
-		let strafe = false;
 		let stiffL = false;
 		let stiffR = false;
 		let hurdle = false;
@@ -4024,15 +3864,8 @@ function remaining(group) {
 			} else if (padProfile === "v3") {
 				if (keys.has("KeyV") || keys.has("KeyY")) hurdle = true;
 			} else if (keys.has("KeyV") || keys.has("KeyY")) truck = true;
-			if (keys.has("KeyQ")) {
-				if (playingDefense()) wrapL = true;
-				else jukeL = true;
-			}
-			if (keys.has("KeyE")) {
-				if (playingDefense()) wrapR = true;
-				else jukeR = true;
-			}
-			if (playingDefense() && (keys.has("ShiftLeft") || keys.has("ShiftRight"))) strafe = true;
+			if (keys.has("KeyQ")) jukeL = true;
+			if (keys.has("KeyE")) jukeR = true;
 			if (keys.has("KeyH")) peek = true;
 			if (keys.has("KeyR")) replayPress = true;
 			if (keys.has("Equal") || keys.has("NumpadAdd")) zoomIn = true;
@@ -4058,18 +3891,6 @@ function remaining(group) {
 			if (keys.has("KeyG") && padProfile !== "v6") celebrate = true;
 			if (keys.has("KeyP") || keys.has("Escape")) pausePress = true;
 			if (keys.has("Enter")) confirm = true;
-			if (playingDefense() && playActive && !practiceAwaitSnap && !fullReplay && !camAdjust) {
-				const krsX = (keys.has("KeyL") ? 1 : 0) - (keys.has("KeyJ") ? 1 : 0);
-				const krsY = (keys.has("KeyI") ? 1 : 0) - (keys.has("KeyK") ? 1 : 0);
-				if (Math.hypot(krsX, krsY) > 0.2) {
-					rsX = krsX;
-					rsCamY = krsY;
-				}
-				if (keys.has("KeyT") && userDefender && rb) {
-					rsX = rb.x - userDefender.x;
-					rsCamY = rb.y - userDefender.y;
-				}
-			}
 		}
 		if (touch.active) {
 			dx += touch.dx;
@@ -4215,10 +4036,6 @@ function remaining(group) {
 				ctrlL = ctrlL || lt > .52;
 				ctrlR = ctrlR || rt > .52;
 			}
-			if (playingDefense() && !fullReplay && !camAdjust) {
-				wrapL = wrapL || lt > .42;
-				wrapR = wrapR || rt > .42;
-			}
 			// Stick ↔ D-pad swap support
 			const stickMove = (st.x !== 0 || st.y !== 0);
 			const dpadDigital = {
@@ -4274,14 +4091,8 @@ function remaining(group) {
 				if (padProfile === "v3") hurdle = true;
 				else truck = true;
 			}
-			if (btn(4)) {
-				if (playingDefense() && !fullReplay && !camAdjust) strafe = true;
-				else jukeL = true;
-			}
-			if (btn(5)) {
-				if (playingDefense() && !fullReplay && !camAdjust) strafe = true;
-				else jukeR = true;
-			}
+			if (btn(4)) jukeL = true;
+			if (btn(5)) jukeR = true;
 			if (fullReplay || camAdjust) {
 				slowBack = slowBack || btn(4);
 				slowFwd = slowFwd || btn(5);
@@ -4373,9 +4184,6 @@ function remaining(group) {
 			hurdle,
 			jukeL,
 			jukeR,
-			wrapL,
-			wrapR,
-			strafe,
 			stiffL,
 			stiffR,
 			celebrate,
@@ -4405,676 +4213,9 @@ function remaining(group) {
 			_dpadDn: !!(bits && bits.d),
 			_dpadLeft: !!(bits && bits.l),
 			_dpadRight: !!(bits && bits.r),
-			_rsY: rsY,
-			startHeld: !!(gp && btn(9)),
-			btnAHeld: !!(gp && btn(0))
+			_rsY: rsY
 		};
 	}
-	function playingDefense() {
-		return userSide === "def";
-	}
-	function isUserDef(d) {
-		return !!(playingDefense() && d && (d === userDefender || d === ctrlLeft || d === ctrlRight || (d._userCtrl || 0) > 0.05));
-	}
-	function defIdentity(d) {
-		if (!d) return null;
-		const mates = defenders.filter((x) => x.group === d.group).sort((a, b) => a.x - b.x);
-		return {
-			group: d.group,
-			role: d.dbRole || null,
-			number: d.number,
-			xRank: Math.max(0, mates.indexOf(d)),
-			x: d.x
-		};
-	}
-	function findDefenderByKey(key) {
-		if (!key) return null;
-		const pool = defenders.filter((d) => d.group === key.group);
-		if (!pool.length) return defenderSequence()[0] || null;
-		const uniqueRole = !!(key.role && key.role !== "CB" && key.role !== "DB");
-		if (uniqueRole) {
-			const byRole = pool.find((d) => d.dbRole === key.role);
-			if (byRole) return byRole;
-		}
-		const rolePool = key.role ? pool.filter((d) => d.dbRole === key.role) : [];
-		const cand = (rolePool.length ? rolePool : pool).slice().sort((a, b) => {
-			const tx = key.x != null ? key.x : 0;
-			const dx = Math.abs(a.x - tx) - Math.abs(b.x - tx);
-			if (Math.abs(dx) > 0.35) return dx;
-			return Math.abs((a.number || 0) - (key.number || 0)) - Math.abs((b.number || 0) - (key.number || 0));
-		});
-		if (cand.length) return cand[0];
-		const byNum = pool.find((d) => d.number === key.number);
-		if (byNum) return byNum;
-		const sorted = pool.slice().sort((a, b) => a.x - b.x);
-		if (key.xRank != null && sorted[clamp(key.xRank, 0, sorted.length - 1)]) return sorted[clamp(key.xRank, 0, sorted.length - 1)];
-		return sorted[0] || null;
-	}
-	function lockHuddleDefender() {
-		if (playingDefense() && userDefender) userDefHuddleKey = defIdentity(userDefender);
-	}
-	function alignLoneDb() {
-		const dbs = defenders.filter((d) => d.group === "DB");
-		if (dbs.length !== 1) return;
-		const d = dbs[0];
-		const midX = (fieldLeft() + fieldRight()) / 2;
-		d.x = midX;
-		d.jobX = midX;
-		d.y = clamp(Math.max(d.y, playStartYard + 8.2), playStartYard + 2.4, 108.5);
-		d.dbRole = "FS";
-		d.isSafety = true;
-		d.isCorner = false;
-		d.stutter = false;
-		d.fakeBlitz = false;
-		if (d.job !== "blitz") {
-			d.job = "deep";
-			d.jobY = clamp(Math.max(d.jobY || 0, playStartYard + 12.4), playStartYard + 4, 108.5);
-			d.zoneRx = Math.max(d.zoneRx || 0, 8.4);
-			d.zoneRy = Math.max(d.zoneRy || 0, 5.4);
-			d.zoneFollow = false;
-		}
-	}
-	function alignTwoDbs() {
-		const dbs = defenders.filter((d) => d.group === "DB").sort((a, b) => a.x - b.x);
-		if (dbs.length !== 2) return;
-		const midX = (fieldLeft() + fieldRight()) / 2;
-		const spread = Math.min((fieldRight() - fieldLeft()) * 0.12, 5.8);
-		const deepY = clamp(Math.max(playStartYard + 10.6, playStartYard + 6), playStartYard + 2.4, 108.5);
-		dbs.forEach((d, i) => {
-			d.x = midX + (i === 0 ? -spread : spread);
-			d.jobX = d.x;
-			d.y = Math.max(d.y, deepY);
-			d.dbRole = i === 0 ? "SS" : "FS";
-			d.isSafety = true;
-			d.isCorner = false;
-			d.stutter = false;
-			d.fakeBlitz = false;
-			if (d.job !== "blitz") {
-				d.job = "deep";
-				d.jobY = clamp(Math.max(d.jobY || 0, playStartYard + 12.2), playStartYard + 4, 108.5);
-				d.zoneRx = Math.max(d.zoneRx || 0, 7.2);
-				d.zoneRy = Math.max(d.zoneRy || 0, 5.0);
-				d.zoneFollow = false;
-			}
-		});
-	}
-	function defenderSequence() {
-		const dts = defenders.filter((d) => d.group === "DT").sort((a, b) => a.x - b.x);
-		const lbs = defenders.filter((d) => d.group === "LB").sort((a, b) => a.x - b.x);
-		const dbs = defenders.filter((d) => d.group === "DB").sort((a, b) => a.x - b.x);
-		return dts.concat(lbs, dbs);
-	}
-	function pickDefaultUserDefender() {
-		const midX = (fieldLeft() + fieldRight()) / 2;
-		const dbs = defenders.filter((d) => d.group === "DB");
-		if (dbs.length) {
-			const fs = dbs.find((d) => d.dbRole === "FS") || dbs.find((d) => d.isSafety && d.dbRole !== "SS" && !d.isCorner);
-			if (fs) return fs;
-			return dbs.slice().sort((a, b) => {
-				if (Math.abs(b.y - a.y) > 0.8) return b.y - a.y;
-				return Math.abs(a.x - midX) - Math.abs(b.x - midX);
-			})[0];
-		}
-		const lbs = defenders.filter((d) => d.group === "LB");
-		if (lbs.length) {
-			return lbs.slice().sort((a, b) => {
-				if (Math.abs(b.y - a.y) > 0.6) return b.y - a.y;
-				return Math.abs(a.x - midX) - Math.abs(b.x - midX);
-			})[0];
-		}
-		const dts = defenders.filter((d) => d.group === "DT");
-		if (dts.length) return dts.slice().sort((a, b) => Math.abs(a.x - midX) - Math.abs(b.x - midX))[0];
-		return defenders[0] || null;
-	}
-	function defRoleLabel(d) {
-		if (!d) return "DEF";
-		return d.dbRole || d.group || "DEF";
-	}
-	function huddleCallLabel() {
-		const on = currentPlay ? currentPlay.name : "Play";
-		const dn = currentScheme && currentScheme.name ? currentScheme.name : "";
-		const vs = dn ? " · vs " + dn : "";
-		if (playingDefense() && userDefender) {
-			return on + vs + " · DEF " + defRoleLabel(userDefender) + " #" + userDefender.number;
-		}
-		return on + vs;
-	}
-	function setUserDefender(d, announce, huddle) {
-		if (!d) return;
-		if (d !== userDefender) {
-			if (userDefender) userDefender._userCtrl = 0;
-			defWrapPhase = "none";
-			defWrapT = 0;
-			defWrapFrom = null;
-			defDive = null;
-			defMoveId = null;
-			defMoveT = 0;
-		}
-		userDefender = d;
-		d._userCtrl = 0.4;
-		if (huddle === true || (huddle !== false && practiceAwaitSnap)) userDefHuddleKey = defIdentity(d);
-		if (announce) {
-			const extra = practiceAwaitSnap ? " — A/B switch · B+stick point · Y snap" : "";
-			setPlayCall(huddleCallLabel() + extra);
-		}
-	}
-	function ensureUserDefender() {
-		if (!playingDefense()) {
-			userDefender = null;
-			return;
-		}
-		if (userDefender && defenders.indexOf(userDefender) >= 0) return;
-		const found = findDefenderByKey(userDefHuddleKey);
-		if (found) {
-			setUserDefender(found, false, false);
-			return;
-		}
-		setUserDefender(pickDefaultUserDefender(), false, true);
-	}
-	function cycleUserDefender(dir) {
-		const seq = defenderSequence();
-		if (!seq.length) return;
-		ensureUserDefender();
-		let idx = seq.indexOf(userDefender);
-		if (idx < 0) idx = 0;
-		setUserDefender(seq[(idx + dir + seq.length) % seq.length], true, true);
-	}
-	function pointSelectDefender(dx, dy, from) {
-		const mag = Math.hypot(dx, dy);
-		if (mag < 0.28) return null;
-		const ux = dx / mag, uy = dy / mag;
-		const origin = from || userDefender || { x: snapX(), y: playStartYard + 6 };
-		let best = null, score = 0.16;
-		for (const d of defenders) {
-			if (d === origin) continue;
-			if (d.pancaked || d.state === "whiff") continue;
-			const vx = d.x - origin.x, vy = d.y - origin.y;
-			const L = Math.hypot(vx, vy);
-			if (L < 0.35 || L > 30) continue;
-			const dot = (vx * ux + vy * uy) / L;
-			if (dot < 0.18) continue;
-			const s = dot * 1.4 - L * 0.02;
-			if (s > score) {
-				score = s;
-				best = d;
-			}
-		}
-		return best;
-	}
-	function bestPursuitDefender(skip) {
-		if (!rb) return pickDefaultUserDefender();
-		const cd = carrierDir(rb);
-		const ranked = [];
-		for (const d of defenders) {
-			if (d.pancaked || d.state === "whiff" || d.state === "recover") continue;
-			const toX = rb.x - d.x, toY = rb.y - d.y;
-			const L = Math.hypot(toX, toY) || 1;
-			const closing = ((d.vx || 0) * toX + (d.vy || 0) * toY) / L;
-			const side = Math.abs(cd.x * (toY / L) - cd.y * (toX / L));
-			const blocked = d.engageT > 0 ? 2.6 : 0;
-			const dtBias = d.group === "DT" ? 0.55 : 0;
-			ranked.push({ d, score: (L - closing * 0.25) * (1.12 - side * 0.32) + blocked + dtBias });
-		}
-		ranked.sort((a, b) => a.score - b.score);
-		if (!ranked.length) return skip || pickDefaultUserDefender();
-		if (ranked[0].d === skip && ranked[1]) return ranked[1].d;
-		if (ranked[0].d === skip) return ranked[1] ? ranked[1].d : skip;
-		return ranked[0].d;
-	}
-	function setUserSide(side) {
-		userSide = side === "def" ? "def" : "off";
-		const hint = $("sideHint");
-		if (hint) {
-			hint.textContent = userSide === "def"
-				? "Defense: tap A/B switch · B + stick point · Y shed (huddle Y snaps). Automatic next play snaps after a 2–3s huddle. Live: A sprint · B switch · X dive · Y shed · LT wrap · RT punch · LB/RB strafe · RS hit stick."
-				: "Offense: A snaps. Game re-rolls both calls every play. Keys: WASD · Space sprint · F spin · C dive.";
-		}
-		document.body.classList.toggle("defense-mode", userSide === "def");
-		const sel = $("sideSelect");
-		if (sel && sel.value !== userSide) sel.value = userSide;
-		defAHoldArmed = false;
-		defAHoldT = 0;
-		defWrapPhase = "none";
-		if (!playActive || practiceAwaitSnap) {
-			try { placeEntitiesForNewPlay(); } catch (err) { console.error(err); }
-		}
-		ensureUserDefender();
-		if (typeof syncCallSelects === "function") syncCallSelects();
-		if (typeof refreshPracticePreviews === "function") refreshPracticePreviews();
-		if (practiceAwaitSnap && typeof armGameDefAutoSnap === "function") armGameDefAutoSnap();
-		if (userSide === "def" && userDefender) {
-			setPlayCall(huddleCallLabel() + huddleWaitHint());
-		}
-	}
-	function shedBlock(d) {
-		if (!d) return;
-		let blocker = blockers.find((b) => b.active && b.blockTarget === d) || null;
-		if (!blocker) {
-			let nd = 2.7, best = null;
-			for (const b of blockers) {
-				if (!b.active) continue;
-				const dd = dist(b, d);
-				if (dd < nd) {
-					nd = dd;
-					best = b;
-				}
-			}
-			blocker = best;
-		}
-		d.engageT = 0;
-		d.slowed = 0;
-		d.state = "pursue";
-		d.low = false;
-		if (blocker) {
-			const away = Math.sign(blocker.x - d.x) || 1;
-			blocker.x += away * 0.42;
-			blocker.y -= 0.95;
-			blocker.vx = away * 2.4;
-			blocker.vy = -3.6;
-			blocker.blockTarget = null;
-			blocker._userCtrl = 0;
-		}
-		defMoveId = "shed";
-		defMoveT = 0.22;
-	}
-	function startDefDive(d, inp) {
-		if (!d || (d.atkKind === "dive" && d.atkT > 0)) return;
-		let dx = inp.dx, dy = inp.dy;
-		if (Math.hypot(dx, dy) < 0.18 && rb) {
-			dx = rb.x - d.x;
-			dy = rb.y - d.y;
-		}
-		const L = Math.hypot(dx, dy) || 1;
-		d.atkKind = "dive";
-		d.atkDX = dx / L;
-		d.atkDY = dy / L;
-		d.atkT = 0.5;
-		d.state = "dive";
-		d.low = true;
-		d.hop = 0.3;
-		defDive = { t: 0.5 };
-		defMoveId = "dive";
-		defMoveT = 0.5;
-	}
-	function finishUserWrapTackle(d) {
-		if (!d || !rb) {
-			defWrapPhase = "none";
-			return;
-		}
-		const yg = Math.round(rb.y - playStartYard);
-		tackleAnim = {
-			mode: "tackle",
-			timer: 0.4,
-			dur: 0.4,
-			ox: rb.x,
-			oy: rb.y,
-			fx: rb.x - d.x,
-			fy: rb.y - d.y,
-			dist: 1.05,
-			yards: yg,
-			defender: d
-		};
-		const flen = Math.hypot(tackleAnim.fx, tackleAnim.fy) || 1;
-		tackleAnim.fx /= flen;
-		tackleAnim.fy /= flen;
-		defWrapPhase = "none";
-		defWrapT = 0;
-	}
-	function tryWrap(d, which) {
-		if (!d || !rb) return;
-		const dd = dist(d, rb);
-		const maxR = d._strafe ? 3.95 : 2.65;
-		if (dd > maxR) return;
-		if (defWrapPhase !== "wrapped") {
-			defWrapPhase = "wrapped";
-			defWrapT = 0.9;
-			defWrapFrom = which;
-			d.atkKind = "wrap";
-			d.atkT = 0.45;
-			d.state = "commit";
-			d.low = true;
-			rb.vx *= 0.38;
-			rb.vy *= 0.38;
-			return;
-		}
-		if (defWrapFrom && defWrapFrom !== which) {
-			const cd = carrierDir(rb);
-			const toX = d.x - rb.x, toY = d.y - rb.y;
-			const L = Math.hypot(toX, toY) || 1;
-			const side = Math.abs(cd.x * (toY / L) - cd.y * (toX / L));
-			let p = 0.16 + side * 0.58;
-			if (dd < 1.4) p += 0.08;
-			if (Math.random() < p) {
-				startFumble(d, true);
-				defWrapPhase = "none";
-				defWrapT = 0;
-				return;
-			}
-			finishUserWrapTackle(d);
-		}
-	}
-	function resolveHitStick(d, ux, uy, L, aim) {
-		if (!d || !rb) return;
-		const cd = carrierDir(rb);
-		const side = Math.abs(cd.x * uy - cd.y * ux);
-		const headOn = clamp(1 - side, 0, 1);
-		const closing = Math.max(0, aim == null ? 0.6 : aim);
-		rb.low = true;
-		rb.hop = 0.22 + headOn * 0.18;
-		rb.vx = ux * (3.4 + headOn * 1.4) + (rb.vx || 0) * 0.08;
-		rb.vy = uy * (1.8 + closing * 0.8);
-		const punch = 0.28 + closing * 0.16 + headOn * 0.22 + (L < 2.4 ? 0.12 : 0) + (d._strafe ? 0.22 : 0);
-		if (Math.random() < punch) {
-			startFumble(d, true);
-			clearAttack(d);
-			return;
-		}
-		const yg = Math.round(rb.y - playStartYard);
-		tackleAnim = {
-			mode: "tackle",
-			timer: 0.62,
-			dur: 0.62,
-			ox: rb.x,
-			oy: rb.y,
-			fx: ux,
-			fy: uy,
-			dist: 2.15 + headOn * 0.55,
-			yards: yg,
-			defender: d
-		};
-		triggerAnkleCam(rb, d);
-		clearAttack(d);
-	}
-	function fireHitStick(d, hx, hy) {
-		if (!d || !rb || defHitCool > 0) return;
-		const mag = Math.hypot(hx, hy);
-		if (mag < 0.22) return;
-		let ux = hx / mag, uy = hy / mag;
-		defHitLatch = true;
-		defHitCool = 0.28;
-		const toX = rb.x - d.x, toY = rb.y - d.y;
-		const L = Math.hypot(toX, toY) || 1;
-		const tux = toX / L, tuy = toY / L;
-		const aim = ux * tux + uy * tuy;
-		const strafing = !!d._strafe;
-		if (aim > -0.42) {
-			const blend = aim < 0.15 ? 0.72 : 0.48;
-			let mx = ux * (1 - blend) + tux * blend;
-			let my = uy * (1 - blend) + tuy * blend;
-			const mm = Math.hypot(mx, my) || 1;
-			ux = mx / mm;
-			uy = my / mm;
-		}
-		d.atkKind = "hit";
-		d.atkDX = ux;
-		d.atkDY = uy;
-		d.atkT = strafing ? 0.66 : 0.58;
-		d.state = "hit";
-		d.facing = Math.atan2(uy, ux);
-		d._hitAim = Math.max(aim, strafing ? 0.5 : 0.35);
-		d._hitRange = L;
-		if (aim < (strafing ? -0.72 : -0.55)) {
-			d.state = "whiff";
-			d._userMiss = true;
-			d.whiffT = 0.55 + Math.random() * 0.18;
-			d.low = true;
-			d.spinT = 0.55;
-			d.hop = 0.42;
-			d.vx = ux * (8 + Math.random() * 3);
-			d.vy = uy * (6.5 + Math.random() * 2);
-			clearAttack(d);
-			return;
-		}
-		if (L <= (strafing ? 8.2 : 6.4) && aim >= (strafing ? -0.32 : -0.12)) {
-			resolveHitStick(d, ux, uy, L, Math.max(aim, strafing ? 0.62 : 0.45));
-			return;
-		}
-	}
-	function tickPresnapDefense(dt, inp, bookWasOpen) {
-		ensureUserDefender();
-		const bookOpen = !!(bookWasOpen || practiceAudibleArm || practiceDefAudibleArm);
-		const yHeld = !!(inp.truck || inp.hurdle);
-		const bHeld = !!inp.spin;
-		const stickMag = Math.hypot(inp.dx, inp.dy);
-		if (!bookOpen && bHeld && stickMag > 0.4) {
-			if (!defPointLatch) {
-				const pick = pointSelectDefender(inp.dx, inp.dy, userDefender);
-				if (pick) setUserDefender(pick, true, true);
-				defPointLatch = true;
-			}
-			defBPointed = true;
-		} else if (!bHeld) {
-			defPointLatch = false;
-			defBPointed = false;
-		} else if (stickMag < 0.28) {
-			defPointLatch = false;
-		}
-		const kbPrev = keys.has("BracketLeft") || keys.has("Comma");
-		const kbNext = keys.has("BracketRight") || keys.has("Period");
-		if (!bookOpen && bHeld && !defCycleEdge && stickMag < 0.28 && !defBPointed) cycleUserDefender(-1);
-		if (!bookOpen && kbPrev && !defCycleEdge) cycleUserDefender(-1);
-		if (!bookOpen && kbNext && !defCycleEdge) cycleUserDefender(1);
-		defCycleEdge = !!(bHeld || kbPrev || kbNext);
-		let snapped = false;
-		if (keys.has("Enter") && inp.confirm && !confirmEdge) snapped = true;
-		if (padProfile !== "basic" && inp.startHeld && !defStartEdge) snapped = true;
-		defStartEdge = !!inp.startHeld;
-		if (!bookOpen && yHeld && !defYSnapEdge && stickMag < 0.28) snapped = true;
-		defYSnapEdge = yHeld;
-		const padA = !!(inp.padLive && inp.sprint);
-		if (!bookOpen && padA) {
-			if (!defAHoldArmed) {
-				defAHoldArmed = true;
-				defAHoldT = 0;
-			}
-			defAHoldT += dt;
-			if (defAHoldT >= 0.4) snapped = true;
-		} else if (defAHoldArmed) {
-			if (!bookOpen && defAHoldT < 0.4) cycleUserDefender(1);
-			defAHoldArmed = false;
-			defAHoldT = 0;
-		}
-		if (snapped) {
-			defAHoldArmed = false;
-			defAHoldT = 0;
-			return "snap";
-		}
-		return "hold";
-	}
-	function tickUserDefense(dt, inp) {
-		ensureUserDefender();
-		const d = userDefender;
-		if (!d) return;
-		if (defHitCool > 0) defHitCool -= dt;
-		if (defMoveT > 0) {
-			defMoveT -= dt;
-			if (defMoveT <= 0) {
-				defMoveId = null;
-				defDive = null;
-			}
-		}
-		if (defWrapPhase === "wrapped") {
-			defWrapT -= dt;
-			if (rb) {
-				rb.vx *= Math.max(0, 1 - 1.6 * dt);
-				rb.vy *= Math.max(0, 1 - 1.6 * dt);
-			}
-			if (defWrapT <= 0) finishUserWrapTackle(d);
-		}
-		if (inp.spin) {
-			const stickMag = Math.hypot(inp.dx, inp.dy);
-			const any = !!(inp._dpadLeft || inp._dpadRight || inp._dpadUp || inp._dpadDn);
-			if (stickMag > 0.4) {
-				if (!defPointLatch) {
-					const pick = pointSelectDefender(inp.dx, inp.dy, d) || bestPursuitDefender(d);
-					if (pick) setUserDefender(pick, true, false);
-					defPointLatch = true;
-				}
-				defBPointed = true;
-			} else {
-				defPointLatch = false;
-				if (!defSwitchEdge && !defBPointed) {
-					if (any) {
-						const dx = (inp._dpadRight ? 1 : 0) - (inp._dpadLeft ? 1 : 0);
-						const dy = (inp._dpadUp ? 1 : 0) - (inp._dpadDn ? 1 : 0);
-						const w = camWorldFromStick(dx, dy);
-						const pick = pointSelectDefender(w.x, w.y, d) || bestPursuitDefender(d);
-						if (pick) setUserDefender(pick, true, false);
-					} else {
-						const pick = bestPursuitDefender(d);
-						if (pick) setUserDefender(pick, true, false);
-					}
-				}
-			}
-		} else {
-			defPointLatch = false;
-			defBPointed = false;
-		}
-		defSwitchEdge = !!inp.spin;
-		const me = userDefender;
-		if (!me) return;
-		const yHeld = !!(inp.truck || inp.hurdle);
-		if (yHeld && !defShedEdge && (me.engageT > 0 || blockers.some((b) => b.active && (b.blockTarget === me || dist(b, me) < 2.4)))) {
-			shedBlock(me);
-		}
-		defShedEdge = yHeld;
-		if ((inp.wrapL || (inp.ctrlL && playActive && !practiceAwaitSnap)) && !defWrapLEdge) tryWrap(me, "lt");
-		if ((inp.wrapR || (inp.ctrlR && playActive && !practiceAwaitSnap)) && !defWrapREdge) tryWrap(me, "rt");
-		defWrapLEdge = !!(inp.wrapL || inp.ctrlL);
-		defWrapREdge = !!(inp.wrapR || inp.ctrlR);
-		const strafing = !!(inp.strafe || (playingDefense() && (inp.jukeL || inp.jukeR)));
-		me._strafe = strafing;
-		const rsMag = Math.hypot(inp.rsX || 0, inp.rsCamY || 0);
-		if (rsMag > 0.26 && !defHitLatch) {
-			const w = camWorldFromStick(inp.rsX || 0, inp.rsCamY || 0);
-			fireHitStick(me, w.x, w.y);
-		}
-		if (rsMag < 0.16) defHitLatch = false;
-		if (inp.dive && !defDiveEdge && !(me.atkKind === "dive" && me.atkT > 0)) startDefDive(me, inp);
-		defDiveEdge = !!inp.dive;
-		if (me.pancaked || me.state === "whiff" || me.state === "recover") {
-			if (me._userMiss) return;
-			const wantMove = Math.hypot(inp.dx, inp.dy) > 0.16 || inp.sprint;
-			if (!wantMove) return;
-			me.pancaked = false;
-			me.state = "pursue";
-			me.whiffT = 0;
-			me.recoverT = 0;
-			me.low = false;
-			me.engageT = 0;
-			me.spinT = 0;
-		}
-		me._userMiss = false;
-		let spd = (me.baseSpeed || me.speed || 8.6) * defMult() * playSpeed;
-		if (inp.sprint) spd *= SPRINT_MULT;
-		if (strafing) {
-			spd *= 0.64;
-			me.low = true;
-			if (rb) {
-				const tx = rb.x - me.x, ty = rb.y - me.y;
-				if (Math.hypot(tx, ty) > 0.35) me.facing = Math.atan2(ty, tx);
-			}
-		}
-		if (me.engageT > 0) spd *= 0.34;
-		if (me.atkKind === "dive" && me.atkT > 0) {
-			me.vx = (me.atkDX || 0) * spd * 1.4;
-			me.vy = (me.atkDY || 0) * spd * 1.4;
-			me.x += me.vx * dt;
-			me.y += me.vy * dt;
-			me.facing = Math.atan2(me.vy, me.vx);
-			me.atkT -= dt;
-			if (me.atkT <= 0) {
-				me.state = "whiff";
-				me._userMiss = true;
-				me.whiffT = 0.55;
-				me.low = true;
-				clearAttack(me);
-				defDive = null;
-			}
-		} else if (me.atkKind === "hit" && me.atkT > 0) {
-			const burst = spd * 1.95;
-			let hx = me.atkDX || 0, hy = me.atkDY || 0;
-			if (rb) {
-				const tx = rb.x - me.x, ty = rb.y - me.y;
-				const tl = Math.hypot(tx, ty) || 1;
-				hx = hx * 0.42 + (tx / tl) * 0.58;
-				hy = hy * 0.42 + (ty / tl) * 0.58;
-				const hm = Math.hypot(hx, hy) || 1;
-				hx /= hm; hy /= hm;
-			}
-			me.vx = hx * burst;
-			me.vy = hy * burst;
-			me.x += me.vx * dt;
-			me.y += me.vy * dt;
-			me.facing = Math.atan2(me.vy, me.vx);
-			me.atkT -= dt;
-			if (rb && dist(me, rb) < 2.85) {
-				resolveHitStick(me, hx, hy, dist(me, rb), Math.max(me._hitAim || 0.5, 0.55));
-			} else if (me.atkT <= 0) {
-				if (rb && dist(me, rb) < 5.4) {
-					resolveHitStick(me, hx, hy, dist(me, rb), Math.max(me._hitAim || 0.4, 0.4));
-				} else {
-					me.state = "whiff";
-					me._userMiss = true;
-					me.whiffT = 0.42;
-					me.low = true;
-					clearAttack(me);
-				}
-			}
-		} else {
-			if (me.atkT > 0) {
-				me.atkT -= dt;
-				if (me.atkT <= 0) clearAttack(me);
-			}
-			me.vx = inp.dx * spd;
-			me.vy = inp.dy * spd;
-			me.x += me.vx * dt;
-			me.y += me.vy * dt;
-			if (Math.hypot(me.vx, me.vy) > 0.45) me.facing = Math.atan2(me.vy, me.vx);
-		}
-		me.x = clamp(me.x, fieldLeft() + 0.8, fieldRight() - 0.8);
-		me.y = clamp(me.y, Math.max(0, playStartYard - 12), 108.5);
-		me._userCtrl = 0.35;
-	}
-	function cpuOffenseDrive(dt, spd) {
-		if (!rb) return;
-		let useScript = scriptIndex < scriptSteps.length;
-		let sdx = 0, sdy = 1;
-		if (useScript) {
-			const step = scriptSteps[scriptIndex];
-			sdx = step.dx;
-			sdy = step.dy;
-			scriptTimer += dt;
-			if (scriptTimer >= step.t) {
-				scriptTimer = 0;
-				scriptIndex++;
-			}
-		} else {
-			const side = playSideSign();
-			sdx = side * 0.2;
-			sdy = 1;
-			let nearest = null, nd = 99;
-			for (const def of defenders) {
-				if (def.pancaked || def.state === "whiff") continue;
-				const dd = dist(def, rb);
-				if (dd < nd) {
-					nd = dd;
-					nearest = def;
-				}
-			}
-			if (nearest && nd < 4.4) {
-				const away = Math.sign(rb.x - nearest.x) || side;
-				sdx += away * (nd < 2.15 ? 1.2 : 0.72);
-			}
-			if (nd > 6) spd *= 1.12;
-			const mag = Math.hypot(sdx, sdy) || 1;
-			sdx /= mag;
-			sdy /= mag;
-		}
-		rb.vx = sdx * spd;
-		rb.vy = sdy * spd;
-	}
-
 	function chooseDefenderAttack(d, distToRb) {
 		if (!rb || !d) return;
 		if (d.pancaked || d.engageT > 0) return;
@@ -5463,31 +4604,27 @@ function remaining(group) {
 		pauseBannerHTML("replay");
 	}
 	function nearestTeammate(side, skip = null) {
-		const origin = playingDefense() ? userDefender : rb;
-		const pool = playingDefense() ? defenders : blockers;
-		if (!origin || !pool.length) return null;
-		const f = origin.facing || (playingDefense() ? -Math.PI / 2 : Math.PI / 2);
+		if (!rb || !blockers.length) return null;
+		const f = rb.facing || Math.PI / 2;
 		const rx = Math.sin(f);
 		const ry = -Math.cos(f);
-		const behind = !playingDefense() && rb && rb.y < playStartYard - .2;
+		const behind = rb.y < playStartYard - .2;
 		let best = null;
 		let nd = behind ? 32 : 22;
-		for (const b of pool) {
-			if (!b || b === skip || b === origin) continue;
-			if (b.active === false) continue;
-			const lat = (b.x - origin.x) * rx + (b.y - origin.y) * ry;
+		for (const b of blockers) {
+			if (!b.active || b === skip) continue;
+			const lat = (b.x - rb.x) * rx + (b.y - rb.y) * ry;
 			if (side < 0 && lat > .55) continue;
 			if (side > 0 && lat < -.55) continue;
-			const dd = dist(b, origin);
+			const dd = dist(b, rb);
 			if (dd < nd) {
 				nd = dd;
 				best = b;
 			}
 		}
-		if (!best) for (const b of pool) {
-			if (!b || b === skip || b === origin) continue;
-			if (b.active === false) continue;
-			const dd = dist(b, origin);
+		if (!best) for (const b of blockers) {
+			if (!b.active || b === skip) continue;
+			const dd = dist(b, rb);
 			if (dd < nd + 8) {
 				nd = dd;
 				best = b;
@@ -5496,18 +4633,16 @@ function remaining(group) {
 		return best;
 	}
 	function steerTeammate(b, sdx, sdy, dt) {
-		if (!b) return;
-		const origin = playingDefense() ? userDefender : rb;
-		if (!origin) return;
-		b._userCtrl = 0.22;
-		let dx = Math.cos(origin.facing || (playingDefense() ? -Math.PI / 2 : Math.PI / 2));
-		let dy = Math.sin(origin.facing || (playingDefense() ? -Math.PI / 2 : Math.PI / 2));
+		if (!b || !rb) return;
+		b._userCtrl = 0.22; // short linger; do not retarget all nearby blockers
+		let dx = Math.cos(rb.facing || Math.PI / 2);
+		let dy = Math.sin(rb.facing || Math.PI / 2);
 		const mag = Math.hypot(sdx, sdy);
 		if (mag >= .12) {
 			dx = sdx / mag;
 			dy = sdy / mag;
 		}
-		const spd = Math.min(10.5, (b.speed || 8.6) * (playingDefense() ? defMult() : offMult()) * 1.05);
+		const spd = Math.min(10.5, (b.speed || 8.6) * offMult() * 1.05);
 		const step = spd * Math.min(dt, 0.05);
 		b.x += dx * step;
 		b.y += dy * step;
@@ -5532,9 +4667,8 @@ function remaining(group) {
 		}
 		return best;
 	}
-	function startFumble(hitter, force) {
-		if (!force && !fumblesOn) return;
-		if (!rb) return;
+	function startFumble(hitter) {
+		if (!fumblesOn || !rb) return;
 		const playYards = Math.round(rb.y - playStartYard);
 		score = Math.max(0, score - 50);
 		rb.hasBall = false;
@@ -6465,9 +5599,6 @@ function remaining(group) {
 		playActive = true;
 		paused = false;
 		pauseTimer = 0;
-		huddleOffPickId = null;
-		huddleDefPickId = null;
-		gameAutoSnapT = 0;
 		activeMove = null;
 		moveTimer = 0;
 		moveCooldown = 0;
@@ -6477,11 +5608,6 @@ function remaining(group) {
 		const banner = $("pauseBanner");
 		if (banner) banner.classList.add("hidden");
 		placeEntitiesForNewPlay();
-		if (wantsDefHuddle()) {
-			playActive = false;
-			practiceAwaitSnap = true;
-			armGameDefAutoSnap();
-		}
 		updateBallOn();
 		updateHUD();
 	}
@@ -6667,7 +5793,7 @@ function remaining(group) {
 			camOp.panY = clamp(camOp.panY, -3.2, 7);
 			return;
 		}
-		if (!inp.ctrlL && !inp.ctrlR && !(playingDefense() && live)) {
+		if (!inp.ctrlL && !inp.ctrlR) {
 			const rsx = inp.rsX || 0;
 			const rsy = inp.rsCamY || 0;
 			if (Math.hypot(rsx, rsy) > 0.18) {
@@ -6805,11 +5931,20 @@ function remaining(group) {
 				inp.blockRdy = lastSteer.dy;
 			}
 		}
-		// Teammate LT/RT steer removed — triggers are wrap / punch on defense.
 		ctrlLeft = null;
 		ctrlRight = null;
-		latchCtrlL = null;
-		latchCtrlR = null;
+		if (playActive && !paused && !sessionOver) {
+			if (inp.ctrlL) {
+				if (!latchCtrlL || !latchCtrlL.active) latchCtrlL = nearestTeammate(-1);
+				ctrlLeft = latchCtrlL;
+				steerTeammate(ctrlLeft, inp.blockLdx, inp.blockLdy, dt);
+			} else latchCtrlL = null;
+			if (inp.ctrlR) {
+				if (!latchCtrlR || !latchCtrlR.active || latchCtrlR === latchCtrlL) latchCtrlR = nearestTeammate(1, ctrlLeft);
+				ctrlRight = latchCtrlR;
+				steerTeammate(ctrlRight, inp.blockRdx, inp.blockRdy, dt);
+			} else latchCtrlR = null;
+		}
 		const nameOpen = !$("nameModal")?.classList.contains("hidden");
 		const contOpen = !$("continueModal")?.classList.contains("hidden");
 		if (nameOpen || contOpen) {
@@ -6823,26 +5958,8 @@ function remaining(group) {
 		confirmEdge = false;
 		// Practice mode: hold at pre-snap until A / confirm; RT flips the called play
 		if (practiceAwaitSnap && !paused && !fullReplay) {
-			if (gameMode !== "practice") {
-				practiceAudibleArm = false;
-				practiceDefAudibleArm = false;
-			}
-			// Menu toggles: X = offense focus, B = defense focus (practice playbooks only)
-			if (gameMode === "practice" && playingDefense() && inp.dive && !practiceAudibleEdge) {
-				if (!practiceAudibleArm && !practiceDefAudibleArm) {
-					practiceAudibleArm = true;
-					practiceDefAudibleArm = false;
-					practiceFocusSide = "off";
-				} else if (practiceAudibleArm) {
-					practiceAudibleArm = false;
-					practiceDefAudibleArm = true;
-					practiceFocusSide = "def";
-				} else {
-					practiceDefAudibleArm = false;
-				}
-				if (typeof refreshPracticePreviews === "function") refreshPracticePreviews();
-				updateAudibleHint();
-			} else if (gameMode === "practice" && !playingDefense() && inp.dive && !practiceAudibleEdge) {
+			// Menu toggles: X = offense focus, B = defense focus
+			if (inp.dive && !practiceAudibleEdge) {
 				practiceAudibleArm = !practiceAudibleArm;
 				if (practiceAudibleArm) {
 					practiceDefAudibleArm = false;
@@ -6854,7 +5971,7 @@ function remaining(group) {
 				updateAudibleHint();
 			}
 			practiceAudibleEdge = !!inp.dive;
-			if (inp.spin && !practiceDefAudibleEdge && !playingDefense() && gameMode === "practice") {
+			if (inp.spin && !practiceDefAudibleEdge) {
 				practiceDefAudibleArm = !practiceDefAudibleArm;
 				if (practiceDefAudibleArm) {
 					practiceAudibleArm = false;
@@ -6872,34 +5989,30 @@ function remaining(group) {
 			const stickUp = (v) => Math.abs(v) > 0.55;
 
 			function cycleOffense(step) {
-				if (gameMode !== "practice") return;
 				practiceFocusSide = "off";
 				const idx = Math.max(0, OFF_PLAYS.findIndex((p) => p.id === stockPlayId()));
 				const ni = (idx + step + OFF_PLAYS.length) % OFF_PLAYS.length;
 				if (OFF_PLAYS[ni].id !== stockPlayId()) {
 					practiceOffPlayIdPrev = practiceOffPlayId || stockPlayId() || null;
 				}
-				if (gameMode === "practice") practiceOffPlayId = OFF_PLAYS[ni].id;
-				else huddleOffPickId = OFF_PLAYS[ni].id;
+				practiceOffPlayId = OFF_PLAYS[ni].id;
 				const sel = $("practiceOffPlay");
-				if (sel) sel.value = OFF_PLAYS[ni].id;
+				if (sel) sel.value = practiceOffPlayId;
 				try { placeEntitiesForNewPlay(); } catch (err) { console.error(err); }
 				setPlayCall(OFF_PLAYS[ni].name + (practiceDefAudibleArm || practiceAudibleArm ? "  (menu)" : " — press A to snap"));
 				renderPracticePlayList();
 				if (typeof refreshPracticePreviews === "function") refreshPracticePreviews();
 			}
 			function cycleDefense(step) {
-				if (gameMode !== "practice") return;
 				practiceFocusSide = "def";
-				const idx = Math.max(0, DEF_SCHEMES.findIndex((s) => s.id === (practiceDefSchemeId || huddleDefPickId || (currentScheme && currentScheme.id))));
+				const idx = Math.max(0, DEF_SCHEMES.findIndex((s) => s.id === (practiceDefSchemeId || (currentScheme && currentScheme.id))));
 				const ni = (idx + step + DEF_SCHEMES.length) % DEF_SCHEMES.length;
-				if (DEF_SCHEMES[ni].id !== (practiceDefSchemeId || huddleDefPickId || (currentScheme && currentScheme.id))) {
-					practiceDefSchemeIdPrev = practiceDefSchemeId || huddleDefPickId || (currentScheme && currentScheme.id) || null;
+				if (DEF_SCHEMES[ni].id !== (practiceDefSchemeId || (currentScheme && currentScheme.id))) {
+					practiceDefSchemeIdPrev = practiceDefSchemeId || (currentScheme && currentScheme.id) || null;
 				}
-				if (gameMode === "practice") practiceDefSchemeId = DEF_SCHEMES[ni].id;
-				else huddleDefPickId = DEF_SCHEMES[ni].id;
+				practiceDefSchemeId = DEF_SCHEMES[ni].id;
 				const sel = $("practiceDefScheme");
-				if (sel) sel.value = DEF_SCHEMES[ni].id;
+				if (sel) sel.value = practiceDefSchemeId;
 				try { placeEntitiesForNewPlay(); } catch (err) { console.error(err); }
 				setPlayCall((currentPlay ? currentPlay.name : "Play") + " · vs " + DEF_SCHEMES[ni].name + (practiceDefAudibleArm ? "  (B menu — LS↕)" : " — press A to snap"));
 				renderPracticeDefList();
@@ -6908,32 +6021,27 @@ function remaining(group) {
 
 
 			function pickFocusedByIndex(n) {
-				if (gameMode !== "practice") return;
 				// n is 1-6
 				const i = n - 1;
 				if (practiceFocusSide === "def") {
-					if (gameMode === "game" && userSide !== "def") return;
 					if (!DEF_SCHEMES[i]) return;
-					if (DEF_SCHEMES[i].id !== (practiceDefSchemeId || huddleDefPickId || (currentScheme && currentScheme.id))) {
-						practiceDefSchemeIdPrev = practiceDefSchemeId || huddleDefPickId || (currentScheme && currentScheme.id) || null;
+					if (DEF_SCHEMES[i].id !== (practiceDefSchemeId || (currentScheme && currentScheme.id))) {
+						practiceDefSchemeIdPrev = practiceDefSchemeId || (currentScheme && currentScheme.id) || null;
 					}
-					if (gameMode === "practice") practiceDefSchemeId = DEF_SCHEMES[i].id;
-					else huddleDefPickId = DEF_SCHEMES[i].id;
+					practiceDefSchemeId = DEF_SCHEMES[i].id;
 					const sel = $("practiceDefScheme");
-					if (sel) sel.value = DEF_SCHEMES[i].id;
+					if (sel) sel.value = practiceDefSchemeId;
 					try { placeEntitiesForNewPlay(); } catch (err) { console.error(err); }
 					setPlayCall((currentPlay ? currentPlay.name : "Play") + " · vs " + DEF_SCHEMES[i].name + " — press A to snap");
 					renderPracticeDefList();
 				} else {
-					if (gameMode === "game" && userSide !== "off") return;
 					if (!OFF_PLAYS[i]) return;
 					if (OFF_PLAYS[i].id !== stockPlayId()) {
 						practiceOffPlayIdPrev = practiceOffPlayId || stockPlayId() || null;
 					}
-					if (gameMode === "practice") practiceOffPlayId = OFF_PLAYS[i].id;
-					else huddleOffPickId = OFF_PLAYS[i].id;
+					practiceOffPlayId = OFF_PLAYS[i].id;
 					const sel = $("practiceOffPlay");
-					if (sel) sel.value = OFF_PLAYS[i].id;
+					if (sel) sel.value = practiceOffPlayId;
 					try { placeEntitiesForNewPlay(); } catch (err) { console.error(err); }
 					setPlayCall(OFF_PLAYS[i].name + " — press A to snap");
 					renderPracticePlayList();
@@ -6954,14 +6062,12 @@ function remaining(group) {
 			const bookLeft = !!(inp._dpadLeft || keys.has("ArrowLeft"));
 			const bookRight = !!(inp._dpadRight || keys.has("ArrowRight"));
 			if (bookOpen && (bookLeft || bookRight) && !practiceBookLatch) {
-				if (gameMode === "practice") {
-					practiceFocusSide = bookLeft ? "off" : "def";
-					practiceAudibleArm = bookLeft;
-					practiceDefAudibleArm = bookRight;
-					practiceBookLatch = true;
-					if (typeof refreshPracticePreviews === "function") refreshPracticePreviews();
-					if (typeof updateAudibleHint === "function") updateAudibleHint();
-				}
+				practiceFocusSide = bookLeft ? "off" : "def";
+				practiceAudibleArm = bookLeft;
+				practiceDefAudibleArm = bookRight;
+				practiceBookLatch = true;
+				if (typeof refreshPracticePreviews === "function") refreshPracticePreviews();
+				if (typeof updateAudibleHint === "function") updateAudibleHint();
 			} else if (!bookLeft && !bookRight) practiceBookLatch = false;
 
 			// Left stick / ↑↓ browse only while X or B menu is open
@@ -6984,15 +6090,14 @@ function remaining(group) {
 			} else if (!stickUp(rsy) || inp.ctrlL || inp.ctrlR) practiceDefStickLatch = 0;
 
 			// Optional hotkeys (no A/B): Y/LB/RB/LT/D-pad while a menu is open
-			if (practiceAudibleArm && gameMode === "practice") {
+			if (practiceAudibleArm) {
 				for (const m of getAudibleMap()) {
 					if (m.match(inp)) {
 						practiceOffPlayIdPrev = practiceOffPlayId || (currentPlay && currentPlay.id) || null;
-						if (gameMode === "practice") practiceOffPlayId = m.play.id;
-						else huddleOffPickId = m.play.id;
+						practiceOffPlayId = m.play.id;
 						practiceAudibleArm = false;
 						const sel = $("practiceOffPlay");
-						if (sel) sel.value = m.play.id;
+						if (sel) sel.value = practiceOffPlayId;
 						try { placeEntitiesForNewPlay(); } catch (err) { console.error(err); }
 						setPlayCall(m.play.name + " — Y cancel · A snap");
 						updateAudibleHint();
@@ -7002,15 +6107,14 @@ function remaining(group) {
 					}
 				}
 			}
-			if (practiceDefAudibleArm && gameMode === "practice") {
+			if (practiceDefAudibleArm) {
 				for (const m of getDefAudibleMap()) {
 					if (m.match(inp)) {
-						practiceDefSchemeIdPrev = practiceDefSchemeId || huddleDefPickId || (currentScheme && currentScheme.id) || null;
-						if (gameMode === "practice") practiceDefSchemeId = m.scheme.id;
-						else huddleDefPickId = m.scheme.id;
+						practiceDefSchemeIdPrev = practiceDefSchemeId || (currentScheme && currentScheme.id) || null;
+						practiceDefSchemeId = m.scheme.id;
 						practiceDefAudibleArm = false;
 						const sel = $("practiceDefScheme");
-						if (sel) sel.value = m.scheme.id;
+						if (sel) sel.value = practiceDefSchemeId;
 						try { placeEntitiesForNewPlay(); } catch (err) { console.error(err); }
 						setPlayCall((currentPlay ? currentPlay.name : "Play") + " · vs " + m.scheme.name + " — Y cancel · A snap");
 						updateAudibleHint();
@@ -7037,15 +6141,14 @@ function remaining(group) {
 			practiceDefFlipEdge = !!inp.ctrlL;
 
 			// Y closes the open book, or restores the last audible if no menu is open
-			const bookWasOpen = !!(practiceAudibleArm || practiceDefAudibleArm);
-			const yPressed = !!(inp.truck || inp.hurdle) && !(playingDefense() && Math.hypot(inp.dx, inp.dy) > 0.35);
-			if (yPressed && !practiceYCancelEdge && bookWasOpen) {
+			const yPressed = !!(inp.truck || inp.hurdle);
+			if (yPressed && !practiceYCancelEdge && (practiceAudibleArm || practiceDefAudibleArm)) {
 				practiceAudibleArm = false;
 				practiceDefAudibleArm = false;
 				setPlayCall((currentPlay ? currentPlay.name : "Play") + (currentScheme ? " · vs " + currentScheme.name : "") + " — press X/B for book · A snap");
 				if (typeof refreshPracticePreviews === "function") refreshPracticePreviews();
 				updateAudibleHint();
-			} else if (!playingDefense() && yPressed && !practiceYCancelEdge && !practiceAudibleArm && !practiceDefAudibleArm) {
+			} else if (yPressed && !practiceYCancelEdge && !practiceAudibleArm && !practiceDefAudibleArm) {
 				let restored = false;
 				if (practiceFocusSide === "def" && practiceDefSchemeIdPrev) {
 					const tmp = practiceDefSchemeId;
@@ -7074,29 +6177,17 @@ function remaining(group) {
 			}
 			practiceYCancelEdge = yPressed;
 
-			// A / Y snaps the ball (closes any open menu first). Defense auto-snaps after a 2–3s huddle.
-			let doSnap = false;
-			if (playingDefense()) {
-				doSnap = tickPresnapDefense(dt, inp, bookWasOpen) === "snap";
-				if (!doSnap) nudgeUserDefenderPresnap(dt, inp);
-			} else if (inp.confirm && !confirmEdge) doSnap = true;
-			if (gameAutoSnapT > 0) {
-				gameAutoSnapT -= dt;
-				if (gameAutoSnapT <= 0) doSnap = true;
-			}
-			if (doSnap) {
-				gameAutoSnapT = 0;
+			// A snaps the ball (closes any open menu first).
+			if (inp.confirm && !confirmEdge) {
 				practiceAudibleArm = false;
 				practiceDefAudibleArm = false;
 				practiceAwaitSnap = false;
 				playActive = true;
-				lockHuddleDefender();
 				playFrames = huddleBuf.slice();
 				huddleBuf = [];
 				replayAcc = 0;
 				const defName = currentScheme && currentScheme.name ? currentScheme.name : "";
-				const who = playingDefense() && userDefender ? " · DEF " + defRoleLabel(userDefender) + " #" + userDefender.number : "";
-				setPlayCall((currentPlay ? currentPlay.name : "Play") + (defName ? " · vs " + defName : "") + who);
+				setPlayCall((currentPlay ? currentPlay.name : "Play") + (defName ? " · vs " + defName : ""));
 				updateAudibleHint();
 				if (typeof refreshPracticePreviews === "function") refreshPracticePreviews();
 			}
@@ -7132,50 +6223,41 @@ function remaining(group) {
 			return;
 		}
 		if (!playActive) {
-			if (pauseTimer > 0) {
-				pauseTimer -= dt;
-				if (pauseTimer <= 0) {
-					if (clock <= 0 && gameMode !== "practice") {
-						expireGame();
-						return;
-					}
-					pauseTimer = 0;
-					tackleAnim = null;
-					if (gameMode === "practice") {
-						const fixed = clamp(practiceStartYard, 1, 99);
-						ballYard = fixed;
-						playStartYard = fixed;
-						driveStartYard = fixed;
-						ballX = (hashLeft() + hashRight()) / 2;
-					} else {
-						playStartYard = ballYard;
-					}
-					if (wantsDefHuddle()) {
-						playActive = false;
-						practiceAwaitSnap = true;
-						practiceAudibleArm = false;
-						practiceDefAudibleArm = false;
-					}
-					if (gameMode === "game") {
-						huddleOffPickId = null;
-						huddleDefPickId = null;
-					}
-					try {
-						placeEntitiesForNewPlay();
-						currentPlay && currentPlay.name;
-					} catch (err) {
-						console.error(err);
-					}
-					if (wantsDefHuddle()) {
-						armGameDefAutoSnap();
-						const who = playingDefense() && userDefender ? " · DEF " + defRoleLabel(userDefender) + " #" + userDefender.number : "";
-						setPlayCall((currentPlay ? currentPlay.name : "Play") + (currentScheme ? " · vs " + currentScheme.name : "") + who + huddleWaitHint());
-						updateBallOn();
-					} else {
-						playActive = true;
-						practiceAwaitSnap = false;
-						gameAutoSnapT = 0;
-					}
+			pauseTimer -= dt;
+			if (pauseTimer <= 0) {
+				if (clock <= 0 && gameMode !== "practice") {
+					expireGame();
+					return;
+				}
+				pauseTimer = 0;
+				tackleAnim = null;
+				if (gameMode === "practice") {
+					const fixed = clamp(practiceStartYard, 1, 99);
+					ballYard = fixed;
+					playStartYard = fixed;
+					driveStartYard = fixed;
+					ballX = (hashLeft() + hashRight()) / 2;
+				} else if (nextPlayOnSnap) {
+					playStartYard = ballYard;
+				} else {
+					playStartYard = ballYard;
+				}
+				try {
+					placeEntitiesForNewPlay();
+					currentPlay && currentPlay.name;
+				} catch (err) {
+					console.error(err);
+				}
+				if (nextPlayOnSnap || gameMode === "practice") {
+					playActive = false;
+					practiceAwaitSnap = true;
+					practiceAudibleArm = false;
+					practiceDefAudibleArm = false;
+					setPlayCall((currentPlay ? currentPlay.name : "Practice") + " — X/B book · A snap · R replay");
+					updateBallOn();
+				} else {
+					playActive = true;
+					practiceAwaitSnap = false;
 				}
 			}
 			return;
@@ -7246,7 +6328,7 @@ function remaining(group) {
 				hurdleOk = false;
 			}
 		}
-		if (handoffDone && moveCooldown <= 0 && !playingDefense()) {
+		if (handoffDone && moveCooldown <= 0) {
 			if (dpadMove) startMove(dpadMove);
 			else if (inp.spin) startMove("spin");
 			else if (inp.jukeL) startMove("jukeL");
@@ -7257,16 +6339,10 @@ function remaining(group) {
 			else if (inp.hurdle) startMove("hurdle");
 			else if (inp.truck && celebrateTimer <= 0) startMove("truck");
 		}
-		if (playActive && playingDefense()) tickUserDefense(dt, inp);
 		if (rb) {
 			const carrier = rb;
 			let spd = carrier.speed * offMult() * playSpeed;
-			const cpu = playingDefense();
-			if (cpu) {
-				sprintCharge = 1;
-				sprintHoldT = 0;
-				sprintExhausted = false;
-			} else if (!fatigueOn) {
+			if (!fatigueOn) {
 				sprintCharge = 1;
 				sprintHoldT = 0;
 				sprintExhausted = false;
@@ -7300,15 +6376,15 @@ function remaining(group) {
 				if (nd > 6.5 && trail > 2.4) breakaway = true;
 			}
 			// Clear-field 1.55× only while burst is held (not a free runaway gear)
-			if (breakaway && ((cpu && handoffDone) || (!cpu && inp.sprint)) && !(fatigueOn && sprintExhausted)) spd *= 1.55 / SPRINT_MULT;
+			if (breakaway && inp.sprint && !(fatigueOn && sprintExhausted)) spd *= 1.55 / SPRINT_MULT;
 			let useScript = scriptIndex < scriptSteps.length;
 			let sdx = 0, sdy = 0;
-			if (useScript && !cpu) {
+			if (useScript) {
 				const step = scriptSteps[scriptIndex];
 				sdx = step.dx;
 				sdy = step.dy;
 				scriptTimer += dt;
-				if (!cpu && (scriptIndex > 0 || !scriptLocked) && (Math.abs(inp.dx) > .15 || Math.abs(inp.dy) > .15)) {
+				if ((scriptIndex > 0 || !scriptLocked) && (Math.abs(inp.dx) > .15 || Math.abs(inp.dy) > .15)) {
 					scriptIndex = scriptSteps.length;
 					useScript = false;
 				} else if (scriptTimer >= step.t) {
@@ -7449,8 +6525,6 @@ function remaining(group) {
 						return;
 					}
 				}
-			} else if (cpu) {
-				cpuOffenseDrive(dt, spd);
 			} else if (useScript) {
 				rb.vx = sdx * spd;
 				rb.vy = sdy * spd;
@@ -7691,15 +6765,13 @@ function remaining(group) {
 				const dd = dist(b, d);
 				if (dd < gap + .08) {
 					if (d.state === "whiff" || d.state === "recover" || d.recoverT > 0) return;
-					const userHeld = isUserDef(d);
 					// Wrong-side / past-the-defender = don't cling (anti-holding)
 					const pastDef = rb && (b.y > d.y + 0.35) && dist(b, rb) > dist(d, rb);
 					const wrongSide = rb && Math.sign(b.x - d.x) === Math.sign(d.x - rb.x) && Math.abs(b.x - d.x) > 0.4 && dist(b, rb) > dist(d, rb) + 0.15;
 					const holding = rb && dist(d, rb) + .25 < dist(b, rb);
-					if (holding || pastDef || wrongSide || (!userHeld && rb && dist(d, rb) > 9.2)) {
-						if (b.blockTarget === d) b.blockTarget = null;
+					if (holding || pastDef || wrongSide || rb && dist(d, rb) > 9.2) {
 						d.engageT = 0;
-						if (userHeld) return;
+						if (b.blockTarget === d) b.blockTarget = null;
 						d.state = "recover";
 						d.recoverT = .08;
 						d.low = false;
@@ -7722,7 +6794,6 @@ function remaining(group) {
 						if (b._userCtrl > 0) slipP *= 0.35; // user-steered blockers hold much better
 						if (holding2 || farPlay || idleCarrierT > .4 || Math.random() < slipP) {
 							d.engageT = 0;
-							if (userHeld) return;
 							d.state = "recover";
 							d.recoverT = holding2 ? .08 : (olOnDt ? .28 : .16) + Math.random() * .12;
 							d.low = false;
@@ -7736,7 +6807,7 @@ function remaining(group) {
 						d.engageT = ((olOnDt || b.driveBlock ? 1.15 : .55) + Math.random() * (olOnDt || b.driveBlock ? .45 : .3)) * fatigue * (b.sturdyBlock ? 1.2 : 1) / Math.max(0.45, breakBlock);
 						if (b._userCtrl > 0) d.engageT *= 1.65;
 						// Prefer sustained blocks over pancakes; rare short pancake only
-						if (!userHeld && b.y <= d.y + .55 && Math.random() < (d.group === "DT" ? (b.group === "OL" ? .11 : .08) : (b.group === "FB" ? .1 : .07))) {
+						if (b.y <= d.y + .55 && Math.random() < (d.group === "DT" ? (b.group === "OL" ? .11 : .08) : (b.group === "FB" ? .1 : .07))) {
 							d.state = "whiff";
 							d.pancaked = true;
 							d.whiffT = 0.7 + Math.random() * .3;
@@ -7813,9 +6884,6 @@ function remaining(group) {
 		});
 		defenders.forEach((d) => {
 			if (!rb) return;
-			if (d._userCtrl > 0 && d !== userDefender && d !== ctrlLeft && d !== ctrlRight) {
-				d._userCtrl = Math.max(0, d._userCtrl - dt * 3);
-			}
 			if (d.engageT > 0) {
 				d.engageT -= dt;
 				d.y = Math.min(d.y, 104.6);
@@ -7823,10 +6891,8 @@ function remaining(group) {
 				// once the runner has clearly cleared the engagement.
 				if (rb && d.y > rb.y + 4.2) {
 					d.engageT = 0;
-					if (!isUserDef(d)) {
-						d.state = "recover";
-						d.recoverT = .18;
-					}
+					d.state = "recover";
+					d.recoverT = .18;
 				}
 				d.x = clamp(d.x, fieldLeft() + .8, fieldRight() - .8);
 				return;
@@ -7868,10 +6934,6 @@ function remaining(group) {
 					d.low = false;
 					d.pancaked = false;
 				}
-				d.x = clamp(d.x, fieldLeft() + .8, fieldRight() - .8);
-				return;
-			}
-			if (playingDefense() && (d === userDefender || d === ctrlLeft || d === ctrlRight || d._userCtrl > 0.05)) {
 				d.x = clamp(d.x, fieldLeft() + .8, fieldRight() - .8);
 				return;
 			}
@@ -8117,8 +7179,6 @@ function remaining(group) {
 			const hurdling = !!activeMove?.startsWith("hurdle");
 			for (const d of defenders) {
 				if (d.pancaked || d.state === "whiff" || d.state === "recover") continue;
-				if (playingDefense() && d === userDefender && !(d.atkKind === "wrap" || d.atkKind === "dive" || d.atkKind === "hit" || defWrapPhase === "wrapped" || d._strafe)) continue;
-				if (qaNoCpuTackle && d !== userDefender) continue;
 				let tackleRadius = rb.radius + d.radius + .14;
 				// P0a: an engaged defender is occupied — shrink the wrap, do not
 				// skip the check entirely (runner can slip the gap).
@@ -8126,8 +7186,7 @@ function remaining(group) {
 				const divingAtk = d.atkKind === "dive" && d.atkT > 0;
 				const hittingAtk = d.atkKind === "hit" && d.atkT > 0;
 				if (divingAtk) tackleRadius *= 1.55;
-				else if (hittingAtk) tackleRadius *= 2.25;
-				if (d._strafe) tackleRadius *= hittingAtk ? 1.22 : 1.48;
+				else if (hittingAtk) tackleRadius *= 1.18;
 				if (idleCarrierT > .5) tackleRadius += .42;
 				if (rb.y - playStartYard > 10) tackleRadius *= .96;
 				if (activeMove === "spin") tackleRadius *= (moveTimer / Math.max(.01, moveDur) > .28) ? .38 : .7;
@@ -8177,16 +7236,10 @@ function remaining(group) {
 						return;
 					}
 					if (hittingAtk) {
-						if (playingDefense() && d === userDefender) {
-							const aim = d._hitAim != null ? d._hitAim : 0.45;
-							resolveHitStick(d, d.atkDX || 0, d.atkDY || 0, dist(d, rb), aim);
-							return;
-						}
 						const finesse = !!(activeMove && (activeMove === "spin" || activeMove.startsWith("juke") || activeMove.startsWith("shake") || activeMove.startsWith("deadleg")));
 						let hitWin = 0.6;
 						if (finesse) hitWin = 0.22;
 						if (trucking) hitWin = 0.78;
-						if (d._strafe) hitWin = Math.min(0.96, hitWin + 0.22);
 						if (d.engageT > 0) hitWin *= 0.45;
 						if (Math.random() > hitWin) {
 							d.state = "recover";
@@ -8407,7 +7460,7 @@ function remaining(group) {
 					if (d.group === "DT") drag *= 0.72;
 					else if (d.group === "DB") drag *= 1.12;
 					drag = clamp(drag, chasedown ? 1.35 : 0.7, chasedown ? 4.4 : 2.4);
-					if (breakTackle > 1.05 && !d._strafe && Math.random() < clamp((breakTackle - 1) * 0.35, 0, 0.55)) {
+					if (breakTackle > 1.05 && Math.random() < clamp((breakTackle - 1) * 0.35, 0, 0.55)) {
 						d.slowed = Math.max(d.slowed, 0.55);
 						d.recoverT = 0.2 + Math.random() * 0.15;
 						d.state = "recover";
@@ -8629,12 +7682,11 @@ function remaining(group) {
 		ctx.lineWidth = .8;
 		ctx.stroke();
 	}
-	function jerseyRingColor(side) {
-		const s = side || "off";
-		return getUni(s).jersey || (s === "def" ? "#1d4ed8" : "#3b82f6");
+	function jerseyRingColor() {
+		return getUni("off").jersey || "#3b82f6";
 	}
-	function drawControlRing(sx, sy, r, dashed, label, side) {
-		const col = jerseyRingColor(side || "off");
+	function drawControlRing(sx, sy, r, dashed, label) {
+		const col = jerseyRingColor();
 		ctx.save();
 		ctx.beginPath();
 		ctx.arc(sx, sy, r + 4.6, 0, Math.PI * 2);
@@ -8962,10 +8014,9 @@ function remaining(group) {
 			else if (p.hasBall) drawFootball(sx + r * (.55 + pose.hx * .4), sy + r * .08, r);
 		}
 		ctx.restore();
-		if (isBallCarrier && p.hasBall) drawControlRing(sx, sy, r, false, null, "off");
-		if (playingDefense() && p === userDefender) drawControlRing(sx, sy, r, false, defRoleLabel(p), "def");
-		if (p === ctrlLeft) drawControlRing(sx, sy, r, true, null, playingDefense() ? "def" : "off");
-		if (p === ctrlRight) drawControlRing(sx, sy, r, true, null, playingDefense() ? "def" : "off");
+		if (isBallCarrier && p.hasBall) drawControlRing(sx, sy, r, false, null);
+		if (p === ctrlLeft) drawControlRing(sx, sy, r, true, null);
+		if (p === ctrlRight) drawControlRing(sx, sy, r, true, null);
 		if (p.state === "whiff") {
 			ctx.globalAlpha = .35;
 			ctx.fillStyle = "#fbbf24";
@@ -9581,7 +8632,7 @@ function remaining(group) {
 	function updateAudibleHint() {
 		const el = $("audibleHint");
 		if (!el) return;
-		if (!practiceAwaitSnap || gameMode !== "practice") {
+		if (!practiceAwaitSnap) {
 			el.classList.add("hidden");
 			return;
 		}
@@ -9831,7 +8882,7 @@ function drawMiniPreview(canvas, kind) {
 	function renderPracticeDefList() {
 		const list = $("practiceDefList");
 		if (!list) return;
-		const cur = practiceDefSchemeId || huddleDefPickId || (currentScheme && currentScheme.id);
+		const cur = practiceDefSchemeId || (currentScheme && currentScheme.id);
 		list.innerHTML = "";
 		DEF_SCHEMES.forEach((s, i) => {
 			const row = document.createElement("div");
@@ -9846,9 +8897,7 @@ function drawMiniPreview(canvas, kind) {
 			row.appendChild(num);
 			row.appendChild(name);
 			row.onclick = () => {
-				if (gameMode === "game" && userSide !== "def") return;
-				if (gameMode === "practice") practiceDefSchemeId = s.id;
-				else huddleDefPickId = s.id;
+				practiceDefSchemeId = s.id;
 				const sel = $("practiceDefScheme");
 				if (sel) sel.value = s.id;
 				try { placeEntitiesForNewPlay(); } catch (err) { console.error(err); }
@@ -9877,9 +8926,7 @@ function drawMiniPreview(canvas, kind) {
 			row.appendChild(num);
 			row.appendChild(name);
 			row.onclick = () => {
-				if (gameMode === "game" && userSide !== "off") return;
-				if (gameMode === "practice") practiceOffPlayId = p.id;
-				else huddleOffPickId = p.id;
+				practiceOffPlayId = p.id;
 				const sel = $("practiceOffPlay");
 				if (sel) sel.value = p.id;
 				try { placeEntitiesForNewPlay(); } catch (err) { console.error(err); }
@@ -9923,11 +8970,7 @@ function drawMiniPreview(canvas, kind) {
 	}
 	function refreshPracticePreviews() {
 		const panel = $("practicePreview");
-		if (panel) panel.classList.toggle("hidden", gameMode !== "practice");
-		if (gameMode !== "practice") {
-			updateAudibleHint();
-			return;
-		}
+		if (panel) panel.classList.remove("hidden");
 		const offB = $("prevOffBlock");
 		const defB = $("prevDefBlock");
 		// Closer to field = lower order (field is left of this column)
@@ -11381,16 +10424,7 @@ function drawMiniPreview(canvas, kind) {
 			nextPlayOnSnap = nextPlayEl.value === "snap";
 			nextPlayEl.addEventListener("change", () => {
 				nextPlayOnSnap = nextPlayEl.value === "snap";
-				if (practiceAwaitSnap) {
-					armGameDefAutoSnap();
-					if (playingDefense() && userDefender) setPlayCall(huddleCallLabel() + huddleWaitHint());
-				}
 			});
-		}
-		const sideEl = $("sideSelect");
-		if (sideEl) {
-			userSide = sideEl.value === "def" ? "def" : "off";
-			sideEl.addEventListener("change", () => setUserSide(sideEl.value === "def" ? "def" : "off"));
 		}
 		const syncStartUI = () => { syncStartYardFromUI(); };
 		$("startYard50")?.addEventListener("change", syncStartUI);
@@ -11458,9 +10492,8 @@ function drawMiniPreview(canvas, kind) {
 			}
 			const offName = currentPlay ? currentPlay.name : "Practice";
 			const defName = currentScheme ? currentScheme.name : "";
-			setPlayCall(offName + (defName ? " · vs " + defName : "") + huddleWaitHint());
+			setPlayCall(offName + (defName ? " · vs " + defName : "") + " — press A to snap");
 			updateBallOn();
-			if (typeof armGameDefAutoSnap === "function") armGameDefAutoSnap();
 			if (typeof refreshPracticePreviews === "function") refreshPracticePreviews();
 		}
 	}
@@ -11510,70 +10543,31 @@ function drawMiniPreview(canvas, kind) {
 		selectDefUni(parseInt(e.target.value, 10));
 		paintRoster();
 	};
-	function syncCallSelects() {
-		const op = $("practiceOffPlay");
-		const ds = $("practiceDefScheme");
-		const offRow = $("offPlayRow");
-		const defRow = $("defSchemeRow");
-		const offLab = $("gameOffPlayLabel");
-		const defLab = $("gameDefSchemeLabel");
-		const hint = $("callHint");
-		const practice = gameMode === "practice";
-		if (offRow) offRow.classList.remove("hidden");
-		if (defRow) defRow.classList.remove("hidden");
-		if (op) op.classList.toggle("hidden", !practice);
-		if (ds) ds.classList.toggle("hidden", !practice);
-		if (offLab) {
-			offLab.classList.toggle("hidden", practice);
-			offLab.textContent = currentPlay ? currentPlay.name : "—";
-		}
-		if (defLab) {
-			defLab.classList.toggle("hidden", practice);
-			defLab.textContent = currentScheme ? currentScheme.name : "—";
-		}
-		if (op && currentPlay && practice) {
-			const id = currentPlay.baseId || currentPlay.id;
-			if ([...op.options].some((o) => o.value === id)) op.value = id;
-		}
-		if (ds && currentScheme && practice) {
-			if ([...ds.options].some((o) => o.value === currentScheme.id)) ds.value = currentScheme.id;
-		}
-		if (hint) {
-			hint.textContent = practice
-				? "Practice: first huddle is random, then both calls stick until you change them."
-				: "Game: both calls re-roll every play. Names are labels — playbooks stay in Practice.";
-		}
-	}
 	function populatePracticeSelects() {
 		const op = $("practiceOffPlay");
 		const ds = $("practiceDefScheme");
-		if (gameMode === "practice") {
-			if (!practiceOffPlayId && OFF_PLAYS.length) practiceOffPlayId = randChoice(OFF_PLAYS).id;
-			if (!practiceDefSchemeId && DEF_SCHEMES.length) practiceDefSchemeId = randChoice(DEF_SCHEMES).id;
-		}
 		if (op) {
 			op.innerHTML = "";
 			OFF_PLAYS.forEach((p) => {
 				const o = document.createElement("option");
-				o.value = p.id;
-				o.textContent = p.name;
-				const cur = gameMode === "practice" ? practiceOffPlayId : (huddleOffPickId || (currentPlay && (currentPlay.baseId || currentPlay.id)));
-				if (cur ? p.id === cur : false) o.selected = true;
+			o.value = p.id;
+			o.textContent = p.name;
+				if (practiceOffPlayId ? p.id === practiceOffPlayId : false) o.selected = true;
 				op.appendChild(o);
 			});
+			if (!practiceOffPlayId && OFF_PLAYS[0]) practiceOffPlayId = OFF_PLAYS[0].id;
 		}
 		if (ds) {
 			ds.innerHTML = "";
 			DEF_SCHEMES.forEach((s) => {
 				const o = document.createElement("option");
-				o.value = s.id;
-				o.textContent = s.name;
-				const cur = gameMode === "practice" ? practiceDefSchemeId : (huddleDefPickId || (currentScheme && currentScheme.id));
-				if (cur ? s.id === cur : false) o.selected = true;
+			o.value = s.id;
+			o.textContent = s.name;
+				if (practiceDefSchemeId ? s.id === practiceDefSchemeId : false) o.selected = true;
 				ds.appendChild(o);
 			});
+			if (!practiceDefSchemeId && DEF_SCHEMES[0]) practiceDefSchemeId = DEF_SCHEMES[0].id;
 		}
-		syncCallSelects();
 	}
 	function randomizeCamCorner() {
 		camCorner = Math.random() < 0.5 ? "sw" : "nw";
@@ -11593,11 +10587,14 @@ function drawMiniPreview(canvas, kind) {
 		const pc = $("practiceControls");
 		if (pc) pc.classList.remove("hidden");
 		updateConfigPanelForMode();
-		syncNextPlayDefault();
+		const np = $("nextPlaySelect");
+		if (np) {
+			np.value = "snap";
+			nextPlayOnSnap = true;
+		}
 		populatePracticeSelects();
 		practiceAwaitSnap = true;
 		practiceAudibleArm = false;
-		practiceDefAudibleArm = false;
 		if (gameMode !== "practice") resetSessionClock();
 		randomizeCamCorner();
 		document.body.classList.toggle("practice-mode", gameMode === "practice");
@@ -11605,8 +10602,6 @@ function drawMiniPreview(canvas, kind) {
 			applyPracticeLosNow();
 			updateHUD();
 		} else {
-			huddleOffPickId = null;
-			huddleDefPickId = null;
 			syncStartYardFromUI();
 			ballYard = userToAbsolute(userStartYard);
 			playStartYard = ballYard;
@@ -11615,11 +10610,9 @@ function drawMiniPreview(canvas, kind) {
 			practiceAwaitSnap = true;
 			resetSessionClock();
 			try { placeEntitiesForNewPlay(); } catch (err) { console.error(err); }
-			armGameDefAutoSnap();
 			updateHUD();
 		}
 		if (typeof refreshPracticePreviews === "function") refreshPracticePreviews();
-		syncCallSelects();
 	}
 	const modeEl = $("modeSelect");
 	if (modeEl) {
@@ -11628,18 +10621,14 @@ function drawMiniPreview(canvas, kind) {
 	}
 	const pop = $("practiceOffPlay");
 	if (pop) pop.onchange = (e) => {
-		const id = e.target.value;
-		if (gameMode !== "practice") { syncCallSelects(); return; }
-		practiceOffPlayId = id;
+		practiceOffPlayId = e.target.value;
 		if (!playActive) {
 			try { placeEntitiesForNewPlay(); } catch (err) { console.error(err); }
 		}
 	};
 	const pds = $("practiceDefScheme");
 	if (pds) pds.onchange = (e) => {
-		const id = e.target.value;
-		if (gameMode !== "practice") { syncCallSelects(); return; }
-		practiceDefSchemeId = id;
+		practiceDefSchemeId = e.target.value;
 		if (!playActive) {
 			try { placeEntitiesForNewPlay(); } catch (err) { console.error(err); }
 		}
@@ -11874,174 +10863,10 @@ function drawMiniPreview(canvas, kind) {
 	const ro = new ResizeObserver(() => refreshScale());
 	if (canvas.parentElement) ro.observe(canvas.parentElement);
 	window.__controlsTest = {
-		getX: () => (playingDefense() && userDefender ? userDefender.x : rb?.x) ?? 0,
-		getY: () => (playingDefense() && userDefender ? userDefender.y : rb?.y) ?? 0,
-		getYaw: () => (playingDefense() && userDefender ? userDefender.facing : rb?.facing) ?? 0,
-		getSpeed: () => {
-			const pl = playingDefense() && userDefender ? userDefender : rb;
-			return pl ? Math.hypot(pl.vx || 0, pl.vy || 0) : 0;
-		},
-		getUserSide: () => userSide,
-		setUserSide,
-		getUserDefender: () => userDefender && { x: userDefender.x, y: userDefender.y, group: userDefender.group, role: userDefender.dbRole, number: userDefender.number, state: userDefender.state, engageT: userDefender.engageT, pancaked: !!userDefender.pancaked },
-		getHuddleDef: () => userDefHuddleKey && { ...userDefHuddleKey },
-		cycleDef: (dir) => {
-			cycleUserDefender(dir == null ? 1 : dir);
-			return window.__controlsTest.getUserDefender();
-		},
-		lockHuddle: () => {
-			lockHuddleDefender();
-			return window.__controlsTest.getHuddleDef();
-		},
-		snapNow: () => {
-			practiceAwaitSnap = false;
-			practiceAudibleArm = false;
-			practiceDefAudibleArm = false;
-			gameAutoSnapT = 0;
-			playActive = true;
-			lockHuddleDefender();
-			return window.__controlsTest.getUserDefender();
-		},
-		switchLive: () => {
-			const pick = bestPursuitDefender(userDefender);
-			if (pick) setUserDefender(pick, true, false);
-			return { live: window.__controlsTest.getUserDefender(), huddle: window.__controlsTest.getHuddleDef() };
-		},
-		restagePlay: () => {
-			placeEntitiesForNewPlay();
-			return window.__controlsTest.getUserDefender();
-		},
-		setNumDBs: (n) => {
-			numDBs = clamp(n, 0, 6);
-			rebuildAfterPersonnelChange();
-			const midX = (fieldLeft() + fieldRight()) / 2;
-			return defenders.filter((d) => d.group === "DB").map((d) => ({ x: +Number(d.x).toFixed(2), y: +Number(d.y).toFixed(2), role: d.dbRole, job: d.job, dxMid: +Number(d.x - midX).toFixed(2) }));
-		},
-		getCalls: () => ({
-			mode: gameMode,
-			side: userSide,
-			off: currentPlay && { id: currentPlay.baseId || currentPlay.id, name: currentPlay.name },
-			def: currentScheme && { id: currentScheme.id, name: currentScheme.name },
-			lockOff: practiceOffPlayId,
-			lockDef: practiceDefSchemeId,
-			huddleOff: huddleOffPickId,
-			huddleDef: huddleDefPickId,
-			offRowHidden: !!$("offPlayRow")?.classList.contains("hidden"),
-			defRowHidden: !!$("defSchemeRow")?.classList.contains("hidden"),
-			offSelectHidden: !!$("practiceOffPlay")?.classList.contains("hidden"),
-			defSelectHidden: !!$("practiceDefScheme")?.classList.contains("hidden"),
-			offLabelHidden: !!$("gameOffPlayLabel")?.classList.contains("hidden"),
-			defLabelHidden: !!$("gameDefSchemeLabel")?.classList.contains("hidden"),
-			offLabel: $("gameOffPlayLabel")?.textContent || "",
-			defLabel: $("gameDefSchemeLabel")?.textContent || "",
-			booksHidden: !!$("practicePreview")?.classList.contains("hidden"),
-			nextOnSnap: !!nextPlayOnSnap,
-			autoSnapT: +Number(gameAutoSnapT).toFixed(3),
-			awaitSnap: !!practiceAwaitSnap,
-			playActive: !!playActive
-		}),
-		afterPlay: () => {
-			if (gameMode === "game") {
-				huddleOffPickId = null;
-				huddleDefPickId = null;
-			}
-			playActive = false;
-			practiceAwaitSnap = true;
-			practiceAudibleArm = false;
-			practiceDefAudibleArm = false;
-			placeEntitiesForNewPlay();
-			armGameDefAutoSnap();
-			syncCallSelects();
-			return window.__controlsTest.getCalls();
-		},
-		endPlayNow: (reason, yards) => {
-			endPlay(reason || "Tackled", yards == null ? 3 : yards);
-			return {
-				pauseTimer: +Number(pauseTimer).toFixed(3),
-				playActive: !!playActive,
-				awaitSnap: !!practiceAwaitSnap,
-				autoSnapT: +Number(gameAutoSnapT).toFixed(3),
-				nextOnSnap: !!nextPlayOnSnap
-			};
-		},
-		setNextPlay: (v) => {
-			const np = $("nextPlaySelect");
-			const auto = v === "auto" || v === false;
-			if (np) np.value = auto ? "auto" : "snap";
-			nextPlayOnSnap = !auto;
-			if (practiceAwaitSnap) {
-				armGameDefAutoSnap();
-				if (playingDefense() && userDefender) setPlayCall(huddleCallLabel() + huddleWaitHint());
-			}
-			return window.__controlsTest.getCalls();
-		},
-		pointDef: (dx, dy) => {
-			const pick = pointSelectDefender(dx == null ? -1 : dx, dy == null ? 0 : dy, userDefender);
-			if (pick) setUserDefender(pick, true, !!practiceAwaitSnap);
-			return window.__controlsTest.getUserDefender();
-		},
-		setMode: (m) => {
-			setGameMode(m);
-			return window.__controlsTest.getCalls();
-		},
-		setStrafe: (on) => {
-			if (userDefender) userDefender._strafe = !!on;
-			return !!(userDefender && userDefender._strafe);
-		},
-		ySnapReady: () => ({ awaitSnap: !!practiceAwaitSnap, side: userSide }),
-		fireHitAtCarrier: () => {
-			if (!userDefender || !rb) return { ok: false };
-			defHitCool = 0;
-			defHitLatch = false;
-			userDefender.state = "pursue";
-			userDefender.pancaked = false;
-			userDefender.whiffT = 0;
-			userDefender.recoverT = 0;
-			userDefender._userMiss = false;
-			clearAttack(userDefender);
-			fireHitStick(userDefender, rb.x - userDefender.x, rb.y - userDefender.y);
-			return {
-				ok: true,
-				state: userDefender.state,
-				atkKind: userDefender.atkKind,
-				tackle: !!tackleAnim,
-				whiff: userDefender.state === "whiff",
-				dist: +Number(dist(userDefender, rb)).toFixed(2)
-			};
-		},
-		placeDefNearBall: (dx, dy) => {
-			if (!userDefender || !rb) return null;
-			userDefender.x = rb.x + (dx != null ? dx : 0.4);
-			userDefender.y = rb.y + (dy != null ? dy : -1.6);
-			userDefender.state = "pursue";
-			userDefender.pancaked = false;
-			userDefender.whiffT = 0;
-			userDefender.recoverT = 0;
-			return { x: userDefender.x, y: userDefender.y, rbX: rb.x, rbY: rb.y };
-		},
-		getPlayActive: () => !!playActive,
-		freezeCpuTackle: (v) => {
-			qaNoCpuTackle = !!v;
-			return qaNoCpuTackle;
-		},
-		getDefDebug: () => ({
-			playActive: !!playActive,
-			awaitSnap: !!practiceAwaitSnap,
-			playAge: +Number(playAge).toFixed(3),
-			side: userSide,
-			pauseTimer,
-			tackle: !!tackleAnim,
-			state: userDefender && userDefender.state,
-			engageT: userDefender && +Number(userDefender.engageT || 0).toFixed(2),
-			pancaked: !!(userDefender && userDefender.pancaked),
-			recoverT: userDefender && +Number(userDefender.recoverT || 0).toFixed(2),
-			whiffT: userDefender && +Number(userDefender.whiffT || 0).toFixed(2),
-			miss: !!(userDefender && userDefender._userMiss),
-			x: userDefender && +Number(userDefender.x).toFixed(3),
-			y: userDefender && +Number(userDefender.y).toFixed(3),
-			vx: userDefender && +Number(userDefender.vx || 0).toFixed(3),
-			theta: camOp.theta || 0
-		}),
+		getX: () => rb?.x ?? 0,
+		getY: () => rb?.y ?? 0,
+		getYaw: () => rb?.facing ?? 0,
+		getSpeed: () => rb ? Math.hypot(rb.vx, rb.vy) : 0,
 		getPlayAge: () => playAge,
 		getCelebrate: () => celebrateTimer > 0,
 		getYards: () => totalYards,
@@ -12104,8 +10929,6 @@ function drawMiniPreview(canvas, kind) {
 			altSteps: currentPlay && currentPlay.altSteps ? currentPlay.altSteps.map((s) => ({ dx: s.dx, dy: s.dy, t: s.t })) : null,
 			pad: padProfile,
 			awaitSnap: !!practiceAwaitSnap,
-			userSide,
-			userDef: userDefender && { group: userDefender.group, role: userDefender.dbRole, number: userDefender.number, x: +Number(userDefender.x).toFixed(2), y: +Number(userDefender.y).toFixed(2) },
 			sprintCharge,
 			sprintHoldT,
 			sprintExhausted,

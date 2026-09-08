@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Football Ground Attack Lab</title>
-  <meta name="description" content="Practice lab: 6 offense × 6 defense. Play as the runner or the defense." />
+  <meta name="description" content="Practice lab: 6 offense × 6 defense. Make defenders miss." />
   <meta name="theme-color" content="#0c1410" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -15,7 +15,7 @@
   <main class="lab-main">
     <header class="lab-header">
       <div>
-        <p class="lab-eyebrow">Elevation Edge · v8</p>
+        <p class="lab-eyebrow">Elevation Edge · v7</p>
         <h1>Football Ground Attack Lab</h1>
       </div>
             <nav class="lab-versions" aria-label="Version archive">
@@ -27,8 +27,7 @@
         <a href="https://elevation-edge-sports-data.github.io/football-ground-attack-lab/archive/v4/index.html" target="_blank" rel="noreferrer">v4</a>
         <a href="https://elevation-edge-sports-data.github.io/football-ground-attack-lab/archive/v5/index.html" target="_blank" rel="noreferrer">v5</a>
         <a href="https://elevation-edge-sports-data.github.io/football-ground-attack-lab/archive/v6-1/index.html" target="_blank" rel="noreferrer">v6</a>
-        <a href="https://elevation-edge-sports-data.github.io/football-ground-attack-lab/" target="_blank" rel="noreferrer">v7</a>
-        <a href="index.html" aria-current="page">v8</a>
+        <a href="index.html" aria-current="page">v7</a>
         <a href="https://github.com/elevation-edge-sports-data/football-ground-attack-lab" target="_blank" rel="noreferrer">GitHub</a>
       </nav>
     </header>
@@ -87,33 +86,21 @@
             </select>
           </label>
           <label class="lab-row">
-            Play as
-            <select id="sideSelect">
-              <option value="off" selected>Offense</option>
-              <option value="def">Defense</option>
-            </select>
-          </label>
-          <label class="lab-row">
             Next play
             <select id="nextPlaySelect">
               <option value="auto">Automatic</option>
-              <option value="snap" selected>On snap</option>
+              <option value="snap" selected>On snap (A)</option>
             </select>
           </label>
-          <div id="sideHint" class="lab-muted" style="font-size:11px;margin-top:2px;line-height:1.35">
-            Offense: A snaps. Defense: tap A/B switch · B + stick point · Y snaps or sheds. Automatic next play snaps after a 2–3s huddle so you can switch / shade.
-          </div>
           <div id="practiceControls">
-            <label class="lab-row" id="offPlayRow">Offense play
+            <label class="lab-row">Offense play
               <select id="practiceOffPlay"></select>
-              <span id="gameOffPlayLabel" class="call-label hidden">—</span>
             </label>
-            <label class="lab-row" id="defSchemeRow">Defense scheme
+            <label class="lab-row">Defense scheme
               <select id="practiceDefScheme"></select>
-              <span id="gameDefSchemeLabel" class="call-label hidden">—</span>
             </label>
-            <div id="callHint" class="lab-muted" style="font-size:11px;margin-top:4px;line-height:1.35">
-              Practice: playbooks and dropdowns. Game: both calls re-roll; labels only.
+            <div class="lab-muted" style="font-size:11px;margin-top:4px;line-height:1.35">
+              Practice: 6×6 books · ←→ switch books · ↑↓ / click browse · RT flip O only · LT flip D only · A snap
             </div>
           </div>
         </div>
@@ -364,8 +351,6 @@
 
     <div class="lab-foot">
       <div id="help">
-        <strong>v8 Defense:</strong> Play as Offense (default) or Defense. Defense starts on the free safety. Presnap: tap A/B to cycle; B + stick points; Y sheds after the snap (quiet Y still snaps). Live: A sprint · B switch · X dive · Y shed · LT wrap · RT punch · LB or RB strafe · RS hit stick. Practice keeps playbooks and dropdowns. Game hides playbooks, shows call names as labels, and re-rolls both sides every play. Defense Automatic (Practice or Game) snaps after a 2–3s huddle so you can switch and shade.
-        <br />
         <strong>v6 Practice:</strong> 6 offense × 6 defense. RT flips offense only; LT flips defense only. No clock. LOS is the Practice control every snap.
         <br />
         <strong>Profiles:</strong> Basic (v1) = D-pad steers, LT/RT stiff, Start pause.

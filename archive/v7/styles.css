@@ -1,4 +1,4 @@
-/* Football Ground Attack Lab v8 */
+/* Football Ground Attack Lab v7 */
 :root {
   --color-bg: #0c1410;
   --color-surface: #161c18;
@@ -528,24 +528,6 @@ details[open] > summary span {
 #practiceControls select {
   max-width: 11rem;
 }
-#practiceControls .call-label {
-  display: inline-block;
-  min-width: 7.5rem;
-  max-width: 11rem;
-  font-family: var(--font-display);
-  font-size: 0.82rem;
-  font-weight: 600;
-  letter-spacing: 0.03em;
-  color: var(--color-fg);
-  text-align: right;
-}
-#practiceControls select.hidden,
-#practiceControls .call-label.hidden {
-  display: none !important;
-}
-body:not(.practice-mode) .practice-preview {
-  display: none !important;
-}
 
 
 /* Practice preview column (right of field) */
@@ -802,11 +784,6 @@ body:not(.practice-mode) .practice-preview {
 }
 .lab-aside select {
   max-width: 100%;
-  min-width: 7.2rem;
-  flex: 1 1 auto;
-  color: var(--color-fg);
-  background-color: var(--color-surface);
-  color-scheme: dark;
 }
 /* Slightly larger field view */
 #canvasWrap {
