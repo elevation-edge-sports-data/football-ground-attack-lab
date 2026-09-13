@@ -1,4 +1,4 @@
-/* Football Ground Attack Lab v9 */
+/* Football Ground Attack Lab v8 */
 :root {
   --color-bg: #0c1410;
   --color-surface: #161c18;
@@ -360,7 +360,11 @@ button:not(:disabled), [role="button"]:not(:disabled) { cursor: pointer; }
 }
 
 .lab-scores {
-  display: none;
+  min-width: 140px;
+  border-radius: 8px;
+  border: 1px solid var(--color-line);
+  background: var(--color-surface);
+  padding: 8px 12px;
 }
 
 .lab-scores h3 {
@@ -772,25 +776,19 @@ body:not(.practice-mode) .practice-preview {
   max-width: 100vw;
 }
 
-/* Left menu scrolls in place so Field / custom EZ text stay reachable
-   without scrolling the page (canvas focus used to yank the view to top). */
+/* v5 layout fix: one page flow, no per-panel scroll traps */
 .lab-aside {
-  overflow-x: hidden !important;
-  overflow-y: auto !important;
-  max-height: min(82vh, 720px) !important;
+  overflow: visible !important;
+  max-height: none !important;
   width: 168px;
   max-width: 168px;
-  overscroll-behavior: contain;
-  scrollbar-gutter: stable;
 }
 @media (min-width: 860px) {
   .lab-aside {
-    overflow-x: hidden !important;
-    overflow-y: auto !important;
-    max-height: min(82vh, 720px) !important;
+    overflow: visible !important;
+    max-height: none !important;
     width: 168px;
     max-width: 168px;
-    overscroll-behavior: contain;
   }
 }
 .lab-aside .lab-panel,
@@ -838,21 +836,17 @@ body:not(.practice-mode) .practice-preview {
 .practice-preview .prev-audible {
   flex: 1 1 100%;
   order: 9;
-  margin-top: 6px;
-  position: relative;
-  z-index: 3;
 }
 
 .prev-block.prev-focused {
-  box-shadow: none;
-  outline: 2px solid rgba(251, 79, 20, 0.9);
-  outline-offset: -2px;
-  transform: none;
+  box-shadow: 0 0 0 2px rgba(251, 79, 20, 0.85), 0 0 12px rgba(251, 79, 20, 0.25);
+  transform: scale(1.06);
+  transform-origin: top center;
   z-index: 2;
-  border-color: rgba(251, 79, 20, 0.95);
 }
 .prev-block:not(.prev-focused) {
-  transform: none;
+  transform: scale(0.94);
+  transform-origin: top center;
   opacity: 0.92;
 }
 

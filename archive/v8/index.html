@@ -6,32 +6,30 @@
   <title>Football Ground Attack Lab</title>
   <meta name="description" content="Practice lab: 6 offense × 6 defense. Play as the runner or the defense." />
   <meta name="theme-color" content="#0c1410" />
-  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-<main class="lab-main">
+  <main class="lab-main">
     <header class="lab-header">
       <div>
-        <p class="lab-eyebrow">Elevation Edge · v9</p>
+        <p class="lab-eyebrow">Elevation Edge · v8</p>
         <h1>Football Ground Attack Lab</h1>
       </div>
             <nav class="lab-versions" aria-label="Version archive">
         <span class="lab-versions-label">Archive</span>
-        <a href="archive/v0.html">v0</a>
-        <a href="archive/v1.html">v1</a>
-        <a href="archive/v2.html">v2</a>
-        <a href="archive/v3/index.html">v3</a>
-        <a href="archive/v4/index.html">v4</a>
-        <a href="archive/v5/index.html">v5</a>
-        <a href="archive/v6-1/index.html">v6</a>
-        <a href="archive/v7/index.html">v7</a>
-        <a href="archive/v8/index.html">v8</a>
-        <a href="index.html" aria-current="page">v9</a>
-        <a href="https://github.com/elevation-edge-sports-data/football-ground-attack-lab">GitHub</a>
+        <a href="https://elevation-edge-sports-data.github.io/football-ground-attack-lab/archive/v0.html" target="_blank" rel="noreferrer">v0</a>
+        <a href="https://elevation-edge-sports-data.github.io/football-ground-attack-lab/archive/v1.html" target="_blank" rel="noreferrer">v1</a>
+        <a href="https://elevation-edge-sports-data.github.io/football-ground-attack-lab/archive/v2.html" target="_blank" rel="noreferrer">v2</a>
+        <a href="https://elevation-edge-sports-data.github.io/football-ground-attack-lab/archive/v3/index.html" target="_blank" rel="noreferrer">v3</a>
+        <a href="https://elevation-edge-sports-data.github.io/football-ground-attack-lab/archive/v4/index.html" target="_blank" rel="noreferrer">v4</a>
+        <a href="https://elevation-edge-sports-data.github.io/football-ground-attack-lab/archive/v5/index.html" target="_blank" rel="noreferrer">v5</a>
+        <a href="https://elevation-edge-sports-data.github.io/football-ground-attack-lab/archive/v6-1/index.html" target="_blank" rel="noreferrer">v6</a>
+        <a href="https://elevation-edge-sports-data.github.io/football-ground-attack-lab/" target="_blank" rel="noreferrer">v7</a>
+        <a href="index.html" aria-current="page">v8</a>
+        <a href="https://github.com/elevation-edge-sports-data/football-ground-attack-lab" target="_blank" rel="noreferrer">GitHub</a>
       </nav>
     </header>
 
@@ -102,6 +100,9 @@
               <option value="snap" selected>On snap</option>
             </select>
           </label>
+          <div id="sideHint" class="lab-muted" style="font-size:11px;margin-top:2px;line-height:1.35">
+            Offense: A snaps. Defense: tap A/B switch · B + stick point · Y snaps or sheds. Automatic next play snaps after a 2–3s huddle so you can switch / shade.
+          </div>
           <div id="practiceControls">
             <label class="lab-row" id="offPlayRow">Offense play
               <select id="practiceOffPlay"></select>
@@ -111,6 +112,9 @@
               <select id="practiceDefScheme"></select>
               <span id="gameDefSchemeLabel" class="call-label hidden">—</span>
             </label>
+            <div id="callHint" class="lab-muted" style="font-size:11px;margin-top:4px;line-height:1.35">
+              Practice: playbooks and dropdowns. Game: both calls re-roll; labels only.
+            </div>
           </div>
         </div>
 
@@ -130,8 +134,8 @@
           </label>
           <label class="lab-row">
             Speed
-            <input id="speedSlider" type="range" min="0.5" max="2" step="0.05" value="1.00" />
-            <span id="speedLabel">1.00×</span>
+            <input id="speedSlider" type="range" min="0.5" max="2" step="0.05" value="1.20" />
+            <span id="speedLabel">1.20×</span>
           </label>
           <label class="lab-row">
             Offense
@@ -146,12 +150,12 @@
           <label class="lab-row">
             Break block
             <input id="breakBlockSlider" type="range" min="0.5" max="2" step="0.05" value="1.00" />
-            <span id="breakBlockLabel">1.00</span>
+            <span id="breakBlockLabel">1.00×</span>
           </label>
           <label class="lab-row">
             Break tackle
             <input id="breakTackleSlider" type="range" min="0.5" max="2" step="0.05" value="1.00" />
-            <span id="breakTackleLabel">1.00</span>
+            <span id="breakTackleLabel">1.00×</span>
           </label>
           <label class="lab-row" title="When off, speed burst stays at full power.">
             <input type="checkbox" id="fatigueToggle" checked /> Fatigue
@@ -258,7 +262,7 @@
           </label>
           <label class="lab-row" id="ezTextCustomRow" style="display:none">
             Custom
-            <input id="ezTextCustom" maxlength="64" value="ELEVATION EDGE" style="width:100%;min-width:0;letter-spacing:0.02em" />
+            <input id="ezTextCustom" maxlength="64" value="ELEVATION EDGE" style="width:12rem;letter-spacing:0.02em" />
           </label>
           <label class="lab-row">
             Midfield logo
@@ -360,17 +364,37 @@
 
     <div class="lab-foot">
       <div id="help">
-        <strong>v9 Look:</strong> Robotic player models, true-perspective stadium, X cursor, sticky 0°/180° orbit.
+        <strong>v8 Defense:</strong> Play as Offense (default) or Defense. Defense starts on the free safety. Presnap: tap A/B to cycle; B + stick points; Y sheds after the snap (quiet Y still snaps). Live: A sprint · B switch · X dive · Y shed · LT wrap · RT punch · LB or RB strafe · RS hit stick. Practice keeps playbooks and dropdowns. Game hides playbooks, shows call names as labels, and re-rolls both sides every play. Defense Automatic (Practice or Game) snaps after a 2–3s huddle so you can switch and shade.
         <br />
-        <strong>v8 Defense:</strong> Play as Offense (default) or Defense. Defense starts on the free safety. Presnap: tap A/B to cycle; B + stick points; Y sheds after the snap. Live: A sprint · B switch · X dive · Y shed · LT wrap · RT punch · LB or RB strafe · RS hit stick. Practice keeps playbooks. Game re-rolls both calls each play. Automatic next play snaps after a 2–3s huddle so you can switch and shade.
+        <strong>v6 Practice:</strong> 6 offense × 6 defense. RT flips offense only; LT flips defense only. No clock. LOS is the Practice control every snap.
         <br />
-        <strong>Profiles:</strong> Basic (v1) = D-pad steers, LT/RT stiff, Start pause. Expanded (v2) = D-pad extra moves, click RS pause. Wings (v3) = LT/RT nearest teammates; one stick directs you and them. Independent (v4) = independently steer ball carrier and teammates. Classic (v6) = Independent plus View stiff left, Menu stiff right; no celebrate.
+        <strong>Profiles:</strong> Basic (v1) = D-pad steers, LT/RT stiff, Start pause.
+        Expanded (v2) = D-pad is eight extra moves, click RS pause.
+        Wings (v3) = LT/RT independently select nearest teammates left/right; one stick directs you and them.
+        Independent (v4) = T-9; independently steer ball carrier and teammates using left and right sticks.
+        Classic (v6) = built on Independent; View/Select stiff left, Menu/Start stiff right; no celebrate.
         <br />
-        <strong>Xbox:</strong> Stick run · A burst · B spin · X dive · Y truck (Independent/Classic) / hurdle (Wings) · LB/RB juke · LT/RT teammates · D-pad miss moves · View celebrate (off on Classic) · click RS pause · H peek
+        <strong>Xbox:</strong> Stick run · A burst · B spin · X dive · Y truck (Independent/Classic) / hurdle (Wings) · LB/RB juke ·
+        LT/RT teammates · D-pad: up hurdle (Independent/Classic) / truck (Wings) · up-left / up-right stiff ·
+        left / right shake · down dead-leg · down-left / down-right dead-leg cut · RS also shake ·
+        View celebrate (off on Classic) · click RS pause · H peek · Classic: View stiff L · Menu stiff R
         <br />
-        <strong>Replay:</strong> Pause then X, or View / R. A pause/play · X/B zoom · LB/RB slow-mo · LT/RT fast · left stick pan · hold Y + stick orbit · View or R exit. Freestyle: Pause then Y to adjust (X/B zoom, stick recenter, Y+stick rotate, A confirm).
+        <strong>Goal line (inside 5):</strong> D-pad up / up-left / up-right plow a lane · X dive ducks under
+        a pile or into a crease · Y truck powers through contact · D-pad up hurdle leaps or glances off the stack.
         <br />
-        <strong>Keys:</strong> WASD run · Space burst · Q/E juke · IJKL miss-pad · F spin · C dive · V truck/hurdle · Z/X teammates · G celebrate · H peek · R replay · P pause · 1–6 pick the focused book
+        <strong>Replay:</strong> After a play, Pause (or P / click RS) then X, or press View / R for instant replay of that play. Clip starts at the snap.
+        <br />
+        <strong>Replay camera:</strong> A pause/play · X / B zoom · LB / RB slow-mo · LT / RT fast · left stick pan the X · hold Y + left stick orbit (left/right spin, up overhead, down field level) · View or R exit.
+        <br />
+        <strong>Freestyle camera:</strong> Default view. Pause, then press Y to adjust: X/B zoom, arrows/left stick recenter, Y+arrows/left stick rotate (L/R theta, U/D phi), A confirm.
+        <br />
+        <strong>Keys:</strong> WASD run · Space burst · Q/E juke · IJKL miss-pad (I+J / I+L stiff) ·
+        F spin · C dive · V truck (Independent/Classic) / hurdle (Wings) · Z/X teammates (Wings+) or stiff (Basic/Expanded) · G celebrate (off on Classic) · H peek ·
+        R replay · P pause · 1–6 pick the focused book
+      </div>
+      <div class="lab-scores">
+        <h3>Top 5</h3>
+        <ol id="scoreList"></ol>
       </div>
     </div>
 

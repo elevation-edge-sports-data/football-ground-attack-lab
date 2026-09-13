@@ -1,10 +1,10 @@
 # Football Ground Attack Lab
 
-Customizable running-back lab on a single HTML5 canvas. **Version 9.** Play as offense (default) or defense.
+Customizable running-back lab on a single HTML5 canvas. **Version 8.** Play as offense (default) or defense.
 
 **[Play](https://elevation-edge-sports-data.github.io/football-ground-attack-lab/)** · [GitHub](https://github.com/elevation-edge-sports-data/football-ground-attack-lab)
 
-![v9](screenshot.png)
+![v7](screenshot.png)
 
 Earlier versions (v0, v2, v3):
 
@@ -27,7 +27,7 @@ Not affiliated with, endorsed by, or licensed by any league or team.
 11. **Freestyle camera** (default) plus angled 2D, overhead, high, zoom, and wide
 12. Madden-style **instant replay**: zoom, slow-mo, fast scrub, pan, spherical orbit (theta / phi)
 13. Volume player models with pose changes for dive, juke, spin, truck, stiff-arm, pancake, wrap, hit stick
-14. Stadium bowl: sectioned stands, crowd, press box, lights, 3D goal posts, dual scoreboards, jumbotron. Touchdown lights the sky in team color
+14. Stadium bowl: sectioned stands, crowd, press box, lights, 3D goal posts, dual scoreboards, jumbotron
 15. Optional fumbles; celebrate (off on Classic); speed burst in the clear; TD camera zoom
 16. Personnel counts for OL, TE, FB, QB, DT, LB, DB. One DB stands middle-center; two DBs keep the middle pair
 17. Speed, offense, defense, break-block, and break-tackle sliders
@@ -189,7 +189,7 @@ Microsoft Edge is recommended for an Xbox controller.
 
 `index.html` + `game.js` + `styles.css` + `ee-logo.png`. Canvas and JavaScript. No dependencies. Works offline.
 
-`screenshot.png` is the v9 capture. Earlier versions live in `archive/` (v0–v8, including v6-0 and v6-1).
+`screenshot.png` is the v7 capture for now.
 
 Built by [Zach Sajevic](https://github.com/elevation-edge-sports-data)  
 Elevation Edge Sports Data
