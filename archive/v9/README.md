@@ -1,29 +1,16 @@
 # Football Ground Attack Lab
 
-Customizable running-back lab on a single HTML5 canvas. **Version 10.** Play as offense (default) or defense.
+Customizable running-back lab on a single HTML5 canvas. **Version 9.** Play as offense (default) or defense.
 
 **[Play](https://elevation-edge-sports-data.github.io/football-ground-attack-lab/)** · [GitHub](https://github.com/elevation-edge-sports-data/football-ground-attack-lab)
 
-![v10](screenshot.png)
+![v9](screenshot.png)
 
 Earlier versions (v0, v2, v3):
 
 ![v0, v2, and v3](screenshot-combo.png)
 
 Not affiliated with, endorsed by, or licensed by any league or team.
-
-## v10
-
-- **Game** is the default mode (Practice remains available)
-- Offense teammate steer restored on Wings (v3), Independent (v4), and Classic (v6): Z/X and LT/RT
-- Speed labeled 1.00× runs at 1.10; the whole 0.50–2.00 scale is +10% under the label
-- Break block labeled 1.00 is 0.75; break tackle labeled 1.00 is 1.50
-- Default field width is 75 yards; hashes and uprights scale with width
-- Default offense kit is DEN; default defense is randomized LV or KC
-- Press box sits on the right sideline; the 50-yard light post matches it
-- Open-field dive: land, get up, then run again (no dive-sprint chaining)
-- Dive into the end zone: dive, get up, then celebrate
-- Midfield logo stays painted on the turf, 45 to 45, with a random 90° flip at load
 
 ## Features
 
@@ -32,17 +19,17 @@ Not affiliated with, endorsed by, or licensed by any league or team.
 3. Authored **defense playbook** (6): Quarters, Overload, Prevent / Cloud, Bear, Fire Zone, Walk-Up
 4. Side playbook panel: numbered lists, miniature assignment diagrams (**Practice only**)
 5. Pre-snap field diagrams; offense and defense assigned independently
-6. **Game** and **Practice** modes (Game is default)
-7. **Next play:** On snap (A / Y) or Automatic. Defense Automatic huddles **1.1–2.1 seconds** (uniform random each play) so you can switch and shade, then snaps. **Y** still snaps immediately
+6. **Game** and **Practice** modes (Practice is default)
+7. **Next play:** On snap (A / Y) or Automatic. Defense Automatic huddles **2–3 seconds** (uniform random each play) so you can switch and shade, then snaps. **Y** still snaps immediately
 8. After the snap, a short handoff or pitch from QB to runner when a QB is on the field
 9. Optional runner path trail; trail in instant replay
 10. Save last play (up to 10 clips)
 11. **Freestyle camera** (default) plus angled 2D, overhead, high, zoom, and wide
 12. Madden-style **instant replay**: zoom, slow-mo, fast scrub, pan, spherical orbit (theta / phi)
 13. Volume player models with pose changes for dive, juke, spin, truck, stiff-arm, pancake, wrap, hit stick
-14. Stadium bowl: sectioned stands, crowd, press box (right sideline), lights, 3D goal posts, dual scoreboards, jumbotron. Touchdown lights the sky in team color
+14. Stadium bowl: sectioned stands, crowd, press box, lights, 3D goal posts, dual scoreboards, jumbotron. Touchdown lights the sky in team color
 15. Optional fumbles; celebrate (off on Classic); speed burst in the clear; TD camera zoom
-16. Personnel counts for OL, TE, FB, QB, DT, LB, DB. Interior defenders spread with field width; the two widest DBs stay on the wings
+16. Personnel counts for OL, TE, FB, QB, DT, LB, DB. One DB stands middle-center; two DBs keep the middle pair
 17. Speed, offense, defense, break-block, and break-tackle sliders
 18. Variable field width; Natural Grass, Field Turf, or Astro Turf
 19. Uniform banner (8 kits). Matching kits are not allowed. Kits are unlabeled colors. User-controlled defenders get a team-color ring, same as the ball carrier
@@ -87,7 +74,7 @@ Default controlled defender is the **free safety**. The next huddle restores who
 | Point-select | F + WASD | B + left stick |
 | Shade / align | WASD | Left stick |
 | Snap now | Y (quiet) / Enter | Y / A hold (~0.4s) / Start |
-| Auto-snap | — | Automatic next play: random **1.1–2.1s** huddle, then snap |
+| Auto-snap | — | Automatic next play: random **2–3s** huddle, then snap |
 
 Cycle order is left DT → right DT → LBs → DBs, but the huddle **starts on the FS**, not the left DT.
 
@@ -177,32 +164,32 @@ Microsoft Edge is recommended for an Xbox controller.
 
 **Game** — session clock, score, yards, TDs. After a score, the next line of scrimmage follows Game Config (Random / Fixed / Increasing / Decreasing). Both the offense play and the defense scheme re-roll every play. Playbooks are hidden; call names are labels. Playing defense, Automatic is the default next-play setting.
 
-**Practice** — 6 offense × 6 defense. No clock. Practice Config sets the yard; every new play starts from that yard (gains and scores do not move the ball). Playbooks and dropdowns stay up. RT flips the offense book only; LT flips the defense book only. Next play defaults to On snap. Automatic uses the same 1.1–2.1s defense huddle as Game.
+**Practice** — 6 offense × 6 defense. No clock. Practice Config sets the yard; every new play starts from that yard (gains and scores do not move the ball). Playbooks and dropdowns stay up. RT flips the offense book only; LT flips the defense book only. Next play defaults to On snap. Automatic uses the same 2–3s defense huddle as Game.
 
 ## Defaults
 
-- Mode: Game
+- Mode: Practice
 - Play as: Offense
-- Next play: Automatic. Switching to Practice sets On snap
+- Next play: On snap (A). Switching to Game sets Automatic. Switching Play as does not overwrite the next-play setting
 - Start: midfield
 - After a score (Game): Random (own 20–opponent 20, 5-yard lines)
-- Speed labeled 1.00× (runs at 1.10) · Offense 1.00× · Defense 1.00×
-- Break block labeled 1.00 (0.75) · Break tackle labeled 1.00 (1.50)
+- Speed 1.20× · Offense 1.00× · Defense 1.00×
+- Break block 1.00× · Break tackle 1.00×
 - Fatigue on (3 s grace, then the burst meter depletes)
 - Fumbles off (Classic has no celebrate)
 - Runner path trail on
 - Camera: Freestyle
 - Replay: PiP
-- Offense DEN; defense randomized LV or KC
+- Offense and defense start on different kits
 - Clock: 2:00 (Game only)
-- Field width: 75 yards
+- Field width: 50 yards
 - Control profile: Classic (v6)
 
 ## Tech
 
 `index.html` + `game.js` + `styles.css` + `ee-logo.png`. Canvas and JavaScript. No dependencies. Works offline.
 
-`screenshot.png` is the v10 capture. Earlier versions live in `archive/` (v0–v9, including v6-0 and v6-1). Live v9 is `archive/v9/`.
+`screenshot.png` is the v9 capture. Earlier versions live in `archive/` (v0–v8, including v6-0 and v6-1).
 
 Built by [Zach Sajevic](https://github.com/elevation-edge-sports-data)  
 Elevation Edge Sports Data

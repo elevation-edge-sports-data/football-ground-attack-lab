@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Football Ground Attack Lab</title>
-  <meta name="description" content="Practice lab: 6 offense × 6 defense. Play as the runner or the defense." />
+  <meta name="description" content="v10 running-back lab: Game mode default. Play as the runner or the defense. Teammate steer restored." />
   <meta name="theme-color" content="#0c1410" />
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -16,7 +16,7 @@
 <main class="lab-main">
     <header class="lab-header">
       <div>
-        <p class="lab-eyebrow">Elevation Edge · v9</p>
+        <p class="lab-eyebrow">Elevation Edge · v10</p>
         <h1>Football Ground Attack Lab</h1>
       </div>
             <nav class="lab-versions" aria-label="Version archive">
@@ -30,7 +30,8 @@
         <a href="archive/v6-1/index.html">v6</a>
         <a href="archive/v7/index.html">v7</a>
         <a href="archive/v8/index.html">v8</a>
-        <a href="index.html" aria-current="page">v9</a>
+        <a href="archive/v9/index.html">v9</a>
+        <a href="index.html" aria-current="page">v10</a>
         <a href="https://github.com/elevation-edge-sports-data/football-ground-attack-lab">GitHub</a>
       </nav>
     </header>
@@ -84,8 +85,8 @@
           <label class="lab-row">
             Mode
             <select id="modeSelect">
-              <option value="game">Game</option>
-              <option value="practice" selected>Practice</option>
+              <option value="game" selected>Game</option>
+              <option value="practice">Practice</option>
             </select>
           </label>
           <label class="lab-row">
@@ -98,8 +99,8 @@
           <label class="lab-row">
             Next play
             <select id="nextPlaySelect">
-              <option value="auto">Automatic</option>
-              <option value="snap" selected>On snap</option>
+              <option value="auto" selected>Automatic</option>
+              <option value="snap">On snap</option>
             </select>
           </label>
           <div id="practiceControls">
@@ -360,9 +361,15 @@
 
     <div class="lab-foot">
       <div id="help">
+        <strong>v10 Game:</strong> Game is the default mode. Speed labeled 1.00× runs at 1.10; the whole 0.50–2.00 scale is +10% under the label. Play art holds ~0.50s longer after the snap. Automatic huddle is 1.5–2.5s.
+        <br />
+        <strong>v10 Offense:</strong> Wings (v3), Independent (v4), and Classic (v6) teammate steer is restored. Defense still uses LT wrap / RT punch.
+        <br />
+        <strong>v10 Profiles:</strong> v3: LT/RT take nearest blockers and share your stick. v4/v6: LT/RT take blockers, right stick steers them. Classic uses View/Menu for stiff-arms. Basic (v1) and Expanded (v2) are unchanged — LT/RT stay stiff.
+        <br />
         <strong>v9 Look:</strong> Robotic player models, true-perspective stadium, X cursor, sticky 0°/180° orbit.
         <br />
-        <strong>v8 Defense:</strong> Play as Offense (default) or Defense. Defense starts on the free safety. Presnap: tap A/B to cycle; B + stick points; Y sheds after the snap. Live: A sprint · B switch · X dive · Y shed · LT wrap · RT punch · LB or RB strafe · RS hit stick. Practice keeps playbooks. Game re-rolls both calls each play. Automatic next play snaps after a 2–3s huddle so you can switch and shade.
+        <strong>v8 Defense:</strong> Play as Offense (default) or Defense. Defense starts on the free safety. Presnap: tap A/B to cycle; B + stick points; Y sheds after the snap. Live: A sprint · B switch · X dive · Y shed · LT wrap · RT punch · LB or RB strafe · RS hit stick. Practice keeps playbooks. Game re-rolls both calls each play. Automatic next play snaps after a 1.5–2.5s huddle so you can switch and shade.
         <br />
         <strong>Profiles:</strong> Basic (v1) = D-pad steers, LT/RT stiff, Start pause. Expanded (v2) = D-pad extra moves, click RS pause. Wings (v3) = LT/RT nearest teammates; one stick directs you and them. Independent (v4) = independently steer ball carrier and teammates. Classic (v6) = Independent plus View stiff left, Menu stiff right; no celebrate.
         <br />
