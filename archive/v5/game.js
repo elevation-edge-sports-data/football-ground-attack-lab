@@ -13,16 +13,16 @@
 * Port of the v1 canvas sim + locked v2 mapping / AI / truck / burst / fumble.
 */
 const UNIFORMS = [
-	{ id: 0, abbr: "DEN", name: "Broncos", helmet: "#002244", jersey: "#FB4F14", pants: "#002244", number: "#FFFFFF", facemask: "#FFFFFF", endPrimary: "#002244", endSecondary: "#FB4F14", logoFill: "#002244", logoMark: "#FB4F14" },
-	{ id: 1, abbr: "KC", name: "Chiefs", helmet: "#E31837", jersey: "#FFFFFF", pants: "#E31837", number: "#E31837", facemask: "#FFFFFF", endPrimary: "#E31837", endSecondary: "#FFB81C", logoFill: "#E31837", logoMark: "#FFB81C" },
-	{ id: 2, abbr: "BUF", name: "Bills", helmet: "#FFFFFF", jersey: "#00338D", pants: "#00338D", number: "#FFFFFF", facemask: "#00338D", endPrimary: "#00338D", endSecondary: "#FFFFFF", logoFill: "#00338D", logoMark: "#FFFFFF" },
-	{ id: 3, abbr: "PIT", name: "Steelers", helmet: "#101820", jersey: "#101820", pants: "#FFB612", number: "#FFB612", facemask: "#FFB612", endPrimary: "#101820", endSecondary: "#FFB612", logoFill: "#101820", logoMark: "#FFB612" },
-	{ id: 4, abbr: "JAX", name: "Jaguars", helmet: "#101820", jersey: "#006778", pants: "#101820", number: "#D7A22A", facemask: "#D7A22A", endPrimary: "#006778", endSecondary: "#D7A22A", logoFill: "#006778", logoMark: "#D7A22A" },
-	{ id: 5, abbr: "NE", name: "Patriots", helmet: "#A5ACAF", jersey: "#FFFFFF", pants: "#002244", number: "#C60C30", facemask: "#C60C30", endPrimary: "#002244", endSecondary: "#C60C30", logoFill: "#002244", logoMark: "#C60C30" },
-	{ id: 6, abbr: "LV", name: "Raiders", helmet: "#A5ACAF", jersey: "#000000", pants: "#A5ACAF", number: "#FFFFFF", facemask: "#000000", endPrimary: "#000000", endSecondary: "#A5ACAF", logoFill: "#000000", logoMark: "#A5ACAF" },
-	{ id: 7, abbr: "SF", name: "49ers", helmet: "#B3995D", jersey: "#AA0000", pants: "#B3995D", number: "#FFFFFF", facemask: "#FFFFFF", endPrimary: "#AA0000", endSecondary: "#B3995D", logoFill: "#AA0000", logoMark: "#B3995D" },
-	{ id: 8, abbr: "MIN", name: "Vikings", helmet: "#4F2683", jersey: "#FFFFFF", pants: "#4F2683", number: "#4F2683", facemask: "#FFC62F", endPrimary: "#4F2683", endSecondary: "#FFC62F", logoFill: "#4F2683", logoMark: "#FFC62F" },
-	{ id: 9, abbr: "GB", name: "Packers", helmet: "#FFB612", jersey: "#203731", pants: "#FFB612", number: "#FFFFFF", facemask: "#203731", endPrimary: "#203731", endSecondary: "#FFB612", logoFill: "#203731", logoMark: "#FFB612" }
+	{ id: 0, helmet: "#002244", jersey: "#FB4F14", pants: "#002244", number: "#FFFFFF", facemask: "#FFFFFF", endPrimary: "#002244", endSecondary: "#FB4F14", logoFill: "#002244", logoMark: "#FB4F14" },
+	{ id: 1, helmet: "#E31837", jersey: "#FFFFFF", pants: "#E31837", number: "#E31837", facemask: "#FFFFFF", endPrimary: "#E31837", endSecondary: "#FFB81C", logoFill: "#E31837", logoMark: "#FFB81C" },
+	{ id: 2, helmet: "#FFFFFF", jersey: "#00338D", pants: "#00338D", number: "#FFFFFF", facemask: "#00338D", endPrimary: "#00338D", endSecondary: "#FFFFFF", logoFill: "#00338D", logoMark: "#FFFFFF" },
+	{ id: 3, helmet: "#101820", jersey: "#101820", pants: "#FFB612", number: "#FFB612", facemask: "#FFB612", endPrimary: "#101820", endSecondary: "#FFB612", logoFill: "#101820", logoMark: "#FFB612" },
+	{ id: 4, helmet: "#101820", jersey: "#006778", pants: "#101820", number: "#D7A22A", facemask: "#D7A22A", endPrimary: "#006778", endSecondary: "#D7A22A", logoFill: "#006778", logoMark: "#D7A22A" },
+	{ id: 5, helmet: "#A5ACAF", jersey: "#FFFFFF", pants: "#002244", number: "#C60C30", facemask: "#C60C30", endPrimary: "#002244", endSecondary: "#C60C30", logoFill: "#002244", logoMark: "#C60C30" },
+	{ id: 6, helmet: "#A5ACAF", jersey: "#000000", pants: "#A5ACAF", number: "#FFFFFF", facemask: "#000000", endPrimary: "#000000", endSecondary: "#A5ACAF", logoFill: "#000000", logoMark: "#A5ACAF" },
+	{ id: 7, helmet: "#B3995D", jersey: "#AA0000", pants: "#B3995D", number: "#FFFFFF", facemask: "#FFFFFF", endPrimary: "#AA0000", endSecondary: "#B3995D", logoFill: "#AA0000", logoMark: "#B3995D" },
+	{ id: 8, helmet: "#4F2683", jersey: "#FFFFFF", pants: "#4F2683", number: "#4F2683", facemask: "#FFC62F", endPrimary: "#4F2683", endSecondary: "#FFC62F", logoFill: "#4F2683", logoMark: "#FFC62F" },
+	{ id: 9, helmet: "#FFB612", jersey: "#203731", pants: "#FFB612", number: "#FFFFFF", facemask: "#203731", endPrimary: "#203731", endSecondary: "#FFB612", logoFill: "#203731", logoMark: "#FFB612" }
 ];
 const NUM_POOLS = {
 	QB: [10, 18, 8],
@@ -535,7 +535,7 @@ function startGame(canvas) {
 	let blockers = [];
 	let defenders = [];
 	let offUni = 0;
-	let defUni = 6; // LV
+	let defUni = 6;
 	const assignedNums = {
 		QB: [],
 		TE: [],
@@ -4281,17 +4281,25 @@ function remaining(group) {
 			autoStartTimer = null;
 		}
 	}
+	function kitLabel(u) {
+		const labels = [
+			"Navy / Orange", "White / Red", "Blue / White", "Black / Gold",
+			"Teal / Black", "White / Navy", "Black / Silver", "Red / Gold",
+			"White / Purple", "Green / Gold"
+		];
+		const id = u && u.id != null ? u.id : 0;
+		return labels[id] || labels[0];
+	}
 	function syncAbbrFromOffense() {
-		const abbr = UNIFORMS[offUni]?.abbr || "DEN";
 		const el = $("teamAbbr");
-		if (el) el.value = abbr;
+		if (el && !el.value) el.value = "EE";
 		const ni = $("nameInput");
-		if (ni) ni.value = abbr;
+		if (ni && !ni.value) ni.value = "EE";
 	}
 	function getTeamAbbr() {
 		const el = $("teamAbbr");
-		if (!el) return "DEN";
-		el.value = (el.value || "DEN").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 3) || "DEN";
+		if (!el) return "EE";
+		el.value = (el.value || "EE").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 3) || "EE";
 		return el.value;
 	}
 	function rebuildWidthSelect() {
@@ -4318,12 +4326,12 @@ function remaining(group) {
 			UNIFORMS.forEach((u) => {
 				const o1 = document.createElement("option");
 				o1.value = String(u.id);
-				o1.textContent = u.abbr || ("Kit " + u.id);
+				o1.textContent = kitLabel(u);
 				if (u.id === offUni) o1.selected = true;
 				offSel.appendChild(o1);
 				const o2 = document.createElement("option");
 				o2.value = String(u.id);
-				o2.textContent = u.abbr || ("Kit " + u.id);
+				o2.textContent = kitLabel(u);
 				if (u.id === defUni) o2.selected = true;
 				defSel.appendChild(o2);
 			});
@@ -4337,7 +4345,7 @@ function remaining(group) {
 		btn.setAttribute("role", "option");
 		btn.setAttribute("aria-selected", selected ? "true" : "false");
 		btn.dataset.id = String(u.id);
-		btn.title = u.abbr || ("Kit " + u.id);
+		btn.title = kitLabel(u);
 		const helm = document.createElement("div");
 		helm.className = "uni-helmet";
 		helm.style.background = u.helmet;
@@ -4528,7 +4536,7 @@ function remaining(group) {
 	function tryAddScore(name, finalScore) {
 		let list = loadScores();
 		list.push({
-			name: (name || "DEN").toUpperCase().slice(0, 3),
+			name: (name || "EE").toUpperCase().slice(0, 3),
 			score: finalScore
 		});
 		list.sort((a, b) => b.score - a.score);
@@ -4544,13 +4552,13 @@ function remaining(group) {
 		const fs = $("finalScore");
 		if (fs) fs.textContent = String(score);
 		const ni = $("nameInput");
-		if (ni) ni.value = UNIFORMS[offUni]?.abbr || "DEN";
+		if (ni) ni.value = $("teamAbbr")?.value || "EE";
 		modalShow("nameModal", true);
 		ni?.focus();
 	}
 	function submitScore() {
 		clearAutoStart();
-		tryAddScore(($("nameInput")?.value || UNIFORMS[offUni]?.abbr || "DEN").toUpperCase().slice(0, 3), score);
+		tryAddScore(($("nameInput")?.value || $("teamAbbr")?.value || "EE").toUpperCase().slice(0, 3), score);
 		modalShow("nameModal", false);
 		if (gamesPlayed >= 5) modalShow("continueModal", true);
 		else fullRestart(true);

@@ -66,10 +66,44 @@
       background: #111; color: #fff; border: 1px solid #555; border-radius: 6px;
     }
     label { cursor: pointer; }
+    .lab-header {
+      display: flex; width: 100%; max-width: 760px; align-items: baseline;
+      justify-content: space-between; gap: 12px; margin-bottom: 8px; flex-wrap: wrap;
+    }
+    .lab-versions {
+      display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+      font-size: 0.72rem; color: #888;
+    }
+    .lab-versions a {
+      color: #eee; text-decoration: none; border: 1px solid #555;
+      background: #222; border-radius: 6px; padding: 4px 8px;
+      min-height: 28px; display: inline-flex; align-items: center;
+    }
+    .lab-versions a:hover,
+    .lab-versions a[aria-current="page"] {
+      border-color: #fb4f14; color: #fb4f14;
+    }
   </style>
 </head>
 <body>
-  <h1>football-ground-attack-lab</h1>
+  <header class="lab-header">
+    <h1>football-ground-attack-lab</h1>
+    <nav class="lab-versions" aria-label="Version archive">
+      <span class="lab-versions-label">Archive</span>
+      <a href="v0.html" aria-current="page">v0</a>
+      <a href="v1.html">v1</a>
+      <a href="v2.html">v2</a>
+      <a href="v3/index.html">v3</a>
+      <a href="v4/index.html">v4</a>
+      <a href="v5/index.html">v5</a>
+      <a href="v6-1/index.html">v6</a>
+      <a href="v7/index.html">v7</a>
+      <a href="v8/index.html">v8</a>
+      <a href="v9/index.html">v9</a>
+      <a href="../index.html">v10</a>
+      <a href="https://github.com/elevation-edge-sports-data/football-ground-attack-lab">GitHub</a>
+    </nav>
+  </header>
 
   <div id="hud">
     <div>Clock: <span id="clock">60.0</span>s</div>

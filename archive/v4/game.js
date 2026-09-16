@@ -15,8 +15,6 @@
 const UNIFORMS = [
 	{
 		id: 0,
-		abbr: "DEN",
-		name: "Broncos",
 		helmet: "#002244",
 		jersey: "#FB4F14",
 		pants: "#002244",
@@ -26,8 +24,6 @@ const UNIFORMS = [
 	},
 	{
 		id: 1,
-		abbr: "KC",
-		name: "Chiefs",
 		helmet: "#E31837",
 		jersey: "#FFFFFF",
 		pants: "#E31837",
@@ -37,8 +33,6 @@ const UNIFORMS = [
 	},
 	{
 		id: 2,
-		abbr: "MIN",
-		name: "Vikings",
 		helmet: "#4F2683",
 		jersey: "#FFC62F",
 		pants: "#4F2683",
@@ -48,8 +42,6 @@ const UNIFORMS = [
 	},
 	{
 		id: 3,
-		abbr: "JAX",
-		name: "Jaguars",
 		helmet: "#101820",
 		jersey: "#006778",
 		pants: "#101820",
@@ -59,8 +51,6 @@ const UNIFORMS = [
 	},
 	{
 		id: 4,
-		abbr: "LV",
-		name: "Raiders",
 		helmet: "#A5ACAF",
 		jersey: "#000000",
 		pants: "#A5ACAF",
@@ -70,8 +60,6 @@ const UNIFORMS = [
 	},
 	{
 		id: 5,
-		abbr: "BUF",
-		name: "Bills",
 		helmet: "#C60C30",
 		jersey: "#00338D",
 		pants: "#00338D",
@@ -81,8 +69,6 @@ const UNIFORMS = [
 	},
 	{
 		id: 6,
-		abbr: "SF",
-		name: "49ers",
 		helmet: "#B3995D",
 		jersey: "#AA0000",
 		pants: "#B3995D",
@@ -92,8 +78,6 @@ const UNIFORMS = [
 	},
 	{
 		id: 7,
-		abbr: "GB",
-		name: "Packers",
 		helmet: "#FFB612",
 		jersey: "#203731",
 		pants: "#FFB612",
@@ -2659,17 +2643,24 @@ function startGame(canvas) {
 			autoStartTimer = null;
 		}
 	}
+	function kitLabel(u) {
+		const labels = [
+			"Navy / Orange", "White / Red", "Gold / Purple", "Teal / Black",
+			"Black / Silver", "Blue / Red", "Red / Gold", "Green / Gold"
+		];
+		const id = u && u.id != null ? u.id : 0;
+		return labels[id] || labels[0];
+	}
 	function syncAbbrFromOffense() {
-		const abbr = UNIFORMS[offUni]?.abbr || "DEN";
 		const el = $("teamAbbr");
-		if (el) el.value = abbr;
+		if (el && !el.value) el.value = "EE";
 		const ni = $("nameInput");
-		if (ni) ni.value = abbr;
+		if (ni && !ni.value) ni.value = "EE";
 	}
 	function getTeamAbbr() {
 		const el = $("teamAbbr");
-		if (!el) return "DEN";
-		el.value = (el.value || "DEN").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 3) || "DEN";
+		if (!el) return "EE";
+		el.value = (el.value || "EE").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 3) || "EE";
 		return el.value;
 	}
 	function rebuildWidthSelect() {
@@ -2696,13 +2687,13 @@ function startGame(canvas) {
 		UNIFORMS.forEach((u) => {
 			const o1 = document.createElement("option");
 			o1.value = String(u.id);
-			o1.textContent = u.abbr;
+			o1.textContent = kitLabel(u);
 			if (u.id === offUni) o1.selected = true;
 			offSel.appendChild(o1);
 			if (u.id !== offUni) {
 				const o2 = document.createElement("option");
 				o2.value = String(u.id);
-				o2.textContent = u.abbr;
+				o2.textContent = kitLabel(u);
 				if (u.id === defUni) o2.selected = true;
 				defSel.appendChild(o2);
 			}
@@ -2845,7 +2836,7 @@ function startGame(canvas) {
 	function tryAddScore(name, finalScore) {
 		let list = loadScores();
 		list.push({
-			name: (name || "DEN").toUpperCase().slice(0, 3),
+			name: (name || "EE").toUpperCase().slice(0, 3),
 			score: finalScore
 		});
 		list.sort((a, b) => b.score - a.score);
@@ -2861,13 +2852,13 @@ function startGame(canvas) {
 		const fs = $("finalScore");
 		if (fs) fs.textContent = String(score);
 		const ni = $("nameInput");
-		if (ni) ni.value = UNIFORMS[offUni]?.abbr || "DEN";
+		if (ni) ni.value = $("teamAbbr")?.value || "EE";
 		modalShow("nameModal", true);
 		ni?.focus();
 	}
 	function submitScore() {
 		clearAutoStart();
-		tryAddScore(($("nameInput")?.value || UNIFORMS[offUni]?.abbr || "DEN").toUpperCase().slice(0, 3), score);
+		tryAddScore(($("nameInput")?.value || $("teamAbbr")?.value || "EE").toUpperCase().slice(0, 3), score);
 		modalShow("nameModal", false);
 		if (gamesPlayed >= 5) modalShow("continueModal", true);
 		else fullRestart(true);

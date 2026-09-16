@@ -21,8 +21,11 @@
     html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--fg); font-family: var(--font-sans); }
     button:not(:disabled), [role="button"]:not(:disabled) { cursor: pointer; }
     main { display: flex; flex-direction: column; align-items: center; min-height: 100vh; padding: 8px; }
-    header { display: flex; width: 100%; max-width: 1100px; align-items: baseline; justify-content: space-between; gap: 12px; padding: 0 4px; margin-bottom: 4px; }
+    header { display: flex; width: 100%; max-width: 1100px; align-items: baseline; justify-content: space-between; gap: 12px; padding: 0 4px; margin-bottom: 4px; flex-wrap: wrap; }
     .eyebrow { font-family: var(--font-display); font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--accent); margin: 0; }
+    .lab-versions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 0.72rem; color: var(--muted); }
+    .lab-versions a { color: var(--fg); text-decoration: none; border: 1px solid var(--line); background: var(--surface); border-radius: 6px; padding: 4px 8px; min-height: 32px; display: inline-flex; align-items: center; }
+    .lab-versions a:hover, .lab-versions a[aria-current="page"] { border-color: var(--accent); color: var(--accent); }
     h1 { font-family: var(--font-display); font-size: 1.35rem; font-weight: 700; letter-spacing: 0.04em; margin: 0; }
     #hud { display: flex; flex-wrap: wrap; width: 100%; max-width: 1100px; align-items: center; justify-content: center; gap: 4px 16px; border-radius: 8px; background: var(--surface); padding: 6px 12px; font-family: var(--font-display); font-size: 0.95rem; font-variant-numeric: tabular-nums; margin-bottom: 8px; }
     .playcall { width: 10.5rem; flex-shrink: 0; }
@@ -80,6 +83,21 @@
         <p class="eyebrow">Elevation Edge</p>
         <h1>Football Ground Attack Lab</h1>
       </div>
+      <nav class="lab-versions" aria-label="Version archive">
+        <span class="lab-versions-label">Archive</span>
+        <a href="v0.html">v0</a>
+        <a href="v1.html">v1</a>
+        <a href="v2.html" aria-current="page">v2</a>
+        <a href="v3/index.html">v3</a>
+        <a href="v4/index.html">v4</a>
+        <a href="v5/index.html">v5</a>
+        <a href="v6-1/index.html">v6</a>
+        <a href="v7/index.html">v7</a>
+        <a href="v8/index.html">v8</a>
+        <a href="v9/index.html">v9</a>
+        <a href="../index.html">v10</a>
+        <a href="https://github.com/elevation-edge-sports-data/football-ground-attack-lab">GitHub</a>
+      </nav>
     </header>
     <div id="hud">
       <div>Score: <span id="score">0</span></div>
@@ -120,7 +138,7 @@
           <div class="panel-title">Teams</div>
           <label class="row">Off <select id="offUniform"></select></label>
           <label class="row">Def <select id="defUniform"></select></label>
-          <label class="row">Abbr <input id="teamAbbr" maxlength="3" value="DEN" /></label>
+          <label class="row">Abbr <input id="teamAbbr" maxlength="3" value="EE" /></label>
         </div>
         <div class="panel">
           <div class="panel-title">Field</div>
@@ -194,7 +212,7 @@
     <div class="modal-card">
       <div>Time expired! Final score: <span id="finalScore">0</span></div>
       <div style="margin-top:8px">Team abbreviation:</div>
-      <input id="nameInput" maxlength="3" value="DEN" />
+      <input id="nameInput" maxlength="3" value="EE" />
       <br />
       <button type="button" id="saveScoreBtn">Enter</button>
       <div class="muted" style="margin-top:8px;font-size:12px">
@@ -217,16 +235,16 @@ var FGAL = (() => {
  * Port of the v1 canvas sim + locked v2 mapping / AI / truck / burst / fumble.
  */
 const UNIFORMS = [
-    { id: 0, abbr: "DEN", name: "Broncos", helmet: "#002244", jersey: "#FB4F14", pants: "#002244", number: "#FFFFFF", endPrimary: "#002244", endSecondary: "#FB4F14" },
-    { id: 1, abbr: "KC", name: "Chiefs", helmet: "#E31837", jersey: "#FFFFFF", pants: "#E31837", number: "#E31837", endPrimary: "#E31837", endSecondary: "#FFB81C" },
-    { id: 2, abbr: "MIN", name: "Vikings", helmet: "#4F2683", jersey: "#FFC62F", pants: "#4F2683", number: "#4F2683", endPrimary: "#4F2683", endSecondary: "#FFC62F" },
-    { id: 3, abbr: "NYG", name: "Giants", helmet: "#0B2265", jersey: "#A71930", pants: "#0B2265", number: "#FFFFFF", endPrimary: "#0B2265", endSecondary: "#A71930" },
-    { id: 4, abbr: "JAX", name: "Jaguars", helmet: "#101820", jersey: "#006778", pants: "#101820", number: "#D7A22A", endPrimary: "#101820", endSecondary: "#006778" },
-    { id: 5, abbr: "LV", name: "Raiders", helmet: "#A5ACAF", jersey: "#000000", pants: "#A5ACAF", number: "#FFFFFF", endPrimary: "#000000", endSecondary: "#A5ACAF" },
-    { id: 6, abbr: "BUF", name: "Bills", helmet: "#00338D", jersey: "#00338D", pants: "#C60C30", number: "#FFFFFF", endPrimary: "#00338D", endSecondary: "#C60C30" },
-    { id: 7, abbr: "SF", name: "49ers", helmet: "#AA0000", jersey: "#AA0000", pants: "#B3995D", number: "#FFFFFF", endPrimary: "#AA0000", endSecondary: "#B3995D" },
-    { id: 8, abbr: "MIA", name: "Dolphins", helmet: "#008E97", jersey: "#008E97", pants: "#FC4C02", number: "#FFFFFF", endPrimary: "#008E97", endSecondary: "#FC4C02" },
-    { id: 9, abbr: "GB", name: "Packers", helmet: "#203731", jersey: "#203731", pants: "#FFB612", number: "#FFFFFF", endPrimary: "#203731", endSecondary: "#FFB612" },
+    { id: 0, helmet: "#002244", jersey: "#FB4F14", pants: "#002244", number: "#FFFFFF", endPrimary: "#002244", endSecondary: "#FB4F14" },
+    { id: 1, helmet: "#E31837", jersey: "#FFFFFF", pants: "#E31837", number: "#E31837", endPrimary: "#E31837", endSecondary: "#FFB81C" },
+    { id: 2, helmet: "#4F2683", jersey: "#FFC62F", pants: "#4F2683", number: "#4F2683", endPrimary: "#4F2683", endSecondary: "#FFC62F" },
+    { id: 3, helmet: "#0B2265", jersey: "#A71930", pants: "#0B2265", number: "#FFFFFF", endPrimary: "#0B2265", endSecondary: "#A71930" },
+    { id: 4, helmet: "#101820", jersey: "#006778", pants: "#101820", number: "#D7A22A", endPrimary: "#101820", endSecondary: "#006778" },
+    { id: 5, helmet: "#A5ACAF", jersey: "#000000", pants: "#A5ACAF", number: "#FFFFFF", endPrimary: "#000000", endSecondary: "#A5ACAF" },
+    { id: 6, helmet: "#00338D", jersey: "#00338D", pants: "#C60C30", number: "#FFFFFF", endPrimary: "#00338D", endSecondary: "#C60C30" },
+    { id: 7, helmet: "#AA0000", jersey: "#AA0000", pants: "#B3995D", number: "#FFFFFF", endPrimary: "#AA0000", endSecondary: "#B3995D" },
+    { id: 8, helmet: "#008E97", jersey: "#008E97", pants: "#FC4C02", number: "#FFFFFF", endPrimary: "#008E97", endSecondary: "#FC4C02" },
+    { id: 9, helmet: "#203731", jersey: "#203731", pants: "#FFB612", number: "#FFFFFF", endPrimary: "#203731", endSecondary: "#FFB612" },
 ];
 const NUM_POOLS = {
     QB: [10, 18],
@@ -1629,25 +1647,32 @@ function startGame(canvas) {
             autoStartTimer = null;
         }
     }
+    function kitLabel(u) {
+        const labels = [
+            "Navy / Orange", "White / Red", "Gold / Purple", "Red / Navy",
+            "Teal / Black", "Black / Silver", "Blue / Red", "Red / Gold",
+            "Teal / Orange", "Green / Gold"
+        ];
+        const id = u && u.id != null ? u.id : 0;
+        return labels[id] || labels[0];
+    }
     function syncAbbrFromOffense() {
-        const u = UNIFORMS[offUni];
-        const abbr = u?.abbr || "DEN";
         const el = $("teamAbbr");
-        if (el)
-            el.value = abbr;
+        if (el && !el.value)
+            el.value = "EE";
         const ni = $("nameInput");
-        if (ni)
-            ni.value = abbr;
+        if (ni && !ni.value)
+            ni.value = "EE";
     }
     function getTeamAbbr() {
         const el = $("teamAbbr");
         if (!el)
-            return "DEN";
-        const v = (el.value || "DEN")
+            return "EE";
+        const v = (el.value || "EE")
             .toUpperCase()
             .replace(/[^A-Z]/g, "")
             .slice(0, 3);
-        el.value = v || "DEN";
+        el.value = v || "EE";
         return el.value;
     }
     function rebuildWidthSelect() {
@@ -1677,14 +1702,14 @@ function startGame(canvas) {
         UNIFORMS.forEach((u) => {
             const o1 = document.createElement("option");
             o1.value = String(u.id);
-            o1.textContent = u.abbr;
+            o1.textContent = kitLabel(u);
             if (u.id === offUni)
                 o1.selected = true;
             offSel.appendChild(o1);
             if (u.id !== offUni) {
                 const o2 = document.createElement("option");
                 o2.value = String(u.id);
-                o2.textContent = u.abbr;
+                o2.textContent = kitLabel(u);
                 if (u.id === defUni)
                     o2.selected = true;
                 defSel.appendChild(o2);
@@ -1814,7 +1839,7 @@ function startGame(canvas) {
     }
     function tryAddScore(name, finalScore) {
         let list = loadScores();
-        list.push({ name: (name || "DEN").toUpperCase().slice(0, 3), score: finalScore });
+        list.push({ name: (name || "EE").toUpperCase().slice(0, 3), score: finalScore });
         list.sort((a, b) => b.score - a.score);
         list = list.slice(0, 5);
         saveScores(list);
@@ -1830,14 +1855,14 @@ function startGame(canvas) {
             fs.textContent = String(score);
         const ni = $("nameInput");
         if (ni)
-            ni.value = UNIFORMS[offUni]?.abbr || "DEN";
+            ni.value = $("teamAbbr")?.value || "EE";
         modalShow("nameModal", true);
         ni?.focus();
         setStatus("Game Over");
     }
     function submitScore() {
         clearAutoStart();
-        const name = ($("nameInput")?.value || UNIFORMS[offUni]?.abbr || "DEN").toUpperCase().slice(0, 3);
+        const name = ($("nameInput")?.value || $("teamAbbr")?.value || "EE").toUpperCase().slice(0, 3);
         tryAddScore(name, score);
         modalShow("nameModal", false);
         if (gamesPlayed >= 5)
