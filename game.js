@@ -429,7 +429,7 @@ function startGame(canvas) {
 	const maybeCtx = canvas.getContext("2d");
 	if (!maybeCtx) return () => {};
 	let ctx = maybeCtx;
-	let FIELD_WIDTH = 75;
+	let FIELD_WIDTH = Field.setWidth(Field.spec.defaultWidth);
 	let surface = "grass";
 	let ezArtMode = "mountains";
 	let ezTextMode = "ee";
@@ -473,12 +473,12 @@ function startGame(canvas) {
 		return c;
 	}
 	const BASE_CANVAS_H = 620;
-	const PX_PER_YARD_X = BASE_CANVAS_H / 100;
-	const VISIBLE_YARDS = 58;
+	const PX_PER_YARD_X = BASE_CANVAS_H / Field.length;
+	const VISIBLE_YARDS = Field.visibleYards;
 	let SCALE_X = PX_PER_YARD_X;
 	let SCALE_Y = BASE_CANVAS_H / VISIBLE_YARDS;
 	function refreshScale() {
-		FIELD_WIDTH = Math.max(5, Math.min(100, FIELD_WIDTH));
+		FIELD_WIDTH = Field.setWidth(FIELD_WIDTH);
 		const wrap = canvas.parentElement;
 		const cssW = Math.max(520, wrap && wrap.clientWidth || 900);
 		const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -490,10 +490,10 @@ function startGame(canvas) {
 		SCALE_Y = canvas.height / VISIBLE_YARDS;
 	}
 	function fieldLeft() {
-		return 0;
+		return Field.left();
 	}
 	function fieldRight() {
-		return FIELD_WIDTH;
+		return Field.right();
 	}
 	let cameraY = 55;
 	let clock = 120;
@@ -513,6 +513,9 @@ function startGame(canvas) {
 	let lastPlayContact = null;
 	let pauseTimer = 0;
 	let lastTime = performance.now();
+	const SIM_DT = 1 / 60;
+	const SIM_MAX_STEPS = 8;
+	let simAcc = 0;
 	let padName = "";
 	let sessionOver = false;
 	let gamesPlayed = 0;
@@ -525,6 +528,9 @@ function startGame(canvas) {
 	let numDBs = 6;
 	let playSpeed = 1.1;
 	const SPEED_UI_SCALE = 1.1; // labeled 1.00× runs at 1.10; whole scale is +10%
+	let youStrength = 1.0;
+	let mateStrength = 1.0;
+	let cpuStrength = 1.0;
 	let offStrength = 1.0;
 	let defStrength = 1.0;
 	const BREAK_BLOCK_UI_SCALE = 0.75; // labeled 1.00 runs at 0.75
@@ -858,7 +864,7 @@ function startGame(canvas) {
 		me.x += me.vx * dt;
 		me.y += me.vy * dt;
 		me.x = clamp(me.x, fieldLeft() + 2.2, fieldRight() - 2.2);
-		me.y = clamp(me.y, playStartYard + 1.15, Math.min(108.5, playStartYard + 18));
+		me.y = clamp(me.y, playStartYard + 1.15, Math.min(Field.bodyCapY, playStartYard + 18));
 		me.facing = Math.atan2(inp.dy, inp.dx);
 	}
 	function yardLabel(y) {
@@ -899,7 +905,40 @@ function startGame(canvas) {
 		if (banner) banner.classList.toggle("hidden", !paused || !!fullReplay || camAdjust);
 		if (paused && !fullReplay && !camAdjust) pauseBannerHTML(cameraMode === "free" ? "pauseFree" : "pause");
 	}
+	let pauseCamPose = null;
+	function captureFreeCam() {
+		pauseCamPose = {
+			lookX,
+			lookY,
+			cameraY,
+			camFocusX,
+			camFocusY,
+			theta: camOp.theta || 0,
+			phi: camOp.phi != null ? camOp.phi : 0.82,
+			zoom: camOp.zoom || 1,
+			panX: camOp.panX || 0,
+			panY: camOp.panY || 0,
+			freeOrbit: { theta: freeOrbit.theta || 0, phi: freeOrbit.phi != null ? freeOrbit.phi : 0.82, zoom: freeOrbit.zoom || 1 }
+		};
+		return pauseCamPose;
+	}
+	function applyFreeCamPose(pose) {
+		const p = pose || pauseCamPose;
+		if (!p) return;
+		lookX = p.lookX;
+		lookY = p.lookY;
+		cameraY = p.cameraY;
+		camFocusX = p.camFocusX;
+		camFocusY = p.camFocusY;
+		camOp.theta = p.theta;
+		camOp.phi = p.phi;
+		camOp.zoom = p.zoom;
+		camOp.panX = p.panX;
+		camOp.panY = p.panY;
+		if (p.freeOrbit) freeOrbit = { theta: p.freeOrbit.theta, phi: p.freeOrbit.phi, zoom: p.freeOrbit.zoom };
+	}
 	function setPaused(on) {
+		if (on && !paused) captureFreeCam();
 		paused = on;
 		if (!paused) camAdjust = false;
 		const pb = $("pauseBtn");
@@ -956,7 +995,7 @@ function startGame(canvas) {
 	function clampCursor(x, y) {
 		return {
 			x: clamp(x, fieldLeft(), fieldRight()),
-			y: clamp(y, -10, 110)
+			y: clamp(y, Field.southBack, Field.northBack)
 		};
 	}
 	function applyLook(x, y) {
@@ -1084,10 +1123,10 @@ function startGame(canvas) {
 	function postGapHalf() {
 		// Scale hashes + upright gap with field width. The old 3.85 yd cap
 		// left them bunched in the middle of 75–100 yd surfaces.
-		return clamp(FIELD_WIDTH * 0.082, 2.6, 9.0);
+		return Field.postGapHalf();
 	}
 	function fieldWideT() {
-		return clamp((FIELD_WIDTH - 50) / 50, 0, 1);
+		return Field.fieldWideT();
 	}
 	function coverFrac(frac) {
 		const pull = fieldWideT() * 0.44;
@@ -1264,9 +1303,10 @@ function startGame(canvas) {
 			behind: false
 		};
 		const depth = cameraY - absY;
+		const lean = (cam.xLean || 0) * (1 - camEdgeLock().sideT * 0.85);
 		return {
 			sx: absX * SCALE_X + depth * cam.skew * SCALE_X,
-			sy: toScreenYRaw(absY) * cam.yScale + canvas.height * cam.yBias + (absX - FIELD_WIDTH / 2) * cam.xLean - lift,
+			sy: toScreenYRaw(absY) * cam.yScale + canvas.height * cam.yBias + (absX - FIELD_WIDTH / 2) * lean - lift,
 			sc: cam.sc,
 			depth: depth,
 			behind: false
@@ -1427,6 +1467,10 @@ function startGame(canvas) {
 		return project(absX == null ? FIELD_WIDTH / 2 : absX, absY).sy;
 	}
 	function updateCamera() {
+		if (paused && !camAdjust && !fullReplay && pauseCamPose) {
+			applyFreeCamPose();
+			return;
+		}
 		if (fullReplay) {
 			applyLook(lookX, lookY);
 			camZoom += (1 - camZoom) * 0.2;
@@ -1439,8 +1483,10 @@ function startGame(canvas) {
 					if (practiceAwaitSnap) carrier = userDefender;
 					else if (rb) carrier = { x: rb.x * 0.58 + userDefender.x * 0.42, y: rb.y * 0.52 + userDefender.y * 0.48 };
 				}
-				if (carrier) applyLook(carrier.x, carrier.y);
-				else applyLook(lookX, lookY);
+				if (carrier) {
+					const framed = keepTargetFramed(carrier.x, carrier.y);
+					applyLook(framed.x, framed.y);
+				} else applyLook(lookX, lookY);
 			} else {
 				applyLook(lookX, lookY);
 			}
@@ -1479,6 +1525,9 @@ function startGame(canvas) {
 				fy = carrier.y * .58 + hit.y * .42;
 			}
 		}
+		const framed = keepTargetFramed(fx, fy);
+		fx = framed.x;
+		fy = framed.y;
 		camFocusX = fx;
 		camFocusY = fy;
 		const cam = camSpec();
@@ -1499,11 +1548,33 @@ function startGame(canvas) {
 			if (ankleCam.t <= 0) ankleCam = null;
 		}
 	}
-	function offMult() {
-		return offStrength;
+	function offMult(p) {
+		if (playingDefense()) return cpuStrength;
+		if (!p || p === rb || p.hasBall) return youStrength;
+		return mateStrength;
 	}
-	function defMult() {
-		return defStrength;
+	function defMult(p) {
+		if (!playingDefense()) return cpuStrength;
+		if (p && isUserDef(p)) return youStrength;
+		return mateStrength;
+	}
+	function keepTargetFramed(fx, fy) {
+		const marginX = 3.2;
+		const marginY = 4.0;
+		return {
+			x: clamp(fx, Field.left() + marginX, Field.right() - marginX),
+			y: clamp(fy, Field.southBack + marginY, Field.northBack - marginY)
+		};
+	}
+	function camEdgeLock() {
+		const x = camFocusX != null ? camFocusX : Field.midX();
+		const y = camFocusY != null ? camFocusY : cameraY;
+		const side = Math.min(x - Field.left(), Field.right() - x);
+		const end = Math.min(y - Field.southBack, Field.northBack - y);
+		return {
+			sideT: clamp(1 - side / 8, 0, 1),
+			endT: clamp(1 - end / 8, 0, 1)
+		};
 	}
 	function uniGlove(uni) {
 		const j = String((uni && uni.jersey) || "#888888").toLowerCase();
@@ -1561,19 +1632,19 @@ function startGame(canvas) {
 		defenders.forEach((d) => paint(d, "def"));
 	}
 	function hashHalf() {
-		return postGapHalf();
+		return Field.hashHalf();
 	}
 	function hashLeft() {
-		return (fieldLeft() + fieldRight()) / 2 - hashHalf();
+		return Field.hashLeft();
 	}
 	function hashRight() {
-		return (fieldLeft() + fieldRight()) / 2 + hashHalf();
+		return Field.hashRight();
 	}
 	function capCoverageY(y) {
-		return Math.min(108.5, y);
+		return Math.min(Field.bodyCapY, y);
 	}
 	function clampToHash(x) {
-		return clamp(x, hashLeft(), hashRight());
+		return Field.clampToHash(x);
 	}
 	function setSpotFromPlay(x, oob) {
 		if (oob) ballX = x < (fieldLeft() + fieldRight()) / 2 ? hashLeft() : hashRight();
@@ -1705,7 +1776,10 @@ function startGame(canvas) {
 			pullVia: null,
 			driveSide: 1,
 			sealSide: 1,
-			levelY: 3
+			levelY: 3,
+			station: null,
+			stationX: x,
+			stationY: y
 		};
 	}
 	function mirrorPlay(play) {
@@ -1917,7 +1991,7 @@ function startGame(canvas) {
 			if (mode === "right") return mid - FIELD_WIDTH * .14 + t * FIELD_WIDTH * .42;
 			return mid + (t - .5) * FIELD_WIDTH * .64;
 		}
-		const EZ_BACK = 108.5; // keep bodies inside the endzone (back line is 110)
+		const EZ_BACK = Field.bodyCapY; // keep bodies inside the endzone (back line is Field.northBack)
 		function clampDefAlignY(y) {
 			return clamp(y, playStartYard + 1.15, EZ_BACK);
 		}
@@ -2025,6 +2099,7 @@ function startGame(canvas) {
 		alignTwoDbs();
 		clampDbWings();
 		spreadInteriorDefense();
+		assignStations();
 		pinOffenseToOwnSide();
 		if (scope === "both") {
 			playAge = 0;
@@ -2334,7 +2409,7 @@ function startGame(canvas) {
 		});
 		defenders.forEach((d) => {
 			d.x = clamp(d.x, fl + 2.2, fr - 2.2);
-			d.y = clamp(d.y, playStartYard + 1.15, 108.5);
+			d.y = clamp(d.y, playStartYard + 1.15, Field.bodyCapY);
 			if (d.jobX != null && Math.abs(d.jobX - d.x) < 1.4) d.jobX = d.x;
 		});
 		if (dbs.length === 1) plantDeep(dbs[0], 0.5, 11.4, W * 0.22);
@@ -2369,6 +2444,74 @@ function startGame(canvas) {
 			right.x = fr - minInset;
 			if (right.jobX != null) right.jobX = right.x;
 		}
+	}
+	function stationForDefender(d) {
+		const snap = typeof snapX === "function" ? snapX() : Field.midX();
+		const dx = (d.x || 0) - snap;
+		if (d.job === "contain") return "contain";
+		if (d.job === "blitz") return (d.group === "DT" && Math.abs(dx) < 2.4) ? "gap" : "fold";
+		if (d.job === "flat" || d.job === "shade") return "alley";
+		if (d.job === "deep" || d.job === "robber" || d.isSafety || d.isCorner) return "alley";
+		if (d.job === "drop" || d.job === "hook" || d.job === "curl" || d.job === "spy") return "cutback";
+		if (d.job === "man") return Math.abs(dx) < 3.2 ? "gap" : "alley";
+		if (d.group === "DT") return "gap";
+		if (d.group === "LB") return "cutback";
+		return "alley";
+	}
+	function stationForBlocker(b) {
+		if (b.blockMode === "pull") return "fold";
+		if (b.backsideSeal) return "cutback";
+		if (b.blockMode === "reach" || b.blockMode === "seal") return "alley";
+		if (Math.abs((b.x || 0) - snapX()) > 5) return "contain";
+		return "gap";
+	}
+	function bindStation(p, role) {
+		if (!p) return;
+		p.station = role;
+		p.stationX = p.jobX != null ? p.jobX : p.x;
+		p.stationY = p.jobY != null ? p.jobY : p.y;
+	}
+	function assignStations() {
+		(defenders || []).forEach((d) => bindStation(d, stationForDefender(d)));
+		(blockers || []).forEach((b) => bindStation(b, stationForBlocker(b)));
+	}
+	function applyAssignmentRepulsion(dt) {
+		if (!playActive || practiceAwaitSnap || tackleAnim || preSnapTimer > 0) return;
+		if (scoreSeq || fumbleSeq) return;
+		const minSep = 1.05 + Field.fieldWideT() * 0.7;
+		const pushRate = 5.4;
+		function packRepel(list, userSkip) {
+			const body = (list || []).filter((p) => p && p.active !== false && !p.pancaked && !p.takenDown && p.state !== "whiff" && p.state !== "recover");
+			for (let i = 0; i < body.length; i++) {
+				for (let j = i + 1; j < body.length; j++) {
+					const a = body[i], b = body[j];
+					if (userSkip && (userSkip(a) || userSkip(b))) continue;
+					if (Math.abs((a.y || 0) - (b.y || 0)) > 2.6) continue;
+					const dx = (a.x || 0) - (b.x || 0);
+					const dy = (a.y || 0) - (b.y || 0);
+					const distAB = Math.hypot(dx, dy) || 1e-4;
+					const need = minSep + ((a.radius || 0.7) + (b.radius || 0.7)) * 0.12;
+					if (distAB >= need) continue;
+					const push = (need - distAB) * pushRate * dt;
+					const nx = dx / distAB;
+					const ny = dy / distAB * 0.32;
+					a.x += nx * push * 0.5;
+					b.x -= nx * push * 0.5;
+					a.y += ny * push * 0.5;
+					b.y -= ny * push * 0.5;
+				}
+			}
+		}
+		packRepel(defenders, isUserDef);
+		packRepel(blockers, (p) => (p._userCtrl || 0) > 0.05);
+		const fl = fieldLeft() + 0.8, fr = fieldRight() - 0.8;
+		function clampBody(p) {
+			if (!p) return;
+			p.x = clamp(p.x, fl, fr);
+			p.y = Math.min(p.y, Field.bodyCapY);
+		}
+		(defenders || []).forEach(clampBody);
+		(blockers || []).forEach(clampBody);
 	}
 	function spreadInteriorDefense() {
 		const fl = fieldLeft(), fr = fieldRight();
@@ -4937,7 +5080,7 @@ function remaining(group) {
 		const midX = (fieldLeft() + fieldRight()) / 2;
 		d.x = midX;
 		d.jobX = midX;
-		d.y = clamp(Math.max(d.y, playStartYard + 8.2), playStartYard + 2.4, 108.5);
+		d.y = clamp(Math.max(d.y, playStartYard + 8.2), playStartYard + 2.4, Field.bodyCapY);
 		d.dbRole = "FS";
 		d.isSafety = true;
 		d.isCorner = false;
@@ -4945,7 +5088,7 @@ function remaining(group) {
 		d.fakeBlitz = false;
 		if (d.job !== "blitz") {
 			d.job = "deep";
-			d.jobY = clamp(Math.max(d.jobY || 0, playStartYard + 12.4), playStartYard + 4, 108.5);
+			d.jobY = clamp(Math.max(d.jobY || 0, playStartYard + 12.4), playStartYard + 4, Field.bodyCapY);
 			d.zoneRx = Math.max(d.zoneRx || 0, 8.4);
 			d.zoneRy = Math.max(d.zoneRy || 0, 5.4);
 			d.zoneFollow = false;
@@ -4956,7 +5099,7 @@ function remaining(group) {
 		if (dbs.length !== 2) return;
 		const midX = (fieldLeft() + fieldRight()) / 2;
 		const spread = Math.min((fieldRight() - fieldLeft()) * 0.12, 5.8);
-		const deepY = clamp(Math.max(playStartYard + 10.6, playStartYard + 6), playStartYard + 2.4, 108.5);
+		const deepY = clamp(Math.max(playStartYard + 10.6, playStartYard + 6), playStartYard + 2.4, Field.bodyCapY);
 		dbs.forEach((d, i) => {
 			d.x = midX + (i === 0 ? -spread : spread);
 			d.jobX = d.x;
@@ -4968,7 +5111,7 @@ function remaining(group) {
 			d.fakeBlitz = false;
 			if (d.job !== "blitz") {
 				d.job = "deep";
-				d.jobY = clamp(Math.max(d.jobY || 0, playStartYard + 12.2), playStartYard + 4, 108.5);
+				d.jobY = clamp(Math.max(d.jobY || 0, playStartYard + 12.2), playStartYard + 4, Field.bodyCapY);
 				d.zoneRx = Math.max(d.zoneRx || 0, 7.2);
 				d.zoneRy = Math.max(d.zoneRy || 0, 5.0);
 				d.zoneFollow = false;
@@ -5100,6 +5243,7 @@ function remaining(group) {
 	}
 	function setUserSide(side) {
 		userSide = side === "def" ? "def" : "off";
+		if (typeof syncSideAliases === "function") syncSideAliases();
 		const hint = $("sideHint");
 		if (hint) {
 			hint.textContent = userSide === "def"
@@ -5464,7 +5608,7 @@ function remaining(group) {
 			me.spinT = 0;
 		}
 		me._userMiss = false;
-		let spd = (me.baseSpeed || me.speed || 8.6) * defMult() * playSpeed;
+		let spd = (me.baseSpeed || me.speed || 8.6) * defMult(me) * playSpeed;
 		if (inp.sprint) spd *= SPRINT_MULT;
 		if (strafing) {
 			spd *= 0.64;
@@ -5532,7 +5676,7 @@ function remaining(group) {
 			if (Math.hypot(me.vx, me.vy) > 0.45) me.facing = Math.atan2(me.vy, me.vx);
 		}
 		me.x = clamp(me.x, fieldLeft() + 0.8, fieldRight() - 0.8);
-		me.y = clamp(me.y, Math.max(0, playStartYard - 12), 108.5);
+		me.y = clamp(me.y, Math.max(0, playStartYard - 12), Field.bodyCapY);
 		me._userCtrl = 0.35;
 	}
 	function cpuOffenseDrive(dt, spd) {
@@ -6051,7 +6195,7 @@ function remaining(group) {
 			dx = sdx / mag;
 			dy = sdy / mag;
 		}
-		const spd = Math.min(10.5, (b.speed || 8.6) * (playingDefense() ? defMult() : offMult()) * 1.05);
+		const spd = Math.min(10.5, (b.speed || 8.6) * (playingDefense() ? defMult(b) : offMult(b)) * 1.05);
 		const step = spd * Math.min(dt, 0.05);
 		b.vx = dx * spd;
 		b.vy = dy * spd;
@@ -7284,14 +7428,14 @@ function remaining(group) {
 		if (!sel) return;
 		const current = parseInt(sel.value, 10) || FIELD_WIDTH;
 		sel.innerHTML = "";
-		for (let w = 5; w <= 100; w += 5) {
+		for (let w = Field.spec.widthMin; w <= Field.spec.widthMax; w += Field.spec.widthStep) {
 			const opt = document.createElement("option");
 			opt.value = String(w);
 			opt.textContent = w + " yd";
 			if (w === current) opt.selected = true;
 			sel.appendChild(opt);
 		}
-		FIELD_WIDTH = parseInt(sel.value, 10) || 75;
+		FIELD_WIDTH = Field.setWidth(sel.value);
 		refreshScale();
 	}
 	function rebuildUniformSelects() {
@@ -7731,6 +7875,7 @@ function remaining(group) {
 					camAdjust = false;
 					freeLook = false;
 					freeOrbit = { theta: camOp.theta || 0, phi: camOp.phi != null ? camOp.phi : 0.82, zoom: camOp.zoom || 1 };
+					captureFreeCam();
 					syncPauseChrome();
 				}
 				confirmEdge = inp.confirm;
@@ -8294,7 +8439,7 @@ function remaining(group) {
 		if (playActive && playingDefense()) tickUserDefense(dt, inp);
 		if (rb) {
 			const carrier = rb;
-			let spd = carrier.speed * offMult() * playSpeed;
+			let spd = carrier.speed * offMult(carrier) * playSpeed;
 			const cpu = playingDefense();
 			if (cpu) {
 				sprintCharge = 1;
@@ -8337,7 +8482,7 @@ function remaining(group) {
 			if (breakaway && ((cpu && handoffDone) || (!cpu && inp.sprint)) && !(fatigueOn && sprintExhausted) && getUpT <= 0 && diveHangT <= 0.15) spd *= 1.55 / SPRINT_MULT;
 			if (getUpT > 0) {
 				const rise = 1 - Math.min(1, getUpT / 0.92);
-				spd = carrier.speed * offMult() * playSpeed * (0.18 + 0.7 * rise * rise);
+				spd = carrier.speed * offMult(carrier) * playSpeed * (0.18 + 0.7 * rise * rise);
 			}
 			let useScript = scriptIndex < scriptSteps.length;
 			let sdx = 0, sdy = 0;
@@ -8731,7 +8876,7 @@ function remaining(group) {
 				targetY = Math.min(103.2, playStartYard + 3.4 + Math.abs(lane) * .8);
 			}
 			const ang = Math.atan2(targetY - b.y, targetX - b.x);
-			let bspd = b.speed * offMult() * playSpeed;
+			let bspd = b.speed * offMult(b) * playSpeed;
 			const fatigue = playAge < 4.5 ? 1 : Math.max(.55, 1 - (playAge - 4.5) * .1);
 			bspd *= fatigue;
 			if (style === "wallL" || style === "wallR") bspd *= 1.12;
@@ -8996,13 +9141,13 @@ function remaining(group) {
 			// Close in the backfield, but not with full chase-down sprint intensity
 			d.sprintOn = !rbBehindLos && (distToRb < 8.6 && trail < 3.4 || distToRb < 4.2);
 			if (d.slowed > 0) {
-				d.speed = d.baseSpeed * .55 * defMult() * playSpeed;
+				d.speed = d.baseSpeed * .55 * defMult(d) * playSpeed;
 				d.slowed -= dt;
 			} else {
 				let lag = 1;
 				if (d.dtLag && rb && (rb.y - d.y) < 10) lag = 0.55 + Math.max(0, (rb.y - d.y) / 10) * 0.45;
 				else if (d.dtLag && rb && (rb.y - d.y) >= 10) d.dtLag = false;
-				d.speed = d.baseSpeed * defMult() * playSpeed * lag;
+				d.speed = d.baseSpeed * defMult(d) * playSpeed * lag;
 			}
 			if (d.sprintOn) d.speed *= SPRINT_MULT;
 			// Behind LOS: still pursue, but dial back closing speed so RB can burst back to the line
@@ -9061,10 +9206,12 @@ function remaining(group) {
 				tx = rb.x + (d.laneOffset || 0) * .18;
 				ty = rb.y;
 			} else if (keepDeep || holdZone) {
+				const homeX = d.stationX != null ? d.stationX : (d.jobX || d.x);
+				const homeY = d.stationY != null ? d.stationY : (d.jobY || d.y);
 				const rx = (d.zoneRx || 5) * 1.2;
 				const ry = (d.zoneRy || 3.4) * 1.15;
-				tx = clamp(rb.x, (d.jobX || d.x) - rx, (d.jobX || d.x) + rx);
-				ty = clamp(rb.y + .8, (d.jobY || d.y) - ry, (d.jobY || d.y) + 2.2);
+				tx = clamp(rb.x, homeX - rx, homeX + rx);
+				ty = clamp(rb.y + .8, homeY - ry, homeY + 2.2);
 				if (d.y >= 99 && rb.y < playStartYard + 1.2) ty = Math.max(ty, d.y - 0.4);
 			} else if (keepContain) {
 				tx = rb.x;
@@ -9145,13 +9292,14 @@ function remaining(group) {
 			d.vy = my / Math.max(dt, .001);
 			turnToward(d, ang, dt, 10);
 			d.x = clamp(d.x, fieldLeft() + .8, fieldRight() - .8);
-			d.y = Math.min(d.y, 108.5);
+			d.y = Math.min(d.y, Field.bodyCapY);
 			if (d.group === "DT" && d.engageT <= 0 && !d.pancaked && d.state !== "whiff") {
 				if (!d.dtPenetrate && (!rb || rb.y < playStartYard + 0.25)) d.y = Math.max(d.y, playStartYard + 0.4);
 				else if (d.dtPenetrate) d.y = Math.max(d.y, playStartYard - 1.15);
 			}
 		});
 		separateOpposing();
+		applyAssignmentRepulsion(dt);
 		if (tackleAnim) {
 			tagTackleContact(tackleAnim);
 			tackleAnim.timer -= dt;
@@ -11168,13 +11316,13 @@ function remaining(group) {
 		if (!img) return;
 		const fl = fieldLeft(), fr = fieldRight();
 		const cx = (fl + fr) / 2;
-		const cy = 50;
+		const cy = Field.midfield;
 		const midP = project(cx, cy);
 		if (midP.behind) return;
 		if (midP.sy < -200 || midP.sy > canvas.height + 200) return;
 		const iw = img.naturalWidth || img.width || 1;
 		const ih = img.naturalHeight || img.height || 1;
-		const along = 5;
+		const along = Field.spec.midLogoHalf;
 		const rot90 = !!logoFlip;
 		let corners;
 		if (rot90) {
@@ -12390,7 +12538,7 @@ function drawMiniPreview(canvas, kind) {
 		const fills = ["#2a3338", "#232b30", "#1c2428", "#191f24", "#151b1f", "#12181c"];
 		const walls = ["#5e6c74", "#546168", "#414c53", "#3a444a", "#323b41", "#2b3338"];
 		const decks = [];
-		let y = dir > 0 ? 110.4 : -10.4;
+		let y = dir > 0 ? Field.northBack + 0.4 : Field.southBack - 0.4;
 		let h = 1.05 * 1.25;
 		let pad = 5.1;
 		const N_BASE = 3;
@@ -13076,8 +13224,8 @@ function drawMiniPreview(canvas, kind) {
 		ctx.fill();
 	}
 	function drawGoalPosts() {
-		drawGoalPostAt(110);
-		drawGoalPostAt(-10);
+		drawGoalPostAt(Field.northBack);
+		drawGoalPostAt(Field.southBack);
 	}
 	function drawSidelineLights() {
 		if (!showReplayLights()) return;
@@ -13088,7 +13236,7 @@ function drawMiniPreview(canvas, kind) {
 		const eastTop = eastDecks[eastDecks.length - 1];
 		const hW = westTop.h1 + 0.2;
 		const hE = eastTop.h1 + 0.2;
-		const yards = [0, 25, 75, 100];
+		const yards = [Field.southGoal, Field.length * 0.25, Field.length * 0.75, Field.northGoal];
 		const xW = fl - (westTop.a + (westTop.b - westTop.a) * 0.55);
 		const xE = fr + (eastTop.a + (eastTop.b - eastTop.a) * 0.55);
 		const pressH = hE + pressBoxHeight();
@@ -13097,7 +13245,7 @@ function drawMiniPreview(canvas, kind) {
 			const eastH = (yy >= 38 && yy <= 62) ? pressH : hE;
 			drawLightPost(xE, yy, eastH);
 		});
-		drawLightPost(xW, 50, hW);
+		drawLightPost(xW, Field.midfield, hW);
 	}
 	function drawVideoBoard(x, y, w, h) {
 		ctx.fillStyle = "#05080a";
@@ -13163,17 +13311,17 @@ function drawMiniPreview(canvas, kind) {
 			const x0 = fx - 4.6, x1 = fx + 4.6;
 			const yA = fy - 3.4, yB = fy + 4.6;
 			fillTurfRange(yA, yB);
-			if (yA < 0) drawMountainEndzoneWorld(0, -10, uni.endPrimary, uni.endSecondary);
-			if (yB > 100) drawMountainEndzoneWorld(100, 110, uni.endPrimary, uni.endSecondary);
+			if (yA < Field.southGoal) drawMountainEndzoneWorld(Field.southGoal, Field.southBack, uni.endPrimary, uni.endSecondary);
+			if (yB > Field.northGoal) drawMountainEndzoneWorld(Field.northGoal, Field.northBack, uni.endPrimary, uni.endSecondary);
 			drawMidfieldLogo();
 			const lw = Math.max(2.2, px * 0.055);
 			for (let yd = Math.ceil((yA - 1) / 5) * 5; yd <= yB + 1; yd += 5) {
-				if (yd < -10 || yd > 110) continue;
+				if (yd < Field.southBack || yd > Field.northBack) continue;
 				const ten = yd % 10 === 0;
 				strokeWorldLine(fl, yd, fr, yd, ten ? "rgba(236,240,230,0.62)" : "rgba(236,240,230,0.34)", ten ? lw * 1.2 : lw * 0.85);
 			}
-			strokeWorldLine(fl, -10, fl, 110, "rgba(255,255,255,0.5)", lw * 1.35);
-			strokeWorldLine(fr, -10, fr, 110, "rgba(255,255,255,0.5)", lw * 1.35);
+			strokeWorldLine(fl, Field.southBack, fl, Field.northBack, "rgba(255,255,255,0.5)", lw * 1.35);
+			strokeWorldLine(fr, Field.southBack, fr, Field.northBack, "rgba(255,255,255,0.5)", lw * 1.35);
 			strokeWorldLine(fl, 20, fl, 80, "rgba(236,240,230,0.95)", lw * 2.5);
 			strokeWorldLine(fr, 20, fr, 80, "rgba(236,240,230,0.95)", lw * 2.5);
 			const innerTick = postGapHalf() * 0.16;
@@ -13201,10 +13349,7 @@ function drawMiniPreview(canvas, kind) {
 				ctx.fillStyle = "#fdba74";
 				ctx.fillRect(base.sx - sc * 0.32, top.sy - sc * 0.28, sc * 0.64, sc * 0.28);
 			}
-			jumboPylon(0, "L"); jumboPylon(0, "R");
-			jumboPylon(-10, "L"); jumboPylon(-10, "R");
-			jumboPylon(100, "L"); jumboPylon(100, "R");
-			jumboPylon(110, "L"); jumboPylon(110, "R");
+			Field.pylonYards().forEach((yy) => { jumboPylon(yy, "L"); jumboPylon(yy, "R"); });
 			const pack = [];
 			if (qb && qb.active) pack.push(qb);
 			(blockers || []).forEach((p) => { if (p && p.active) pack.push(p); });
@@ -13526,15 +13671,15 @@ function drawMiniPreview(canvas, kind) {
 		function strokeWorld(x0, y0, x1, y1, color, width) {
 			strokeWorldLine(x0, y0, x1, y1, color, width);
 		}
-		fillTurfRange(0, 100);
-		drawMountainEndzoneWorld(0, -10, uni.endPrimary, uni.endSecondary);
-		drawMountainEndzoneWorld(100, 110, uni.endPrimary, uni.endSecondary);
+		fillTurfRange(Field.southGoal, Field.northGoal);
+		drawMountainEndzoneWorld(Field.southGoal, Field.southBack, uni.endPrimary, uni.endSecondary);
+		drawMountainEndzoneWorld(Field.northGoal, Field.northBack, uni.endPrimary, uni.endSecondary);
 		function strokePaint(x0, y0, x1, y1, paint, width) {
 			strokeWorld(x0, y0, x1, y1, "rgba(12,20,16,0.75)", width + 1.4);
 			strokeWorld(x0, y0, x1, y1, paint, width);
 		}
-		strokePaint(fl, -10, fr, -10, "rgba(236,240,230,0.55)", 2);
-		strokePaint(fl, 110, fr, 110, "rgba(236,240,230,0.6)", 2);
+		strokePaint(fl, Field.southBack, fr, Field.southBack, "rgba(236,240,230,0.55)", 2);
+		strokePaint(fl, Field.northBack, fr, Field.northBack, "rgba(236,240,230,0.6)", 2);
 		function paintYardNum(side, numY, label, isTen) {
 			const img = yardNumCanvas(label, isTen);
 			const tall = isTen ? 1.7 : 1.2;
@@ -13564,11 +13709,11 @@ function drawMiniPreview(canvas, kind) {
 			}
 			drawImageWorld3(img, corners, 8, 4);
 		}
-		for (let yd = 0; yd <= 100; yd += 5) {
+		for (let yd = Field.southGoal; yd <= Field.northGoal; yd += 5) {
 			const isTen = yd % 10 === 0;
 			strokePaint(fl, yd, fr, yd, isTen ? "rgba(236,240,230,0.5)" : "rgba(236,240,230,0.28)", isTen ? 1.35 : 1.05);
-			const label = yd === 0 || yd === 100 ? "G" : String(yd > 50 ? 100 - yd : yd);
-			const numY = yd === 0 || yd === 5 || yd === 95 || yd === 100 ? yd + (yd < 50 ? .55 : yd > 50 ? -.55 : 0) : yd;
+			const label = yd === Field.southGoal || yd === Field.northGoal ? "G" : String(yd > Field.midfield ? Field.length - yd : yd);
+			const numY = yd === Field.southGoal || yd === 5 || yd === Field.northGoal - 5 || yd === Field.northGoal ? yd + (yd < Field.midfield ? .55 : yd > Field.midfield ? -.55 : 0) : yd;
 			paintYardNum(-1, numY, label, isTen);
 			paintYardNum(1, numY, label, isTen);
 		}
@@ -13603,18 +13748,11 @@ function drawMiniPreview(canvas, kind) {
 			ctx.fillStyle = "#fdba74";
 			ctx.fillRect(pt.sx - sc * .35, pt.sy - sc * 1.7, sc * .7, sc * .35);
 		}
-		drawPylon(0, "L");
-		drawPylon(0, "R");
-		drawPylon(-10, "L");
-		drawPylon(-10, "R");
-		drawPylon(100, "L");
-		drawPylon(100, "R");
-		drawPylon(110, "L");
-		drawPylon(110, "R");
+		Field.pylonYards().forEach((yy) => { drawPylon(yy, "L"); drawPylon(yy, "R"); });
 		drawGoalPosts();
 		strokeWorld(fl, playStartYard, fr, playStartYard, "#3b82f6", 2.6);
-		strokeWorld(fl, 0, fl, 100, "rgba(255,255,255,0.4)", 2.5);
-		strokeWorld(fr, 0, fr, 100, "rgba(255,255,255,0.4)", 2.5);
+		strokeWorld(fl, Field.southGoal, fl, Field.northGoal, "rgba(255,255,255,0.4)", 2.5);
+		strokeWorld(fr, Field.southGoal, fr, Field.northGoal, "rgba(255,255,255,0.4)", 2.5);
 		strokeWorld(fl, 20, fl, 80, "rgba(236,240,230,0.92)", Math.max(5, SCALE_X * .28));
 		strokeWorld(fr, 20, fr, 80, "rgba(236,240,230,0.92)", Math.max(5, SCALE_X * .28));
 		{
@@ -13827,29 +13965,39 @@ function drawMiniPreview(canvas, kind) {
 		ctx.fillText("SPRINT", x, y - 2);
 	}
 	let raf = 0;
-	function loop(now) {
-		try {
-			const dt = Math.min((now - lastTime) / 1e3, .05);
-			lastTime = now;
-			update(dt);
-			if (!paused && !fullReplay) syncGaitSpeeds(dt);
-			if (!paused && !fullReplay && !sessionOver) {
-				replayAcc += dt;
-				if (replayAcc >= 1 / REPLAY_HZ) {
-					replayAcc = 0;
-					const frame = captureFrame();
-					const live = playActive && !practiceAwaitSnap && preSnapTimer <= 0;
-					if (live) {
-						replayBuf.push(frame);
-						playFrames.push(frame);
-						if (replayBuf.length > REPLAY_CAP) replayBuf.shift();
-						if (playFrames.length > REPLAY_CAP) playFrames.shift();
-					} else {
-						huddleBuf.push(frame);
-						if (huddleBuf.length > HUDDLE_KEEP) huddleBuf.shift();
-					}
+	function step(dt) {
+		update(dt);
+		if (!paused && !fullReplay) syncGaitSpeeds(dt);
+		if (!paused && !fullReplay && !sessionOver) {
+			replayAcc += dt;
+			if (replayAcc >= 1 / REPLAY_HZ) {
+				replayAcc = 0;
+				const frame = captureFrame();
+				const live = playActive && !practiceAwaitSnap && preSnapTimer <= 0;
+				if (live) {
+					replayBuf.push(frame);
+					playFrames.push(frame);
+					if (replayBuf.length > REPLAY_CAP) replayBuf.shift();
+					if (playFrames.length > REPLAY_CAP) playFrames.shift();
+				} else {
+					huddleBuf.push(frame);
+					if (huddleBuf.length > HUDDLE_KEEP) huddleBuf.shift();
 				}
 			}
+		}
+	}
+	function loop(now) {
+		try {
+			const realDt = Math.max(0, (now - lastTime) / 1e3);
+			lastTime = now;
+			simAcc += realDt;
+			let n = 0;
+			while (simAcc >= SIM_DT && n < SIM_MAX_STEPS) {
+				step(SIM_DT);
+				simAcc -= SIM_DT;
+				n++;
+			}
+			if (n === SIM_MAX_STEPS) simAcc = 0;
 			draw();
 			updateHUD();
 		} catch (err) {
@@ -14105,7 +14253,7 @@ function drawMiniPreview(canvas, kind) {
 	bindCount("lbMinus", "lbPlus", () => numLBs, (v) => { numLBs = v; }, 0, 4, "LB");
 	bindCount("dbMinus", "dbPlus", () => numDBs, (v) => { numDBs = v; }, 0, 6, "DB");
 	$("widthSelect").onchange = (e) => {
-		FIELD_WIDTH = parseInt(e.target.value, 10) || 75;
+		FIELD_WIDTH = Field.setWidth(e.target.value);
 		refreshScale();
 		ballX = clampToHash(ballX);
 		placeEntitiesForNewPlay();
@@ -14265,26 +14413,14 @@ function drawMiniPreview(canvas, kind) {
 			try { placeEntitiesForNewPlay(); } catch (err) { console.error(err); }
 		}
 	};
-	const offStrEl = $("offStrSlider");
-	const offStrLab = $("offStrLabel");
-	if (offStrEl) {
-		offStrength = parseFloat(offStrEl.value) || 1.00;
-		if (offStrLab) offStrLab.textContent = offStrength.toFixed(2) + "×";
-		offStrEl.oninput = () => {
-			offStrength = parseFloat(offStrEl.value) || 1.00;
-			if (offStrLab) offStrLab.textContent = offStrength.toFixed(2) + "×";
-		};
+	function syncSideAliases() {
+		offStrength = playingDefense() ? cpuStrength : youStrength;
+		defStrength = playingDefense() ? youStrength : cpuStrength;
 	}
-	const defStrEl = $("defStrSlider");
-	const defStrLab = $("defStrLabel");
-	if (defStrEl) {
-		defStrength = parseFloat(defStrEl.value) || 1.00;
-		if (defStrLab) defStrLab.textContent = defStrength.toFixed(2) + "×";
-		defStrEl.oninput = () => {
-			defStrength = parseFloat(defStrEl.value) || 1.00;
-			if (defStrLab) defStrLab.textContent = defStrength.toFixed(2) + "×";
-		};
-	}
+	wireStrengthSlider("youStrSlider", "youStrLabel", () => youStrength, (v) => { youStrength = v; syncSideAliases(); });
+	wireStrengthSlider("mateStrSlider", "mateStrLabel", () => mateStrength, (v) => { mateStrength = v; });
+	wireStrengthSlider("cpuStrSlider", "cpuStrLabel", () => cpuStrength, (v) => { cpuStrength = v; syncSideAliases(); });
+	syncSideAliases();
 	const spdEl = $("speedSlider");
 	const spdLab = $("speedLabel");
 	if (spdEl) {
@@ -15132,9 +15268,13 @@ function drawMiniPreview(canvas, kind) {
 			fatigue: fatigueOn,
 			breakBlock: +Number(breakBlock).toFixed(2),
 			breakTackle: +Number(breakTackle).toFixed(2),
+			you: +Number(youStrength).toFixed(2),
+			mates: +Number(mateStrength).toFixed(2),
+			cpu: +Number(cpuStrength).toFixed(2),
 			defYs: (defenders || []).map((d) => +Number(d.y).toFixed(2)),
 			defXs: (defenders || []).map((d) => +Number(d.x).toFixed(2)),
 			jobYs: (defenders || []).map((d) => d.jobY == null ? null : +Number(d.jobY).toFixed(2)),
+			stations: (defenders || []).map((d) => ({ g: d.group, job: d.job, station: d.station || null, x: d.stationX == null ? null : +Number(d.stationX).toFixed(2), y: d.stationY == null ? null : +Number(d.stationY).toFixed(2) })),
 			hash: [hashLeft(), hashRight()].map((v) => +Number(v).toFixed(2)),
 			post: +Number(postGapHalf() * 2).toFixed(2),
 			width: FIELD_WIDTH,
@@ -15272,8 +15412,10 @@ function drawMiniPreview(canvas, kind) {
 			cameraY = 100;
 		},
 		startReplay: () => startFullReplay(),
+		getSim: () => ({ dt: SIM_DT, maxSteps: SIM_MAX_STEPS, acc: +simAcc.toFixed(4) }),
+		stepOnce: () => { step(SIM_DT); return SIM_DT; },
 		setFieldWidth: (w) => {
-			FIELD_WIDTH = Math.max(5, Math.min(100, parseInt(w, 10) || 75));
+			FIELD_WIDTH = Field.setWidth(w);
 			const sel = $("widthSelect");
 			if (sel) sel.value = String(FIELD_WIDTH);
 			refreshScale();
