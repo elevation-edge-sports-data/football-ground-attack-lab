@@ -15,6 +15,7 @@ Not affiliated with, endorsed by, or licensed by any league or team.
 ## v10
 
 - **Game** is the default mode (Practice remains available)
+- T-9 (and T-3) pads work on every control profile, including Basic (v1) and Expanded (v2). DirectInput T-9 is remapped; standard-mapping T-9 is left as-is. LT/RT stiff no longer fires from the right stick.
 - Offense teammate steer restored on Wings (v3), Independent (v4), and Classic (v6): Z/X and LT/RT
 - Speed labeled 1.00× runs at 1.10; the whole 0.50–2.00 scale is +10% under the label
 - Break block labeled 1.00 is 0.75; break tackle labeled 1.00 is 1.50
@@ -148,14 +149,16 @@ The D-pad is eight extra moves. The same eight are on the keyboard: I J K L are 
 
 A resumes pause. B restarts from pause (not while adjusting the camera).
 
-Microsoft Edge is recommended for an Xbox controller.
+Microsoft Edge is recommended for an Xbox controller. T-9 works in Chrome and Edge (DirectInput v1 and standard-mapping v2).
 
 ### Profiles
+
+All profiles are **T-9 compatible** (DirectInput v1 and standard-mapping v2).
 
 - **Basic (v1)** — D-pad steers the runner. LT / RT stiff. Start pauses.
 - **Expanded (v2)** — D-pad is the eight extra moves. LT / RT stiff. Click RS to pause.
 - **Wings (v3)** — LT and RT independently select the nearest teammates to the left and right. One stick directs the ball carrier and those teammates together. Y hurdles. D-pad up-left / up-right stiff.
-- **Independent (v4)** — T-9 compatible. Independently steer ball carrier and teammates using left and right sticks.
+- **Independent (v4)** — Independently steer ball carrier and teammates using left and right sticks.
 - **Classic (v6)** — Built on Independent (v4). Select / View stiff left, Start / Menu stiff right. No celebrate, so fumbles stay off.
 
 ## Cameras

@@ -517,6 +517,10 @@ function startGame(canvas) {
 	const SIM_MAX_STEPS = 8;
 	let simAcc = 0;
 	let padName = "";
+	let padT9 = ""; // "" | "v1" | "v2" — T-9 DirectInput vs standard mapping
+	let t9RyAxis = 5; // latched raw T-9 right-stick Y: 5 (v1) or 3 (v2-raw)
+	const T9_ID_RE = /1949.*0402|Vendor:\s*1949\s*Product:\s*0402|\bT-?9\b|Terios/i;
+	const T9_BTN_MAP = [0, 1, 3, 4, 6, 7, 8, 9, 10, 11, 13, 14]; // standard → T-9 v1 DirectInput
 	let sessionOver = false;
 	let gamesPlayed = 0;
 	let numOL = 5;
@@ -4504,6 +4508,50 @@ function remaining(group) {
 			y: y * scale
 		};
 	}
+	function isT9Family(gp) {
+		return !!(gp && T9_ID_RE.test(gp.id || ""));
+	}
+	function isT9Raw(gp) {
+		// T-9 v1 / T-3 DirectInput: browser did not remap to the standard layout.
+		return !!(gp && gp.mapping !== "standard" && isT9Family(gp));
+	}
+	function t9HatDpad(gp) {
+		const hat = gp.axes[9] ?? 3.29;
+		const targets = [
+			{v: -1.00, u:1, d:0, l:0, r:0},
+			{v:  1.00, u:1, d:0, l:1, r:0},
+			{v: -0.71, u:1, d:0, l:0, r:1},
+			{v:  0.71, u:0, d:0, l:1, r:0},
+			{v:  0.43, u:0, d:1, l:1, r:0},
+			{v:  0.14, u:0, d:1, l:0, r:0},
+			{v: -0.14, u:0, d:1, l:0, r:1},
+			{v: -0.43, u:0, d:0, l:0, r:1}
+		];
+		let best = null, bestDist = 0.35;
+		if (hat < 2.5) {
+			for (const t of targets) {
+				const dist = Math.abs(hat - t.v);
+				if (dist < bestDist) {
+					bestDist = dist;
+					best = t;
+				}
+			}
+		}
+		return best
+			? { u: !!best.u, d: !!best.d, l: !!best.l, r: !!best.r }
+			: { u: false, d: false, l: false, r: false };
+	}
+	function t9RightStickY(gp) {
+		const mag = (v) => (v != null && Math.abs(v) <= 1.05 ? Math.abs(v) : 0);
+		const a3 = gp.axes[3];
+		const a5 = gp.axes[5];
+		const m3 = mag(a3);
+		const m5 = mag(a5);
+		if (m5 > 0.28 && m5 > m3 + 0.08) t9RyAxis = 5;
+		else if (m3 > 0.28 && m3 > m5 + 0.08) t9RyAxis = 3;
+		const y = t9RyAxis === 3 ? (a3 || 0) : (a5 || 0);
+		return Math.abs(y) <= 1.05 ? y : 0;
+	}
 	function padTeammate() {
 		return padProfile === "v3" || padProfile === "v4" || padProfile === "v6";
 	}
@@ -4680,17 +4728,18 @@ function remaining(group) {
 		}
 		if (!gp);
 
-		// --- T-3 / Terios (Vendor:1949 Product:0402) remapper ---
-		const isT3 = !!(gp && /1949.*0402|Vendor:\s*1949\s*Product:\s*0402/i.test(gp.id || ""));
-		const t3Map = [0, 1, 3, 4, 6, 7, 8, 9, 10, 11, 13, 14]; // standard → actual index
+		// T-9 / T-3: v1 is raw DirectInput (gapped buttons, hat on axis 9, RS Y on 5 or 3).
+		// v2 is standard-mapping — already remapped by the browser; do not remap again.
+		const t9Raw = isT9Raw(gp);
+		const t9Fam = isT9Family(gp);
+		padT9 = t9Raw ? "v1" : (t9Fam ? "v2" : "");
 		const btn = (i) => {
 			if (!gp) return false;
-			const idx = isT3 ? (t3Map[i] !== undefined ? t3Map[i] : -1) : i;
+			const idx = t9Raw ? (T9_BTN_MAP[i] !== undefined ? T9_BTN_MAP[i] : -1) : i;
 			if (idx < 0 || !gp.buttons[idx]) return false;
 			const b = gp.buttons[idx];
 			return !!(b.pressed || b.value > .4);
 		};
-		// -------------------------------------------------------
 		const kbDpad = {
 			u: !typing && keys.has("KeyI"),
 			d: !typing && keys.has("KeyK"),
@@ -4703,33 +4752,7 @@ function remaining(group) {
 			l: btn(14),
 			r: btn(15)
 		};
-		if (isT3 && gp) {
-			// D-pad is a hat switch on axes[9] — full 8-way decoder
-			const hat = gp.axes[9] ?? 3.29;
-			const targets = [
-				{v: -1.00, u:1, d:0, l:0, r:0}, // Up
-				{v:  1.00, u:1, d:0, l:1, r:0}, // Up-Left
-				{v: -0.71, u:1, d:0, l:0, r:1}, // Up-Right
-				{v:  0.71, u:0, d:0, l:1, r:0}, // Left
-				{v:  0.43, u:0, d:1, l:1, r:0}, // Down-Left
-				{v:  0.14, u:0, d:1, l:0, r:0}, // Down
-				{v: -0.14, u:0, d:1, l:0, r:1}, // Down-Right
-				{v: -0.43, u:0, d:0, l:0, r:1}  // Right
-			];
-			let best = null, bestDist = 0.35; // max distance to accept
-			if (hat < 2.5) { // ignore the weird centered value ~3.29
-				for (const t of targets) {
-					const dist = Math.abs(hat - t.v);
-					if (dist < bestDist) {
-						bestDist = dist;
-						best = t;
-					}
-				}
-			}
-			gpDpad = best
-				? { u: !!best.u, d: !!best.d, l: !!best.l, r: !!best.r }
-				: { u: false, d: false, l: false, r: false };
-		}
+		if (t9Raw && gp) gpDpad = t9HatDpad(gp);
 		const bits = {
 			u: kbDpad.u || gpDpad.u,
 			d: kbDpad.d || gpDpad.d,
@@ -4769,18 +4792,18 @@ function remaining(group) {
 			padLive = true;
 			padName = gp.id || "Xbox";
 			const st = radialDeadzone(gp.axes[0] || 0, -(gp.axes[1] || 0), .18);
-			const rst = isT3
-				? radialDeadzone(gp.axes[2] || 0, -(gp.axes[5] || 0), .22)   // right stick Y is on axis 5
+			const rst = t9Raw
+				? radialDeadzone(gp.axes[2] || 0, -t9RightStickY(gp), .22)
 				: radialDeadzone(gp.axes[2] || 0, -(gp.axes[3] || 0), .22);
-				rsY = rst.y;
+			rsY = rst.y;
 			rsX = rst.x;
 			rsCamY = rst.y;
 			stickX = st.x;
 			stickY = st.y;
-			const lt = isT3
+			const lt = t9Raw
 				? (gp.buttons[8] && gp.buttons[8].value || 0)
 				: (gp.buttons[6] && gp.buttons[6].value || 0);
-			const rt = isT3
+			const rt = t9Raw
 				? (gp.buttons[9] && gp.buttons[9].value || 0)
 				: (gp.buttons[7] && gp.buttons[7].value || 0);
 			if (padTeammate()) {
@@ -4880,8 +4903,10 @@ function remaining(group) {
 				if (btn(8)) stiffL = true;
 				if (btn(9)) stiffR = true;
 			} else if (padProfile === "basic" || padProfile === "classic") {
-				if (btn(6) || gp.axes[2] !== void 0 && gp.axes[2] > .4) stiffL = true;
-				if (btn(7) || gp.axes[5] !== void 0 && gp.axes[5] > .4) stiffR = true;
+				// Xbox XInput may report LT/RT on axes 2/5. T-9 uses those axes for the right stick.
+				const analogTrig = !t9Fam && gp.mapping !== "standard";
+				if (btn(6) || (analogTrig && gp.axes[2] !== void 0 && gp.axes[2] > .4)) stiffL = true;
+				if (btn(7) || (analogTrig && gp.axes[5] !== void 0 && gp.axes[5] > .4)) stiffR = true;
 			}
 			if (btn(8) && padProfile !== "v6") celebrate = true;
 			if (padProfile === "basic") {
@@ -4897,6 +4922,7 @@ function remaining(group) {
 			if (viewHeld && (fullReplay || paused || !playActive || practiceAwaitSnap)) replayPress = true;
 		} else {
 			padName = "";
+			padT9 = "";
 			prevA = false;
 			prevStart = false;
 		}
@@ -7650,7 +7676,10 @@ function remaining(group) {
 		}
 		document.body.classList.toggle("practice-mode", gameMode === "practice");
 		const ps = $("padStatus");
-		if (ps) ps.textContent = padName ? "Pad · " + profileLabel(padProfile) : "Pad: — · " + profileLabel(padProfile);
+		if (ps) {
+			const t9tag = padT9 === "v1" ? "T-9 DI · " : padT9 === "v2" ? "T-9 · " : "";
+			ps.textContent = padName ? "Pad · " + t9tag + profileLabel(padProfile) : "Pad: — · " + profileLabel(padProfile);
+		}
 	}
 	function loadScores() {
 		try {
@@ -15126,6 +15155,7 @@ function drawMiniPreview(canvas, kind) {
 			right: ctrlRight && { n: ctrlRight.number, g: ctrlRight.group, x: +Number(ctrlRight.x).toFixed(2), y: +Number(ctrlRight.y).toFixed(2), vx: +Number(ctrlRight.vx || 0).toFixed(2), vy: +Number(ctrlRight.vy || 0).toFixed(2), userCtrl: +Number(ctrlRight._userCtrl || 0).toFixed(2) }
 		}),
 		getPadProfile: () => padProfile,
+		getPadT9: () => padT9,
 		setPadProfile: (p) => {
 			const id = PROFILE_LABELS[p] ? p : padProfile;
 			padProfile = id;
